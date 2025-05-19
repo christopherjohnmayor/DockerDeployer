@@ -1,34 +1,20 @@
+"""
+Tests for the FastAPI endpoints.
+"""
+
 import os
-import sys
 import pytest
+from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 import docker as docker_sdk
 import httpx
 
-# Ensure backend modules are importable
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../app")))
+# Import app and fixtures
+from backend.app.main import app
+from conftest import docker_required, llm_required, docker_available, llm_available
 
-from app.main import app
-
+# For backward compatibility with existing tests
 client = TestClient(app)
-
-def docker_available():
-    try:
-        client = docker_sdk.from_env()
-        client.ping()
-        return True
-    except Exception:
-        return False
-
-docker_required = pytest.mark.skipif(not docker_available(), reason="Docker is not available")
-
-def llm_available():
-    url = os.getenv("LLM_API_URL", "http://localhost:8001/generate")
-    try:
-        resp = httpx.post(url, json={"prompt": "Hello", "context": None, "params": {}})
-        return resp.status_code == 200
-    except Exception:
-        return False
 
 def test_nlp_parse():
     resp = client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
@@ -134,3 +120,125 @@ def test_history():
         assert isinstance(data, list)
         for h in data:
             assert "commit" in h and "author" in h and "message" in h
+
+
+class TestContainerEndpointsMocked:
+    """Test suite for container-related API endpoints using mocks."""
+
+    def test_list_containers(self, test_client, mock_docker_manager):
+        """Test listing containers endpoint."""
+        with patch("backend.app.main.get_docker_manager", return_value=mock_docker_manager):
+            response = test_client.get("/containers")
+
+            assert response.status_code == 200
+            assert isinstance(response.json(), list)
+            assert len(response.json()) == 1
+            assert response.json()[0]["id"] == "test_container_id"
+            assert response.json()[0]["name"] == "test_container"
+
+            mock_docker_manager.list_containers.assert_called_once_with(all=True)
+
+    def test_container_action_start(self, test_client, mock_docker_manager):
+        """Test container start action endpoint."""
+        with patch("backend.app.main.get_docker_manager", return_value=mock_docker_manager):
+            response = test_client.post(
+                "/containers/test_container_id/action",
+                json={"action": "start"}
+            )
+
+            assert response.status_code == 200
+            assert response.json()["container_id"] == "test_container_id"
+            assert response.json()["action"] == "start"
+
+            mock_docker_manager.start_container.assert_called_once_with("test_container_id")
+
+    def test_container_action_stop(self, test_client, mock_docker_manager):
+        """Test container stop action endpoint."""
+        with patch("backend.app.main.get_docker_manager", return_value=mock_docker_manager):
+            response = test_client.post(
+                "/containers/test_container_id/action",
+                json={"action": "stop"}
+            )
+
+            assert response.status_code == 200
+            assert response.json()["container_id"] == "test_container_id"
+            assert response.json()["action"] == "stop"
+
+            mock_docker_manager.stop_container.assert_called_once_with("test_container_id")
+
+    def test_container_action_restart(self, test_client, mock_docker_manager):
+        """Test container restart action endpoint."""
+        with patch("backend.app.main.get_docker_manager", return_value=mock_docker_manager):
+            response = test_client.post(
+                "/containers/test_container_id/action",
+                json={"action": "restart"}
+            )
+
+            assert response.status_code == 200
+            assert response.json()["container_id"] == "test_container_id"
+            assert response.json()["action"] == "restart"
+
+            mock_docker_manager.restart_container.assert_called_once_with("test_container_id")
+
+    def test_get_logs(self, test_client, mock_docker_manager):
+        """Test getting container logs endpoint."""
+        with patch("backend.app.main.get_docker_manager", return_value=mock_docker_manager):
+            response = test_client.get("/logs/test_container_id")
+
+            assert response.status_code == 200
+            assert response.json()["id"] == "test_container_id"
+            assert response.json()["logs"] == "Test logs output"
+
+            mock_docker_manager.get_logs.assert_called_once_with("test_container_id")
+
+
+class TestTemplateEndpointsMocked:
+    """Test suite for template-related API endpoints using mocks."""
+
+    def test_list_templates(self, test_client, mock_template_loader):
+        """Test listing templates endpoint."""
+        response = test_client.get("/templates")
+
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+        assert len(response.json()) == 3
+        assert "lemp" in [t["name"] for t in response.json()]
+        assert "mean" in [t["name"] for t in response.json()]
+        assert "wordpress" in [t["name"] for t in response.json()]
+
+    def test_deploy_template(self, test_client, mock_template_loader, mock_git_manager):
+        """Test deploying a template endpoint."""
+        with patch("backend.app.main.git_manager", mock_git_manager):
+            response = test_client.post(
+                "/templates/deploy",
+                json={"template_name": "lemp"}
+            )
+
+            assert response.status_code == 200
+            assert response.json()["template"] == "lemp"
+            assert response.json()["status"] == "deployed"
+
+            mock_git_manager.commit_all.assert_called_once()
+
+
+class TestNLPEndpointsMocked:
+    """Test suite for NLP-related API endpoints using mocks."""
+
+    def test_parse_nlp_command(self, test_client, mock_llm_client):
+        """Test parsing NLP command endpoint."""
+        with patch("backend.app.main.intent_parser.parse") as mock_parse:
+            mock_parse.return_value = {
+                "action": "list_containers",
+                "parameters": {}
+            }
+
+            response = test_client.post(
+                "/nlp/parse",
+                json={"command": "List all containers"}
+            )
+
+            assert response.status_code == 200
+            assert "action_plan" in response.json()
+            assert response.json()["action_plan"]["action"] == "list_containers"
+
+            mock_parse.assert_called_once_with("List all containers")
