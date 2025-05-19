@@ -1,0 +1,316 @@
+name: "MEAN Stack"
+description: "MongoDB, Express.js, Angular, and Node.js stack for modern web applications"
+version: "1.0.0"
+author: "DockerDeployer Team"
+category: "web"
+complexity: "medium"
+tags:
+  - "web"
+  - "mongodb"
+  - "express"
+  - "angular"
+  - "node"
+  - "javascript"
+  - "typescript"
+
+variables:
+  PROJECT_NAME:
+    description: "Project name (used for container naming and directory structure)"
+    default: "mean-app"
+    required: true
+  
+  NODE_VERSION:
+    description: "Node.js version to use"
+    default: "18"
+    options:
+      - "16"
+      - "18"
+      - "20"
+  
+  MONGODB_VERSION:
+    description: "MongoDB version to use"
+    default: "6.0"
+    options:
+      - "5.0"
+      - "6.0"
+      - "7.0"
+  
+  MONGODB_ROOT_USERNAME:
+    description: "MongoDB root username"
+    default: "root"
+    required: true
+  
+  MONGODB_ROOT_PASSWORD:
+    description: "MongoDB root password"
+    default: "rootpassword"
+    required: true
+    sensitive: true
+  
+  MONGODB_DATABASE:
+    description: "MongoDB database name"
+    default: "meanapp"
+    required: true
+  
+  API_PORT:
+    description: "Express.js API port"
+    default: "3000"
+    required: true
+  
+  FRONTEND_PORT:
+    description: "Angular frontend port"
+    default: "4200"
+    required: true
+  
+  MONGO_EXPRESS_PORT:
+    description: "Mongo Express port (MongoDB web admin)"
+    default: "8081"
+    required: false
+
+services:
+  mongodb:
+    image: "mongo:${MONGODB_VERSION}"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: "${MONGODB_ROOT_USERNAME}"
+      MONGO_INITDB_ROOT_PASSWORD: "${MONGODB_ROOT_PASSWORD}"
+      MONGO_INITDB_DATABASE: "${MONGODB_DATABASE}"
+    volumes:
+      - "mongodb_data:/data/db"
+      - "./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro"
+    restart: "unless-stopped"
+  
+  api:
+    build:
+      context: "./api"
+      args:
+        NODE_VERSION: "${NODE_VERSION}"
+    ports:
+      - "${API_PORT}:3000"
+    environment:
+      NODE_ENV: "development"
+      MONGODB_URI: "mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}?authSource=admin"
+      PORT: "3000"
+    volumes:
+      - "./api:/usr/src/app"
+      - "/usr/src/app/node_modules"
+    depends_on:
+      - mongodb
+    restart: "unless-stopped"
+  
+  frontend:
+    build:
+      context: "./frontend"
+      args:
+        NODE_VERSION: "${NODE_VERSION}"
+    ports:
+      - "${FRONTEND_PORT}:4200"
+    environment:
+      NODE_ENV: "development"
+      API_URL: "http://localhost:${API_PORT}/api"
+    volumes:
+      - "./frontend:/usr/src/app"
+      - "/usr/src/app/node_modules"
+    depends_on:
+      - api
+    restart: "unless-stopped"
+  
+  mongo-express:
+    image: "mongo-express:latest"
+    ports:
+      - "${MONGO_EXPRESS_PORT}:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: "${MONGODB_ROOT_USERNAME}"
+      ME_CONFIG_MONGODB_ADMINPASSWORD: "${MONGODB_ROOT_PASSWORD}"
+      ME_CONFIG_MONGODB_URL: "mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@mongodb:27017/?authSource=admin"
+    depends_on:
+      - mongodb
+    restart: "unless-stopped"
+
+volumes:
+  mongodb_data:
+    driver: "local"
+
+files:
+  - path: "mongo-init.js"
+    content: |
+      db.createUser({
+        user: '${MONGODB_ROOT_USERNAME}',
+        pwd: '${MONGODB_ROOT_PASSWORD}',
+        roles: [
+          {
+            role: 'readWrite',
+            db: '${MONGODB_DATABASE}'
+          }
+        ]
+      });
+      
+      db = db.getSiblingDB('${MONGODB_DATABASE}');
+      
+      db.createCollection('items');
+      db.items.insertMany([
+        { name: 'Item 1', description: 'Description for Item 1', createdAt: new Date() },
+        { name: 'Item 2', description: 'Description for Item 2', createdAt: new Date() }
+      ]);
+  
+  - path: "api/Dockerfile"
+    content: |
+      ARG NODE_VERSION
+      FROM node:${NODE_VERSION}
+      
+      WORKDIR /usr/src/app
+      
+      COPY package*.json ./
+      
+      RUN npm install
+      
+      COPY . .
+      
+      EXPOSE 3000
+      
+      CMD ["npm", "run", "dev"]
+  
+  - path: "api/package.json"
+    content: |
+      {
+        "name": "mean-api",
+        "version": "1.0.0",
+        "description": "Express.js API for MEAN stack",
+        "main": "src/index.js",
+        "scripts": {
+          "start": "node src/index.js",
+          "dev": "nodemon src/index.js"
+        },
+        "dependencies": {
+          "cors": "^2.8.5",
+          "dotenv": "^16.0.3",
+          "express": "^4.18.2",
+          "mongoose": "^7.0.3",
+          "morgan": "^1.10.0"
+        },
+        "devDependencies": {
+          "nodemon": "^2.0.22"
+        }
+      }
+  
+  - path: "api/src/index.js"
+    content: |
+      const express = require('express');
+      const mongoose = require('mongoose');
+      const cors = require('cors');
+      const morgan = require('morgan');
+      
+      const app = express();
+      const PORT = process.env.PORT || 3000;
+      const MONGODB_URI = process.env.MONGODB_URI;
+      
+      // Middleware
+      app.use(cors());
+      app.use(express.json());
+      app.use(morgan('dev'));
+      
+      // Connect to MongoDB
+      mongoose.connect(MONGODB_URI)
+        .then(() => console.log('Connected to MongoDB'))
+        .catch(err => console.error('MongoDB connection error:', err));
+      
+      // Define Item schema and model
+      const itemSchema = new mongoose.Schema({
+        name: { type: String, required: true },
+        description: { type: String },
+        createdAt: { type: Date, default: Date.now }
+      });
+      
+      const Item = mongoose.model('Item', itemSchema);
+      
+      // Routes
+      app.get('/api/items', async (req, res) => {
+        try {
+          const items = await Item.find();
+          res.json(items);
+        } catch (err) {
+          res.status(500).json({ error: err.message });
+        }
+      });
+      
+      app.post('/api/items', async (req, res) => {
+        try {
+          const newItem = new Item(req.body);
+          const savedItem = await newItem.save();
+          res.status(201).json(savedItem);
+        } catch (err) {
+          res.status(400).json({ error: err.message });
+        }
+      });
+      
+      app.get('/api/health', (req, res) => {
+        res.json({ status: 'API is running' });
+      });
+      
+      // Start server
+      app.listen(PORT, () => {
+        console.log(`Server running on port ${PORT}`);
+      });
+  
+  - path: "frontend/Dockerfile"
+    content: |
+      ARG NODE_VERSION
+      FROM node:${NODE_VERSION}
+      
+      WORKDIR /usr/src/app
+      
+      COPY package*.json ./
+      
+      RUN npm install -g @angular/cli && npm install
+      
+      COPY . .
+      
+      EXPOSE 4200
+      
+      CMD ["ng", "serve", "--host", "0.0.0.0", "--disable-host-check"]
+
+instructions: |
+  # MEAN Stack Deployment Instructions
+  
+  This template deploys a MEAN (MongoDB, Express.js, Angular, Node.js) stack for modern web application development.
+  
+  ## Post-Deployment Steps
+  
+  1. Access your Angular frontend at http://localhost:${FRONTEND_PORT}
+  2. Access your Express.js API at http://localhost:${API_PORT}/api
+  3. Access Mongo Express (MongoDB admin) at http://localhost:${MONGO_EXPRESS_PORT}
+  
+  ## API Endpoints
+  
+  - GET /api/items - List all items
+  - POST /api/items - Create a new item
+  - GET /api/health - API health check
+  
+  ## Database Connection
+  
+  The API is pre-configured to connect to MongoDB using the following connection string:
+  
+  ```
+  mongodb://${MONGODB_ROOT_USERNAME}:${MONGODB_ROOT_PASSWORD}@mongodb:27017/${MONGODB_DATABASE}?authSource=admin
+  ```
+  
+  ## Development Workflow
+  
+  1. API code is in the `./api` directory
+  2. Frontend code should be placed in the `./frontend` directory
+  3. MongoDB data is persisted in a Docker volume named `${PROJECT_NAME}_mongodb_data`
+  
+  ## Next Steps
+  
+  1. Initialize an Angular project in the frontend directory:
+     ```
+     cd frontend
+     ng new . --skip-git
+     ```
+  
+  2. Configure your Angular app to connect to the API using the environment variable:
+     ```typescript
+     // environment.ts
+     export const environment = {
+       production: false,
+       apiUrl: 'http://localhost:${API_PORT}/api'
+     };
+     ```

@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+docker
+gitpython
+pydantic
+python-dotenv
+httpx
+sqlalchemy
+alembic
+celery
+redis
+python-multipart
+typing-extensions
+requests

@@ -1,0 +1,225 @@
+name: "LEMP Stack"
+description: "Linux, Nginx, MySQL, and PHP stack for web applications"
+version: "1.0.0"
+author: "DockerDeployer Team"
+category: "web"
+complexity: "medium"
+tags:
+  - "web"
+  - "nginx"
+  - "mysql"
+  - "php"
+  - "lemp"
+
+variables:
+  PROJECT_NAME:
+    description: "Project name (used for container naming and directory structure)"
+    default: "lemp-app"
+    required: true
+  
+  PHP_VERSION:
+    description: "PHP version to use"
+    default: "8.1"
+    options:
+      - "7.4"
+      - "8.0"
+      - "8.1"
+      - "8.2"
+  
+  MYSQL_VERSION:
+    description: "MySQL version to use"
+    default: "8.0"
+    options:
+      - "5.7"
+      - "8.0"
+      - "8.1"
+  
+  MYSQL_ROOT_PASSWORD:
+    description: "MySQL root password"
+    default: "rootpassword"
+    required: true
+    sensitive: true
+  
+  MYSQL_DATABASE:
+    description: "MySQL database name"
+    default: "app"
+    required: true
+  
+  MYSQL_USER:
+    description: "MySQL user"
+    default: "appuser"
+    required: true
+  
+  MYSQL_PASSWORD:
+    description: "MySQL password"
+    default: "apppassword"
+    required: true
+    sensitive: true
+  
+  WEB_PORT:
+    description: "Web server port"
+    default: "80"
+    required: true
+  
+  PHPMYADMIN_PORT:
+    description: "phpMyAdmin port"
+    default: "8080"
+    required: false
+
+services:
+  nginx:
+    image: "nginx:latest"
+    ports:
+      - "${WEB_PORT}:80"
+    volumes:
+      - "./nginx/conf.d:/etc/nginx/conf.d"
+      - "./www:/var/www/html"
+    depends_on:
+      - php
+    restart: "unless-stopped"
+  
+  php:
+    image: "php:${PHP_VERSION}-fpm"
+    volumes:
+      - "./www:/var/www/html"
+      - "./php/custom.ini:/usr/local/etc/php/conf.d/custom.ini"
+    restart: "unless-stopped"
+  
+  mysql:
+    image: "mysql:${MYSQL_VERSION}"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - "mysql_data:/var/lib/mysql"
+    restart: "unless-stopped"
+  
+  phpmyadmin:
+    image: "phpmyadmin/phpmyadmin"
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
+    environment:
+      PMA_HOST: "mysql"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+    depends_on:
+      - mysql
+    restart: "unless-stopped"
+
+volumes:
+  mysql_data:
+    driver: "local"
+
+files:
+  - path: "nginx/conf.d/default.conf"
+    content: |
+      server {
+          listen 80;
+          server_name localhost;
+          root /var/www/html;
+          index index.php index.html;
+          
+          location / {
+              try_files $uri $uri/ /index.php?$query_string;
+          }
+          
+          location ~ \.php$ {
+              fastcgi_pass php:9000;
+              fastcgi_index index.php;
+              fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+              include fastcgi_params;
+          }
+      }
+  
+  - path: "php/custom.ini"
+    content: |
+      upload_max_filesize = 64M
+      post_max_size = 64M
+      max_execution_time = 300
+      memory_limit = 256M
+  
+  - path: "www/index.php"
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+          <title>LEMP Stack</title>
+          <style>
+              body {
+                  font-family: Arial, sans-serif;
+                  margin: 40px;
+                  line-height: 1.6;
+              }
+              h1 {
+                  color: #2980b9;
+              }
+              .info {
+                  background: #f8f9fa;
+                  padding: 20px;
+                  border-radius: 5px;
+                  margin-top: 20px;
+              }
+          </style>
+      </head>
+      <body>
+          <h1>LEMP Stack is running!</h1>
+          <div class="info">
+              <h2>Environment Information</h2>
+              <ul>
+                  <li>PHP Version: <?php echo phpversion(); ?></li>
+                  <li>Nginx Version: <?php echo $_SERVER['SERVER_SOFTWARE']; ?></li>
+                  <li>MySQL Connection: 
+                      <?php
+                      $host = 'mysql';
+                      $user = '<?php echo getenv("MYSQL_USER"); ?>';
+                      $pass = '<?php echo getenv("MYSQL_PASSWORD"); ?>';
+                      $db = '<?php echo getenv("MYSQL_DATABASE"); ?>';
+                      
+                      $conn = new mysqli($host, $user, $pass, $db);
+                      if ($conn->connect_error) {
+                          echo "Failed: " . $conn->connect_error;
+                      } else {
+                          echo "Success";
+                          $conn->close();
+                      }
+                      ?>
+                  </li>
+              </ul>
+          </div>
+          <p>
+              This is a sample page for your LEMP stack. Replace this with your application.
+          </p>
+          <p>
+              <a href="http://localhost:<?php echo getenv("PHPMYADMIN_PORT") ?: "8080"; ?>">Access phpMyAdmin</a>
+          </p>
+      </body>
+      </html>
+
+instructions: |
+  # LEMP Stack Deployment Instructions
+  
+  This template deploys a LEMP (Linux, Nginx, MySQL, PHP) stack for web application development.
+  
+  ## Post-Deployment Steps
+  
+  1. Access your web application at http://localhost:${WEB_PORT}
+  2. Access phpMyAdmin at http://localhost:${PHPMYADMIN_PORT}
+  3. Place your PHP application files in the `./www` directory
+  
+  ## Database Connection
+  
+  Use the following credentials to connect to MySQL from your PHP application:
+  
+  ```php
+  $host = 'mysql';
+  $user = '${MYSQL_USER}';
+  $pass = '${MYSQL_PASSWORD}';
+  $db = '${MYSQL_DATABASE}';
+  ```
+  
+  ## Customization
+  
+  - Nginx configuration: Edit `./nginx/conf.d/default.conf`
+  - PHP configuration: Edit `./php/custom.ini`
+  - MySQL data is persisted in a Docker volume named `${PROJECT_NAME}_mysql_data`

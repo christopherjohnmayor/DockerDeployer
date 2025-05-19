@@ -1,0 +1,241 @@
+name: "WordPress"
+description: "WordPress with MySQL, phpMyAdmin, and optional Redis cache"
+version: "1.0.0"
+author: "DockerDeployer Team"
+category: "cms"
+complexity: "simple"
+tags:
+  - "cms"
+  - "wordpress"
+  - "mysql"
+  - "php"
+  - "web"
+
+variables:
+  PROJECT_NAME:
+    description: "Project name (used for container naming and directory structure)"
+    default: "wordpress-site"
+    required: true
+  
+  WORDPRESS_VERSION:
+    description: "WordPress version to use"
+    default: "latest"
+    options:
+      - "latest"
+      - "6.4"
+      - "6.3"
+      - "6.2"
+      - "6.1"
+      - "6.0"
+      - "5.9"
+  
+  MYSQL_VERSION:
+    description: "MySQL version to use"
+    default: "8.0"
+    options:
+      - "5.7"
+      - "8.0"
+      - "8.1"
+  
+  MYSQL_ROOT_PASSWORD:
+    description: "MySQL root password"
+    default: "rootpassword"
+    required: true
+    sensitive: true
+  
+  MYSQL_DATABASE:
+    description: "MySQL database name"
+    default: "wordpress"
+    required: true
+  
+  MYSQL_USER:
+    description: "MySQL user"
+    default: "wordpress"
+    required: true
+  
+  MYSQL_PASSWORD:
+    description: "MySQL password"
+    default: "wordpress"
+    required: true
+    sensitive: true
+  
+  WORDPRESS_PORT:
+    description: "WordPress port"
+    default: "80"
+    required: true
+  
+  PHPMYADMIN_PORT:
+    description: "phpMyAdmin port"
+    default: "8080"
+    required: false
+  
+  ENABLE_REDIS_CACHE:
+    description: "Enable Redis cache for better performance"
+    default: "false"
+    options:
+      - "true"
+      - "false"
+  
+  WORDPRESS_DEBUG:
+    description: "Enable WordPress debug mode"
+    default: "false"
+    options:
+      - "true"
+      - "false"
+
+services:
+  wordpress:
+    image: "wordpress:${WORDPRESS_VERSION}"
+    ports:
+      - "${WORDPRESS_PORT}:80"
+    environment:
+      WORDPRESS_DB_HOST: "mysql"
+      WORDPRESS_DB_USER: "${MYSQL_USER}"
+      WORDPRESS_DB_PASSWORD: "${MYSQL_PASSWORD}"
+      WORDPRESS_DB_NAME: "${MYSQL_DATABASE}"
+      WORDPRESS_DEBUG: "${WORDPRESS_DEBUG}"
+      WORDPRESS_CONFIG_EXTRA: |
+        /* Redis cache configuration */
+        define('WP_REDIS_HOST', 'redis');
+        define('WP_REDIS_PORT', 6379);
+        define('WP_CACHE', ${ENABLE_REDIS_CACHE});
+    volumes:
+      - "wordpress_data:/var/www/html"
+      - "./wp-content:/var/www/html/wp-content"
+      - "./uploads.ini:/usr/local/etc/php/conf.d/uploads.ini"
+    depends_on:
+      - mysql
+      - redis
+    restart: "unless-stopped"
+  
+  mysql:
+    image: "mysql:${MYSQL_VERSION}"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    volumes:
+      - "mysql_data:/var/lib/mysql"
+      - "./mysql/custom.cnf:/etc/mysql/conf.d/custom.cnf"
+    restart: "unless-stopped"
+  
+  phpmyadmin:
+    image: "phpmyadmin/phpmyadmin"
+    ports:
+      - "${PHPMYADMIN_PORT}:80"
+    environment:
+      PMA_HOST: "mysql"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+    depends_on:
+      - mysql
+    restart: "unless-stopped"
+  
+  redis:
+    image: "redis:alpine"
+    volumes:
+      - "redis_data:/data"
+    restart: "unless-stopped"
+
+volumes:
+  wordpress_data:
+    driver: "local"
+  mysql_data:
+    driver: "local"
+  redis_data:
+    driver: "local"
+
+files:
+  - path: "uploads.ini"
+    content: |
+      file_uploads = On
+      memory_limit = 256M
+      upload_max_filesize = 64M
+      post_max_size = 64M
+      max_execution_time = 300
+  
+  - path: "mysql/custom.cnf"
+    content: |
+      [mysqld]
+      character-set-server = utf8mb4
+      collation-server = utf8mb4_unicode_ci
+      
+      # InnoDB settings
+      innodb_buffer_pool_size = 256M
+      innodb_log_file_size = 64M
+      
+      # Query cache
+      query_cache_type = 1
+      query_cache_size = 32M
+      
+      # Slow query log
+      slow_query_log = 1
+      slow_query_log_file = /var/lib/mysql/mysql-slow.log
+      long_query_time = 2
+  
+  - path: "wp-content/object-cache.php"
+    content: |
+      <?php
+      /**
+       * Redis object cache drop-in
+       * Only used if ENABLE_REDIS_CACHE is true
+       */
+      
+      if (!defined('WP_REDIS_HOST') || !defined('WP_CACHE') || !WP_CACHE) {
+          return;
+      }
+      
+      // This is a placeholder file. In a real deployment, you would install a Redis
+      // object cache plugin like Redis Object Cache by Till Krüss.
+      // https://wordpress.org/plugins/redis-cache/
+      
+      echo "<!-- Redis object cache enabled -->";
+      
+      // For a real implementation, download the plugin and copy the object-cache.php file here
+      // or use wp-cli to install the plugin after WordPress is set up.
+
+instructions: |
+  # WordPress Deployment Instructions
+  
+  This template deploys WordPress with MySQL, phpMyAdmin, and optional Redis cache.
+  
+  ## Post-Deployment Steps
+  
+  1. Access your WordPress site at http://localhost:${WORDPRESS_PORT}
+  2. Complete the WordPress installation wizard
+  3. Access phpMyAdmin at http://localhost:${PHPMYADMIN_PORT}
+  
+  ## Redis Cache
+  
+  Redis cache is ${ENABLE_REDIS_CACHE == "true" ? "enabled" : "disabled"} for this deployment.
+  
+  To fully enable Redis caching:
+  
+  1. Install the "Redis Object Cache" plugin from the WordPress admin
+  2. Activate the plugin
+  3. Go to Settings > Redis and click "Enable Object Cache"
+  
+  ## Customization
+  
+  - WordPress content: Add themes and plugins to the `./wp-content` directory
+  - PHP configuration: Edit `./uploads.ini`
+  - MySQL configuration: Edit `./mysql/custom.cnf`
+  
+  ## Persistence
+  
+  - WordPress files are persisted in a Docker volume named `${PROJECT_NAME}_wordpress_data`
+  - MySQL data is persisted in a Docker volume named `${PROJECT_NAME}_mysql_data`
+  - Redis data is persisted in a Docker volume named `${PROJECT_NAME}_redis_data`
+  
+  ## Backup
+  
+  To backup your WordPress site:
+  
+  1. Export the database using phpMyAdmin
+  2. Copy the contents of the `./wp-content` directory
+  
+  ## Troubleshooting
+  
+  - If you encounter database connection issues, check the MySQL credentials
+  - For file upload issues, adjust the limits in `./uploads.ini`
+  - WordPress debug mode is ${WORDPRESS_DEBUG == "true" ? "enabled" : "disabled"}
