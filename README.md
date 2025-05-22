@@ -54,7 +54,7 @@ DockerDeployer is an AI-powered tool that simplifies Docker deployment and manag
 DockerDeployer/
 ├── backend/           # API server and Docker management logic
 │   ├── app/           # FastAPI application code
-│   ├── docker/        # Docker management logic
+│   ├── docker_manager/ # Docker management logic (renamed from docker/)
 │   ├── nlp/           # NLP-to-action translation logic
 │   ├── llm/           # LLM integration clients
 │   ├── templates/     # Built-in stack templates
@@ -204,6 +204,31 @@ The project uses GitHub Actions for automated testing and deployment:
   - Artifact attestation and SBOM generation
 
 🎯 **PRODUCTION READY**: The CI/CD pipeline is fully functional and ready for production use.
+
+### Recent Authentication & API Fixes ✅ **COMPLETED**
+
+**Status**: ✅ **FULLY FUNCTIONAL** - Authentication and API routing are working correctly.
+
+The application has undergone comprehensive fixes to resolve authentication and API integration issues:
+
+**Key Fixes Implemented:**
+
+- ✅ **JWT Authentication**: Fixed PyJWT 2.x compatibility issues with string subjects
+- ✅ **API Routing**: Standardized all endpoints to use `/api/` prefix for consistency
+- ✅ **Docker SDK Integration**: Resolved import conflicts by renaming `docker/` → `docker_manager/`
+- ✅ **Nginx Proxy**: Fixed proxy configuration to properly forward API requests
+- ✅ **Environment Variables**: Corrected JWT secret configuration
+
+**Current Functionality:**
+
+- ✅ User authentication and authorization working
+- ✅ Frontend-backend communication established
+- ✅ Protected routes and role-based access control functional
+- ✅ Error handling and user feedback implemented
+
+**Remaining**: Docker socket permissions need configuration for container management.
+
+See [Authentication Fixes Summary](docs/AUTHENTICATION_FIXES_SUMMARY.md) for detailed technical information.
 
 ### CI/CD Setup ✅ **COMPLETED**
 

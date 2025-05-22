@@ -13,7 +13,7 @@
 ## Directory Structure
 
 - `app/` — FastAPI application code
-- `docker/` — Docker management logic (compose, build, deploy, logs)
+- `docker_manager/` — Docker management logic (compose, build, deploy, logs) - renamed from `docker/`
 - `nlp/` — NLP-to-action translation logic
 - `llm/` — LLM integration clients
 - `templates/` — Built-in stack templates (YAML/JSON)
@@ -21,17 +21,17 @@
 
 ## Initial API Endpoints
 
-| Method | Endpoint                  | Description                                      |
-|--------|---------------------------|--------------------------------------------------|
-| POST   | /nlp/parse                | Parse NL command, return action plan             |
-| POST   | /deploy                   | Deploy containers from action/config              |
-| GET    | /containers               | List running containers and status               |
-| POST   | /containers/{id}/action   | Perform action (restart, stop, logs, etc.)       |
-| GET    | /templates                | List available stack templates                   |
-| POST   | /templates/deploy         | Deploy from a template                           |
-| GET    | /logs/{container_id}      | Get logs for a container                         |
-| GET    | /status                   | System and resource status                       |
-| GET    | /history                  | Deployment/config change history                 |
+| Method | Endpoint                | Description                                |
+| ------ | ----------------------- | ------------------------------------------ |
+| POST   | /nlp/parse              | Parse NL command, return action plan       |
+| POST   | /deploy                 | Deploy containers from action/config       |
+| GET    | /containers             | List running containers and status         |
+| POST   | /containers/{id}/action | Perform action (restart, stop, logs, etc.) |
+| GET    | /templates              | List available stack templates             |
+| POST   | /templates/deploy       | Deploy from a template                     |
+| GET    | /logs/{container_id}    | Get logs for a container                   |
+| GET    | /status                 | System and resource status                 |
+| GET    | /history                | Deployment/config change history           |
 
 ## Development
 

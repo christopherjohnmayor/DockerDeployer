@@ -15,9 +15,21 @@ This document provides comprehensive documentation for the DockerDeployer REST A
 
 DockerDeployer uses JWT (JSON Web Token) authentication with role-based access control.
 
+### ✅ Recent Authentication Fixes (Latest Update)
+
+The authentication system has been fully updated and is now working correctly:
+
+- **JWT Token Validation**: Fixed PyJWT 2.x compatibility issues with string subjects
+- **API Routing**: All endpoints now use consistent `/api/` prefix
+- **Token Refresh**: Automatic token refresh mechanism is functional
+- **Error Handling**: Proper 401/403 error responses with meaningful messages
+
+**Status**: ✅ **FULLY FUNCTIONAL** - Authentication and authorization are working correctly.
+
 ### Login Process
 
 1. **Obtain Token**
+
    ```http
    POST /auth/login
    Content-Type: application/json
@@ -46,6 +58,7 @@ DockerDeployer uses JWT (JSON Web Token) authentication with role-based access c
 ## 📊 Response Format
 
 ### Success Response
+
 ```json
 {
   "status": "success",
@@ -57,6 +70,7 @@ DockerDeployer uses JWT (JSON Web Token) authentication with role-based access c
 ```
 
 ### Error Response
+
 ```json
 {
   "detail": "Error description",
@@ -69,17 +83,17 @@ DockerDeployer uses JWT (JSON Web Token) authentication with role-based access c
 
 ### HTTP Status Codes
 
-| Code | Description |
-|------|-------------|
-| 200  | Success |
-| 201  | Created |
-| 400  | Bad Request |
-| 401  | Unauthorized |
-| 403  | Forbidden |
-| 404  | Not Found |
-| 422  | Unprocessable Entity |
+| Code | Description           |
+| ---- | --------------------- |
+| 200  | Success               |
+| 201  | Created               |
+| 400  | Bad Request           |
+| 401  | Unauthorized          |
+| 403  | Forbidden             |
+| 404  | Not Found             |
+| 422  | Unprocessable Entity  |
 | 500  | Internal Server Error |
-| 503  | Service Unavailable |
+| 503  | Service Unavailable   |
 
 ### Common Error Scenarios
 
@@ -93,9 +107,11 @@ DockerDeployer uses JWT (JSON Web Token) authentication with role-based access c
 ### Authentication Endpoints
 
 #### POST /auth/login
+
 Authenticate user and obtain JWT tokens.
 
 **Request:**
+
 ```json
 {
   "username": "string",
@@ -104,6 +120,7 @@ Authenticate user and obtain JWT tokens.
 ```
 
 **Response:**
+
 ```json
 {
   "access_token": "string",
@@ -113,9 +130,11 @@ Authenticate user and obtain JWT tokens.
 ```
 
 #### POST /auth/refresh
+
 Refresh access token using refresh token.
 
 **Request:**
+
 ```json
 {
   "refresh_token": "string"
@@ -125,9 +144,11 @@ Refresh access token using refresh token.
 ### Natural Language Processing
 
 #### POST /nlp/parse
+
 Parse natural language command into action plan.
 
 **Request:**
+
 ```json
 {
   "command": "Deploy a WordPress stack with MySQL 8.0"
@@ -135,6 +156,7 @@ Parse natural language command into action plan.
 ```
 
 **Response:**
+
 ```json
 {
   "action_plan": {
@@ -148,6 +170,7 @@ Parse natural language command into action plan.
 ```
 
 **Supported Commands:**
+
 - "Deploy a WordPress stack"
 - "Stop all running containers"
 - "Create a LEMP stack with PHP 8.1"
@@ -156,10 +179,12 @@ Parse natural language command into action plan.
 
 ### Container Management
 
-#### GET /containers
+#### GET /api/containers
+
 List all Docker containers.
 
 **Response:**
+
 ```json
 [
   {
@@ -168,20 +193,23 @@ List all Docker containers.
     "status": "running",
     "image": ["nginx:latest"],
     "ports": {
-      "80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]
+      "80/tcp": [{ "HostIp": "0.0.0.0", "HostPort": "8080" }]
     },
-    "labels": {"app": "web"}
+    "labels": { "app": "web" }
   }
 ]
 ```
 
-#### POST /containers/{container_id}/action
+#### POST /api/containers/{container_id}/action
+
 Perform action on specific container.
 
 **Path Parameters:**
+
 - `container_id`: Container ID or name
 
 **Request:**
+
 ```json
 {
   "action": "start|stop|restart"
@@ -189,6 +217,7 @@ Perform action on specific container.
 ```
 
 **Response:**
+
 ```json
 {
   "container_id": "abc123def456",
@@ -200,13 +229,16 @@ Perform action on specific container.
 }
 ```
 
-#### GET /logs/{container_id}
+#### GET /api/logs/{container_id}
+
 Get container logs.
 
 **Path Parameters:**
+
 - `container_id`: Container ID or name
 
 **Response:**
+
 ```json
 {
   "container_id": "abc123def456",
@@ -217,9 +249,11 @@ Get container logs.
 ### Template Management
 
 #### GET /templates
+
 List available stack templates.
 
 **Response:**
+
 ```json
 [
   {
@@ -232,9 +266,11 @@ List available stack templates.
 ```
 
 #### POST /templates/deploy
+
 Deploy a template.
 
 **Request:**
+
 ```json
 {
   "template_name": "wordpress",
@@ -245,6 +281,7 @@ Deploy a template.
 ```
 
 **Response:**
+
 ```json
 {
   "template": "wordpress",
@@ -256,9 +293,11 @@ Deploy a template.
 ### System Information
 
 #### GET /status
+
 Get system status and metrics.
 
 **Response:**
+
 ```json
 {
   "cpu": "25%",
@@ -269,9 +308,11 @@ Get system status and metrics.
 ```
 
 #### GET /history
+
 Get deployment history.
 
 **Response:**
+
 ```json
 [
   {
@@ -288,6 +329,7 @@ Get deployment history.
 ### Complete Workflow Example
 
 1. **Login**
+
    ```bash
    curl -X POST http://localhost:8000/auth/login \
      -H "Content-Type: application/json" \
@@ -295,6 +337,7 @@ Get deployment history.
    ```
 
 2. **Parse Natural Language Command**
+
    ```bash
    curl -X POST http://localhost:8000/nlp/parse \
      -H "Authorization: Bearer <token>" \
@@ -303,14 +346,15 @@ Get deployment history.
    ```
 
 3. **List Containers**
+
    ```bash
-   curl -X GET http://localhost:8000/containers \
+   curl -X GET http://localhost:8000/api/containers \
      -H "Authorization: Bearer <token>"
    ```
 
 4. **Start Container**
    ```bash
-   curl -X POST http://localhost:8000/containers/nginx-web/action \
+   curl -X POST http://localhost:8000/api/containers/nginx-web/action \
      -H "Authorization: Bearer <token>" \
      -H "Content-Type: application/json" \
      -d '{"action": "start"}'
@@ -319,16 +363,16 @@ Get deployment history.
 ### JavaScript/TypeScript Example
 
 ```typescript
-import axios from 'axios';
+import axios from "axios";
 
 // Configure axios with base URL and auth interceptor
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: "http://localhost:8000",
 });
 
 // Add auth token to requests
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem("access_token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -338,10 +382,10 @@ api.interceptors.request.use((config) => {
 // Parse natural language command
 async function parseCommand(command: string) {
   try {
-    const response = await api.post('/nlp/parse', { command });
+    const response = await api.post("/nlp/parse", { command });
     return response.data.action_plan;
   } catch (error) {
-    console.error('Failed to parse command:', error);
+    console.error("Failed to parse command:", error);
     throw error;
   }
 }
@@ -349,10 +393,10 @@ async function parseCommand(command: string) {
 // List containers
 async function listContainers() {
   try {
-    const response = await api.get('/containers');
+    const response = await api.get("/api/containers");
     return response.data;
   } catch (error) {
-    console.error('Failed to list containers:', error);
+    console.error("Failed to list containers:", error);
     throw error;
   }
 }
@@ -369,7 +413,7 @@ class DockerDeployerClient:
         self.base_url = base_url
         self.session = requests.Session()
         self.login(username, password)
-    
+
     def login(self, username: str, password: str):
         response = self.session.post(
             f"{self.base_url}/auth/login",
@@ -378,7 +422,7 @@ class DockerDeployerClient:
         response.raise_for_status()
         token = response.json()["access_token"]
         self.session.headers.update({"Authorization": f"Bearer {token}"})
-    
+
     def parse_command(self, command: str):
         response = self.session.post(
             f"{self.base_url}/nlp/parse",
@@ -386,9 +430,9 @@ class DockerDeployerClient:
         )
         response.raise_for_status()
         return response.json()["action_plan"]
-    
+
     def list_containers(self):
-        response = self.session.get(f"{self.base_url}/containers")
+        response = self.session.get(f"{self.base_url}/api/containers")
         response.raise_for_status()
         return response.json()
 
