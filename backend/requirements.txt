@@ -12,3 +12,8 @@ redis
 python-multipart
 typing-extensions
 requests
+PyJWT
+passlib[bcrypt]
+python-jose[cryptography]
+PyYAML
+email-validator

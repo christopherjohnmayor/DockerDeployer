@@ -11,7 +11,7 @@ import httpx
 
 # Import app and fixtures
 from backend.app.main import app
-from conftest import docker_required, llm_required, docker_available, llm_available
+from backend.tests.conftest import docker_required, llm_required, docker_available, llm_available
 
 # For backward compatibility with existing tests
 client = TestClient(app)

@@ -10,8 +10,10 @@ import docker as docker_sdk
 import httpx
 from unittest.mock import MagicMock, patch
 
-# Ensure backend modules are importable
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+# Ensure project root is in path for imports
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 # Import after path setup
 from backend.app.main import app
@@ -35,7 +37,7 @@ def mock_docker_manager():
     Create a mock DockerManager for testing.
     """
     mock_manager = MagicMock(spec=DockerManager)
-    
+
     # Setup mock container data
     mock_container = {
         "id": "test_container_id",
@@ -45,14 +47,14 @@ def mock_docker_manager():
         "ports": {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]},
         "labels": {"app": "test"}
     }
-    
+
     # Setup mock methods
     mock_manager.list_containers.return_value = [mock_container]
     mock_manager.start_container.return_value = {"status": "started", "id": "test_container_id"}
     mock_manager.stop_container.return_value = {"status": "stopped", "id": "test_container_id"}
     mock_manager.restart_container.return_value = {"status": "restarted", "id": "test_container_id"}
     mock_manager.get_logs.return_value = {"id": "test_container_id", "logs": "Test logs output"}
-    
+
     return mock_manager
 
 
@@ -62,13 +64,13 @@ def mock_llm_client():
     Create a mock LLMClient for testing.
     """
     mock_client = MagicMock(spec=LLMClient)
-    
+
     # Setup mock methods
     async def mock_send_query(prompt, context=None, params=None):
         return "This is a mock LLM response for prompt: " + prompt
-    
+
     mock_client.send_query = mock_send_query
-    
+
     return mock_client
 
 
@@ -101,31 +103,31 @@ def mock_template_loader():
             "complexity": "simple"
         }
     ]
-    
+
     # Create patch for list_templates
     list_templates_patch = patch(
         "backend.templates.loader.list_templates",
         return_value=templates
     )
-    
+
     # Create patch for load_template
     def mock_load_template(template_name):
         for template in templates:
             if template["name"] == template_name:
                 return {**template, "services": {"web": {"image": "nginx"}}}
         return None
-    
+
     load_template_patch = patch(
         "backend.templates.loader.load_template",
         side_effect=mock_load_template
     )
-    
+
     # Start patches
     list_templates_patch.start()
     load_template_patch.start()
-    
+
     yield
-    
+
     # Stop patches
     list_templates_patch.stop()
     load_template_patch.stop()
@@ -137,14 +139,14 @@ def mock_git_manager():
     Create a mock GitManager for testing.
     """
     mock_manager = MagicMock(spec=GitManager)
-    
+
     # Setup mock methods
     mock_manager.commit_all.return_value = "test_commit_hash"
     mock_manager.get_history.return_value = [
         ("abc123", "Test User", "Initial commit"),
         ("def456", "Test User", "Update configuration")
     ]
-    
+
     return mock_manager
 
 

@@ -3,9 +3,7 @@ version: '3.8'
 services:
   # Backend service
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: christopherjohnmayor/dockerdeployer:${BACKEND_TAG:-latest}-backend
     container_name: dockerdeployer-backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -42,9 +40,7 @@ services:
 
   # Frontend service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: christopherjohnmayor/dockerdeployer:${FRONTEND_TAG:-latest}-frontend
     container_name: dockerdeployer-frontend
     restart: unless-stopped
     networks:

@@ -1,8 +1,16 @@
-import docker
-from docker.errors import NotFound, APIError
+try:
+    import docker
+    from docker.errors import NotFound, APIError
+except ImportError:
+    # Handle case where docker is not available
+    docker = None
+    NotFound = Exception
+    APIError = Exception
 
 class DockerManager:
     def __init__(self):
+        if docker is None:
+            raise ImportError("Docker SDK is not available. Please install docker package.")
         self.client = docker.from_env()
 
     def list_containers(self, all: bool = False):

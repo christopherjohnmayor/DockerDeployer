@@ -7,8 +7,8 @@
 DockerDeployer is an AI-powered tool that simplifies Docker deployment and management through natural language interaction. It enables users to create, manage, deploy, and maintain containerized web services using plain English commands. The system generates configuration files, handles deployment, and provides monitoring capabilities, supporting both self-hosting and multiple LLM providers.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![API Docs](https://img.shields.io/badge/API-Documentation-green)](https://github.com/yourusername/DockerDeployer/wiki/API-Documentation)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-80%25-brightgreen)](https://github.com/yourusername/DockerDeployer/actions)
+[![API Docs](https://img.shields.io/badge/API-Documentation-green)](https://github.com/christopherjohnmayor/DockerDeployer/wiki/API-Documentation)
+[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-80%25-brightgreen)](https://github.com/christopherjohnmayor/DockerDeployer/actions)
 
 ---
 
@@ -88,7 +88,7 @@ DockerDeployer/
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/yourusername/DockerDeployer.git
+   git clone https://github.com/christopherjohnmayor/DockerDeployer.git
    cd DockerDeployer
    ```
 
@@ -151,10 +151,11 @@ docker-compose up -d
 
 ### Additional Resources
 
-- [User Guide](https://github.com/yourusername/DockerDeployer/wiki/User-Guide)
-- [Developer Guide](https://github.com/yourusername/DockerDeployer/wiki/Developer-Guide)
+- [User Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/User-Guide)
+- [Developer Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/Developer-Guide)
 - [Template System](TEMPLATES.md)
 - [Deployment Guide](docs/deployment.md)
+- [CI/CD Setup Guide](docs/CI_CD_SETUP.md)
 - [Contributing Guidelines](CONTRIBUTING.md)
 
 ---
@@ -206,6 +207,17 @@ The project uses GitHub Actions for automated testing and deployment:
   - Automated deployment to staging/production environments
   - Health checks and rollback capabilities
   - Environment-specific configuration management
+
+### CI/CD Setup
+
+To set up the CI/CD pipeline, you need to configure GitHub repository secrets. See the [CI/CD Setup Guide](docs/CI_CD_SETUP.md) for detailed instructions.
+
+**Quick Setup:**
+
+1. Create a DockerHub access token
+2. Add `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets to your GitHub repository
+3. Run the secrets generator: `./scripts/generate-secrets.sh`
+4. Configure additional deployment secrets as needed
 
 ---
 
