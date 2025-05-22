@@ -27,7 +27,11 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import axios from "axios";
 
-// Example commands for suggestions
+/**
+ * Example commands for suggestions in the natural language input component
+ * These provide users with guidance on the types of commands they can use
+ * @type {string[]}
+ */
 const EXAMPLE_COMMANDS = [
   "Deploy a WordPress stack",
   "Start all containers",
@@ -41,6 +45,50 @@ const EXAMPLE_COMMANDS = [
   "Show container stats",
 ];
 
+/**
+ * Natural Language Input Component for Docker management commands.
+ *
+ * This component provides an intelligent text input interface that allows users to
+ * enter natural language commands for Docker management operations. It leverages
+ * AI/LLM integration to interpret and process user commands.
+ *
+ * **Key Features:**
+ * - **Natural Language Processing**: Converts plain English commands to Docker operations
+ * - **Command History**: Persistent storage of previous commands with localStorage
+ * - **Smart Suggestions**: Pre-defined example commands for common operations
+ * - **Auto-completion**: Combines history and suggestions in a searchable dropdown
+ * - **Real-time Feedback**: Displays parsed action plans and error messages
+ * - **Responsive Design**: Adapts to different screen sizes with flexible layout
+ *
+ * **Supported Command Types:**
+ * - Container deployment: "Deploy a WordPress stack"
+ * - Container management: "Stop all running containers"
+ * - Template operations: "Create a LEMP stack with PHP 8.1"
+ * - Resource queries: "Show container logs for nginx"
+ * - System operations: "List all containers"
+ *
+ * **State Management:**
+ * - Maintains command input state
+ * - Tracks loading states during API calls
+ * - Stores command history (max 10 items)
+ * - Manages UI panel visibility (history/suggestions)
+ * - Handles error and success response states
+ *
+ * @component
+ * @example
+ * ```tsx
+ * // Basic usage in a dashboard
+ * <NaturalLanguageInput />
+ *
+ * // In a container management page
+ * <Box sx={{ mb: 3 }}>
+ *   <NaturalLanguageInput />
+ * </Box>
+ * ```
+ *
+ * @returns {React.ReactElement} The rendered Natural Language Input component with
+ *   autocomplete, history, suggestions, and response display
+ */
 const NaturalLanguageInput: React.FC = () => {
   const [command, setCommand] = useState("");
   const [response, setResponse] = useState<string | null>(null);
@@ -50,7 +98,10 @@ const NaturalLanguageInput: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Load command history from localStorage on component mount
+  /**
+   * Load command history from localStorage when the component mounts
+   * This allows the user's command history to persist between sessions
+   */
   useEffect(() => {
     const savedHistory = localStorage.getItem("commandHistory");
     if (savedHistory) {
@@ -62,6 +113,13 @@ const NaturalLanguageInput: React.FC = () => {
     }
   }, []);
 
+  /**
+   * Save a command to the command history
+   * Adds the command to the beginning of the history array, removes duplicates,
+   * limits the history to 10 items, and persists to localStorage
+   *
+   * @param {string} cmd - The command to save to history
+   */
   const saveCommandToHistory = (cmd: string) => {
     const newHistory = [cmd, ...commandHistory.filter((c) => c !== cmd)].slice(
       0,
@@ -71,6 +129,13 @@ const NaturalLanguageInput: React.FC = () => {
     localStorage.setItem("commandHistory", JSON.stringify(newHistory));
   };
 
+  /**
+   * Handle form submission for the natural language command
+   * Sends the command to the backend API for processing and handles the response
+   *
+   * @param {React.FormEvent} e - The form submission event
+   * @returns {Promise<void>}
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!command.trim()) return;
@@ -83,14 +148,22 @@ const NaturalLanguageInput: React.FC = () => {
       saveCommandToHistory(command);
       const res = await axios.post("/api/nlp/parse", { command });
       setResponse(
-        res.data && res.data.action_plan
+        res.data?.action_plan
           ? JSON.stringify(res.data.action_plan, null, 2)
           : "No response from backend."
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as Error & {
+        response?: {
+          data?: {
+            detail?: string;
+          };
+        };
+      };
+
       setError(
-        err?.response?.data?.detail ||
-          err?.message ||
+        error?.response?.data?.detail ||
+          error?.message ||
           "Failed to process command."
       );
     } finally {
@@ -98,16 +171,34 @@ const NaturalLanguageInput: React.FC = () => {
     }
   };
 
+  /**
+   * Handle clicking on a history item
+   * Sets the command input to the selected history item and hides the history panel
+   *
+   * @param {string} cmd - The command from history to use
+   */
   const handleHistoryItemClick = (cmd: string) => {
     setCommand(cmd);
     setShowHistory(false);
   };
 
+  /**
+   * Handle clicking on a suggestion
+   * Sets the command input to the selected suggestion and hides the suggestions panel
+   *
+   * @param {string} cmd - The suggested command to use
+   */
   const handleSuggestionClick = (cmd: string) => {
     setCommand(cmd);
     setShowSuggestions(false);
   };
 
+  /**
+   * Renders the Natural Language Input component with command input field,
+   * history and suggestions panels, and response display
+   *
+   * @returns {JSX.Element} The rendered component
+   */
   return (
     <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
       <Typography variant="h6" gutterBottom>
@@ -182,9 +273,9 @@ const NaturalLanguageInput: React.FC = () => {
             </Typography>
           ) : (
             <List dense>
-              {commandHistory.map((cmd, index) => (
+              {commandHistory.map((cmd, i) => (
                 <ListItem
-                  key={index}
+                  key={`history-${i}-${cmd}`}
                   button
                   onClick={() => handleHistoryItemClick(cmd)}
                   sx={{ py: 0.5 }}
@@ -196,10 +287,14 @@ const NaturalLanguageInput: React.FC = () => {
                   <Tooltip title="Run this command">
                     <IconButton
                       size="small"
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
                         setCommand(cmd);
-                        handleSubmit(e as any);
+                        // Create a synthetic form event
+                        const formEvent = {
+                          preventDefault: () => {},
+                        } as React.FormEvent;
+                        handleSubmit(formEvent);
                       }}
                     >
                       <PlayArrowIcon fontSize="small" />
@@ -218,9 +313,9 @@ const NaturalLanguageInput: React.FC = () => {
             Suggested Commands:
           </Typography>
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-            {EXAMPLE_COMMANDS.map((cmd, index) => (
+            {EXAMPLE_COMMANDS.map((cmd, i) => (
               <Chip
-                key={index}
+                key={`suggestion-${i}-${cmd}`}
                 label={cmd}
                 onClick={() => handleSuggestionClick(cmd)}
                 variant="outlined"

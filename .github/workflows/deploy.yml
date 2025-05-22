@@ -1,0 +1,130 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types:
+      - completed
+    branches:
+      - main
+  release:
+    types: [published]
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/main' }}
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to staging
+        env:
+          DOMAIN: ${{ secrets.STAGING_DOMAIN }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          # Create deployment directory
+          ssh $SSH_USER@$SSH_HOST "mkdir -p ~/dockerdeployer"
+          
+          # Copy docker-compose and nginx config files
+          scp docker-compose.prod.yml $SSH_USER@$SSH_HOST:~/dockerdeployer/docker-compose.yml
+          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/
+          
+          # Create .env file
+          echo "DOMAIN=$DOMAIN" > .env
+          echo "SECRET_KEY=$SECRET_KEY" >> .env
+          scp .env $SSH_USER@$SSH_HOST:~/dockerdeployer/.env
+          
+          # Pull latest images and deploy
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            docker-compose pull && \
+            docker-compose up -d && \
+            docker system prune -af"
+      
+      - name: Verify deployment
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.STAGING_HOST }}
+        run: |
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && docker-compose ps"
+  
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      
+      - name: Add host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to production
+        env:
+          DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+          RELEASE_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # Create deployment directory
+          ssh $SSH_USER@$SSH_HOST "mkdir -p ~/dockerdeployer"
+          
+          # Copy docker-compose and nginx config files
+          scp docker-compose.prod.yml $SSH_USER@$SSH_HOST:~/dockerdeployer/docker-compose.yml
+          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/
+          
+          # Create .env file with release version
+          echo "DOMAIN=$DOMAIN" > .env
+          echo "SECRET_KEY=$SECRET_KEY" >> .env
+          echo "BACKEND_TAG=${RELEASE_VERSION}-backend" >> .env
+          echo "FRONTEND_TAG=${RELEASE_VERSION}-frontend" >> .env
+          scp .env $SSH_USER@$SSH_HOST:~/dockerdeployer/.env
+          
+          # Pull specific version images and deploy
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            docker-compose pull && \
+            docker-compose up -d && \
+            docker system prune -af"
+      
+      - name: Verify deployment
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && docker-compose ps"
+      
+      - name: Create backup
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          # Create backup of database and config
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            docker-compose exec -T backend sh -c 'tar -czf /tmp/backup-\$(date +%Y%m%d-%H%M%S).tar.gz /app/data /app/config_repo' && \
+            mkdir -p ~/backups && \
+            docker cp \$(docker-compose ps -q backend):/tmp/backup-*.tar.gz ~/backups/"
