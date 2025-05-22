@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
-import axios from 'axios';
-import jwtDecode from 'jwt-decode';
+import React, { createContext, useState, useEffect, ReactNode } from "react";
+import axios from "axios";
+import { jwtDecode } from "jwt-decode";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -40,10 +40,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(
-    localStorage.getItem('accessToken')
+    localStorage.getItem("accessToken")
   );
   const [refreshToken, setRefreshToken] = useState<string | null>(
-    localStorage.getItem('refreshToken')
+    localStorage.getItem("refreshToken")
   );
 
   // Set up axios interceptor for authentication
@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       (response) => response,
       async (error) => {
         const originalRequest = error.config;
-        
+
         // If the error is 401 and we haven't tried to refresh the token yet
         if (
           error.response?.status === 401 &&
@@ -60,21 +60,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           refreshToken
         ) {
           originalRequest._retry = true;
-          
+
           // Try to refresh the token
           const refreshed = await refreshAuth();
-          
+
           if (refreshed && accessToken) {
             // Update the authorization header
-            originalRequest.headers['Authorization'] = `Bearer ${accessToken}`;
+            originalRequest.headers["Authorization"] = `Bearer ${accessToken}`;
             return axios(originalRequest);
           }
         }
-        
+
         return Promise.reject(error);
       }
     );
-    
+
     return () => {
       axios.interceptors.response.eject(interceptor);
     };
@@ -83,9 +83,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Set up axios default headers
   useEffect(() => {
     if (accessToken) {
-      axios.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`;
+      axios.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
     } else {
-      delete axios.defaults.headers.common['Authorization'];
+      delete axios.defaults.headers.common["Authorization"];
     }
   }, [accessToken]);
 
@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           // Decode token to check expiration
           const decoded = jwtDecode<JwtPayload>(accessToken);
           const currentTime = Date.now() / 1000;
-          
+
           if (decoded.exp < currentTime) {
             // Token is expired, try to refresh
             await refreshAuth();
@@ -116,17 +116,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     };
-    
+
     validateToken();
   }, []);
 
   const login = (newAccessToken: string, newRefreshToken: string) => {
-    localStorage.setItem('accessToken', newAccessToken);
-    localStorage.setItem('refreshToken', newRefreshToken);
-    
+    localStorage.setItem("accessToken", newAccessToken);
+    localStorage.setItem("refreshToken", newRefreshToken);
+
     setAccessToken(newAccessToken);
     setRefreshToken(newRefreshToken);
-    
+
     try {
       const decoded = jwtDecode<JwtPayload>(newAccessToken);
       setUser({
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       });
       setIsAuthenticated(true);
     } catch (error) {
-      console.error('Failed to decode token:', error);
+      console.error("Failed to decode token:", error);
       logout();
     }
   };
@@ -144,21 +144,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = () => {
     // If we have a refresh token, try to revoke it
     if (refreshToken) {
-      axios.post('/auth/logout', { refresh_token: refreshToken })
+      axios
+        .post("/auth/logout", { refresh_token: refreshToken })
         .catch((error) => {
-          console.error('Failed to logout on server:', error);
+          console.error("Failed to logout on server:", error);
         });
     }
-    
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    
+
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+
     setAccessToken(null);
     setRefreshToken(null);
     setUser(null);
     setIsAuthenticated(false);
-    
-    delete axios.defaults.headers.common['Authorization'];
+
+    delete axios.defaults.headers.common["Authorization"];
   };
 
   const refreshAuth = async (): Promise<boolean> => {
@@ -166,18 +167,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       logout();
       return false;
     }
-    
+
     try {
-      const response = await axios.post('/auth/refresh', {
+      const response = await axios.post("/auth/refresh", {
         refresh_token: refreshToken,
       });
-      
+
       const { access_token, refresh_token } = response.data;
-      
+
       login(access_token, refresh_token);
       return true;
     } catch (error) {
-      console.error('Failed to refresh token:', error);
+      console.error("Failed to refresh token:", error);
       logout();
       return false;
     }
