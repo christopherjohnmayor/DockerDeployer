@@ -17,7 +17,7 @@ if project_root not in sys.path:
 
 # Import after path setup
 from backend.app.main import app
-from backend.docker.manager import DockerManager
+from backend.docker_manager.manager import DockerManager
 from backend.llm.client import LLMClient
 from backend.templates.loader import list_templates, load_template
 from backend.version_control.git_manager import GitManager
