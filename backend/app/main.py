@@ -11,17 +11,17 @@ from typing import List, Optional, Dict, Any
 
 import yaml
 
-from backend.app.auth.dependencies import get_current_user, get_current_admin_user
-from backend.app.auth.router import router as auth_router
-from backend.app.config.settings_manager import SettingsManager
-from backend.app.db.database import init_db
-from backend.app.db.models import User
+from app.auth.dependencies import get_current_user, get_current_admin_user
+from app.auth.router import router as auth_router
+from app.config.settings_manager import SettingsManager
+from app.db.database import init_db
+from app.db.models import User
 
 # from docker.manager import DockerManager
-from backend.nlp.intent import IntentParser
-from backend.llm.client import LLMClient
-from backend.templates.loader import list_templates as list_stack_templates, load_template
-from backend.version_control.git_manager import GitManager
+from nlp.intent import IntentParser
+from llm.client import LLMClient
+from templates.loader import list_templates as list_stack_templates, load_template
+from version_control.git_manager import GitManager
 
 app = FastAPI(
     title="DockerDeployer API",
@@ -96,7 +96,7 @@ settings_manager = SettingsManager()
 # --- Module Instances ---
 def get_docker_manager():
     try:
-        from backend.docker.manager import DockerManager
+        from docker_manager.manager import DockerManager
         return DockerManager()
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Docker service unavailable: {str(e)}")
@@ -307,6 +307,14 @@ class SettingsModel(BaseModel):
         return cls.validate_provider_fields(values)
 
 # --- Endpoints ---
+
+@app.get("/health", include_in_schema=False)
+async def health_check():
+    """
+    Simple health check endpoint that doesn't require authentication.
+    Used by Docker health checks.
+    """
+    return {"status": "healthy"}
 
 @app.get(
     "/api/settings",
@@ -583,7 +591,7 @@ async def deploy_containers(
         )
 
 @app.get(
-    "/containers",
+    "/api/containers",
     tags=["Containers"],
     summary="List all containers",
     description="""
@@ -685,7 +693,7 @@ async def list_containers(current_user: User = Depends(get_current_user)):
         )
 
 @app.post(
-    "/containers/{container_id}/action",
+    "/api/containers/{container_id}/action",
     response_model=ContainerActionResponse,
     tags=["Containers"],
     summary="Perform action on container",
@@ -923,7 +931,7 @@ class LogsResponse(BaseModel):
         }
 
 @app.get(
-    "/logs/{container_id}",
+    "/api/logs/{container_id}",
     response_model=LogsResponse,
     tags=["Containers"],
     summary="Get container logs",

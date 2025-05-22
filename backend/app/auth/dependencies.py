@@ -9,10 +9,10 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from backend.app.auth.jwt import decode_token
-from backend.app.auth.models import TokenData
-from backend.app.db.database import get_db
-from backend.app.db.models import User, UserRole
+from app.auth.jwt import decode_token
+from app.auth.models import TokenData
+from app.db.database import get_db
+from app.db.models import User, UserRole
 
 # OAuth2 scheme for token authentication
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -23,20 +23,20 @@ def get_current_user(
 ) -> User:
     """
     Get the current authenticated user.
-    
+
     Args:
         token: JWT token
         db: Database session
-        
+
     Returns:
         User object
-        
+
     Raises:
         HTTPException: If token is invalid or user not found
     """
     # Decode token
     payload = decode_token(token)
-    
+
     # Check token type
     if payload.get("type") != "access":
         raise HTTPException(
@@ -44,7 +44,7 @@ def get_current_user(
             detail="Invalid token type",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Extract user ID from token
     user_id: Optional[int] = payload.get("sub")
     if user_id is None:
@@ -53,7 +53,7 @@ def get_current_user(
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Get user from database
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -62,7 +62,7 @@ def get_current_user(
             detail="User not found",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Check if user is active
     if not user.is_active:
         raise HTTPException(
@@ -70,20 +70,20 @@ def get_current_user(
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return user
 
 
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Get the current active user.
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         User object
-        
+
     Raises:
         HTTPException: If user is inactive
     """
@@ -98,13 +98,13 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
 def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Get the current admin user.
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         User object
-        
+
     Raises:
         HTTPException: If user is not an admin
     """

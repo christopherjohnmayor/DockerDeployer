@@ -26,13 +26,13 @@ else:
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Import Base from models to avoid circular imports
-from backend.app.db.models import Base
+from app.db.models import Base
 
 
 def get_db() -> Generator:
     """
     Get database session.
-    
+
     Yields:
         Database session
     """

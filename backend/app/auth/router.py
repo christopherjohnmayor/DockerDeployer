@@ -8,8 +8,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from backend.app.auth.dependencies import get_current_user
-from backend.app.auth.jwt import (
+from app.auth.dependencies import get_current_user
+from app.auth.jwt import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
     REFRESH_TOKEN_EXPIRE_DAYS,
     create_access_token,
@@ -18,7 +18,7 @@ from backend.app.auth.jwt import (
     get_password_hash,
     verify_password,
 )
-from backend.app.auth.models import (
+from app.auth.models import (
     LoginRequest,
     RefreshRequest,
     Token,
@@ -26,25 +26,25 @@ from backend.app.auth.models import (
     UserCreate,
     UserUpdate,
 )
-from backend.app.db.database import get_db
-from backend.app.db.models import Token as TokenModel
-from backend.app.db.models import User as UserModel
+from app.db.database import get_db
+from app.db.models import Token as TokenModel
+from app.db.models import User as UserModel
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
 def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
     """
     Register a new user.
-    
+
     Args:
         user_in: User creation data
         db: Database session
-        
+
     Returns:
         Created user
-        
+
     Raises:
         HTTPException: If username or email already exists
     """
@@ -55,7 +55,7 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username already registered",
         )
-    
+
     # Check if email already exists
     user = db.query(UserModel).filter(UserModel.email == user_in.email).first()
     if user:
@@ -63,7 +63,7 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered",
         )
-    
+
     # Create new user
     db_user = UserModel(
         username=user_in.username,
@@ -74,7 +74,7 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    
+
     return db_user
 
 
@@ -82,14 +82,14 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
 def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
     """
     Login and get access token.
-    
+
     Args:
         login_data: Login credentials
         db: Database session
-        
+
     Returns:
         Access and refresh tokens
-        
+
     Raises:
         HTTPException: If login credentials are invalid
     """
@@ -101,7 +101,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Check if user is active
     if not user.is_active:
         raise HTTPException(
@@ -109,7 +109,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
             detail="Inactive user",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Verify password
     if not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
@@ -117,21 +117,21 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Create access token
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.id, "username": user.username, "role": user.role},
+        data={"sub": str(user.id), "username": user.username, "role": user.role},
         expires_delta=access_token_expires,
     )
-    
+
     # Create refresh token
     refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
     refresh_token = create_refresh_token(
-        data={"sub": user.id, "username": user.username, "role": user.role},
+        data={"sub": str(user.id), "username": user.username, "role": user.role},
         expires_delta=refresh_token_expires,
     )
-    
+
     # Store refresh token in database
     token_expires = datetime.utcnow() + refresh_token_expires
     db_token = TokenModel(
@@ -141,7 +141,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
     )
     db.add(db_token)
     db.commit()
-    
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -153,21 +153,21 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
 def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -> Any:
     """
     Refresh access token using refresh token.
-    
+
     Args:
         refresh_data: Refresh token data
         db: Database session
-        
+
     Returns:
         New access and refresh tokens
-        
+
     Raises:
         HTTPException: If refresh token is invalid
     """
     # Decode refresh token
     try:
         payload = decode_token(refresh_data.refresh_token)
-        
+
         # Check token type
         if payload.get("type") != "refresh":
             raise HTTPException(
@@ -175,7 +175,7 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
                 detail="Invalid token type",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Get user ID from token
         user_id = payload.get("sub")
         if user_id is None:
@@ -184,7 +184,7 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
                 detail="Invalid token payload",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Check if token exists in database
         db_token = (
             db.query(TokenModel)
@@ -201,7 +201,7 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
                 detail="Invalid or revoked token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Get user from database
         user = db.query(UserModel).filter(UserModel.id == user_id).first()
         if not user or not user.is_active:
@@ -210,24 +210,24 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
                 detail="User not found or inactive",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         # Create new access token
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user.id, "username": user.username, "role": user.role},
+            data={"sub": str(user.id), "username": user.username, "role": user.role},
             expires_delta=access_token_expires,
         )
-        
+
         # Create new refresh token
         refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         new_refresh_token = create_refresh_token(
-            data={"sub": user.id, "username": user.username, "role": user.role},
+            data={"sub": str(user.id), "username": user.username, "role": user.role},
             expires_delta=refresh_token_expires,
         )
-        
+
         # Revoke old refresh token
         db_token.is_revoked = True
-        
+
         # Store new refresh token in database
         token_expires = datetime.utcnow() + refresh_token_expires
         new_db_token = TokenModel(
@@ -237,13 +237,13 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
         )
         db.add(new_db_token)
         db.commit()
-        
+
         return {
             "access_token": access_token,
             "refresh_token": new_refresh_token,
             "token_type": "bearer",
         }
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -262,15 +262,15 @@ def logout(
 ) -> Any:
     """
     Logout and revoke refresh token.
-    
+
     Args:
         refresh_data: Refresh token data
         current_user: Current authenticated user
         db: Database session
-        
+
     Returns:
         Success message
-        
+
     Raises:
         HTTPException: If refresh token is invalid
     """
@@ -284,17 +284,17 @@ def logout(
         )
         .first()
     )
-    
+
     if not db_token:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or already revoked token",
         )
-    
+
     # Revoke token
     db_token.is_revoked = True
     db.commit()
-    
+
     return {"detail": "Successfully logged out"}
 
 
@@ -302,10 +302,10 @@ def logout(
 def read_users_me(current_user: UserModel = Depends(get_current_user)) -> Any:
     """
     Get current user.
-    
+
     Args:
         current_user: Current authenticated user
-        
+
     Returns:
         Current user data
     """
@@ -320,15 +320,15 @@ def update_user_me(
 ) -> Any:
     """
     Update current user.
-    
+
     Args:
         user_in: User update data
         current_user: Current authenticated user
         db: Database session
-        
+
     Returns:
         Updated user data
-        
+
     Raises:
         HTTPException: If email already exists
     """
@@ -340,7 +340,7 @@ def update_user_me(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered",
             )
-    
+
     # Update user
     if user_in.email:
         current_user.email = user_in.email
@@ -348,9 +348,9 @@ def update_user_me(
         current_user.full_name = user_in.full_name
     if user_in.password:
         current_user.hashed_password = get_password_hash(user_in.password)
-    
+
     db.add(current_user)
     db.commit()
     db.refresh(current_user)
-    
+
     return current_user
