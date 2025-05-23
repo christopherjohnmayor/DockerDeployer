@@ -2,7 +2,7 @@ import os
 import yaml
 from typing import List, Dict, Optional
 
-TEMPLATES_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../templates"))
 
 def list_templates() -> List[Dict]:
     """

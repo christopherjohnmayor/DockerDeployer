@@ -25,9 +25,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
-# Create non-root user for security
-RUN groupadd -r dockerdeployer && \
-    useradd -r -g dockerdeployer dockerdeployer
+# For Docker management applications, running as root is necessary for Docker socket access
+# This is a security trade-off for functionality in containerized Docker management tools
 
 # Set working directory
 WORKDIR /app
@@ -45,19 +44,17 @@ RUN pip install --no-cache /wheels/*
 # Copy application code
 COPY . .
 
-# Create necessary directories with proper permissions
-RUN mkdir -p /app/data /app/config_repo && \
-    chown -R dockerdeployer:dockerdeployer /app
+# Create necessary directories
+RUN mkdir -p /app/data /app/config_repo
 
-# Switch to non-root user
-USER dockerdeployer
+# Running as root for Docker socket access - this is intentional for Docker management tools
 
 # Expose port
 EXPOSE 8000
 
-# Set up healthcheck
+# Set up healthcheck using Python instead of curl
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/status || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
 # Command to run the application
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

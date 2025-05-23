@@ -73,16 +73,16 @@ class LLMClient:
     async def _send_openrouter(self, prompt: str, context: Optional[str], params: Optional[Dict[str, Any]]) -> str:
         # OpenRouter expects OpenAI-compatible chat/completions API
         payload = {
-            "model": (params or {}).get("model", "openrouter/openai/gpt-3.5-turbo"),
+            "model": (params or {}).get("model", "meta-llama/llama-3.2-3b-instruct:free"),
             "messages": [
-                {"role": "system", "content": context or ""},
+                {"role": "system", "content": context or "You are DockerGPT, an AI assistant specialized in Docker container management."},
                 {"role": "user", "content": prompt}
             ],
         }
         payload.update((params or {}))
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "HTTP-Referer": "https://your-app-url.com",  # Optional, for OpenRouter analytics
+            "HTTP-Referer": "https://dockerdeployer.com",  # For OpenRouter analytics
             "X-Title": "DockerDeployer"
         }
         async with httpx.AsyncClient() as client:

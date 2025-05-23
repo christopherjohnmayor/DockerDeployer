@@ -58,9 +58,10 @@ class SettingsManager:
     @staticmethod
     def default_settings() -> Dict[str, Any]:
         return {
-            "llm_provider": "ollama",  # "ollama", "litellm", or "openrouter"
+            "llm_provider": "openrouter",  # "ollama", "litellm", or "openrouter"
             "llm_api_url": "http://localhost:11434/api/generate",  # Default Ollama endpoint
             "llm_api_key": "",
+            "llm_model": "meta-llama/llama-3.2-3b-instruct:free",  # Default to free Llama model
             "openrouter_api_url": "https://openrouter.ai/api/v1/chat/completions",
             "openrouter_api_key": "",
             "docker_context": "default",
