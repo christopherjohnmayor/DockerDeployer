@@ -125,11 +125,13 @@ DockerDeployer/
 
 3. Access the application at http://localhost:5173
 
-### Using Docker Compose (Alternative)
+### Using Docker Compose (Recommended)
 
 ```bash
 docker-compose up -d
 ```
+
+**Note**: The backend container runs with root privileges to access the Docker socket. This is a standard practice for Docker management applications. See [DOCKER_SECURITY.md](DOCKER_SECURITY.md) for detailed security information.
 
 ---
 
@@ -154,6 +156,7 @@ docker-compose up -d
 - [User Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/User-Guide)
 - [Developer Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/Developer-Guide)
 - [Template System](TEMPLATES.md)
+- [Docker Security Configuration](DOCKER_SECURITY.md)
 - [Deployment Guide](docs/deployment.md)
 - [CI/CD Setup Guide](docs/CI_CD_SETUP.md)
 - [Contributing Guidelines](CONTRIBUTING.md)

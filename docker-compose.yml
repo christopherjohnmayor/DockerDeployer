@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Backend service
@@ -9,7 +9,8 @@ services:
     container_name: dockerdeployer-backend
     volumes:
       - ./backend:/app
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:rw
+      - db_data:/app/data
     environment:
       - ENVIRONMENT=development
       - DATABASE_URL=sqlite:///./data/dockerdeployer.db
@@ -19,8 +20,16 @@ services:
     ports:
       - "8000:8000"
     restart: unless-stopped
+    # Running as root for Docker socket access - this is intentional for Docker management
+    # Use Python-based health check instead of curl
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/status"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,11 +37,9 @@ services:
 
   # Frontend service
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      target: build
+    image: node:18-alpine
     container_name: dockerdeployer-frontend
+    working_dir: /app
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -41,12 +48,18 @@ services:
       - VITE_API_URL=http://localhost:8000
     ports:
       - "3000:3000"
-    command: npm run dev
+    command: sh -c "apk add --no-cache wget && npm install && npm run dev"
     depends_on:
       - backend
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
