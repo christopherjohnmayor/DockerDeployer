@@ -15,22 +15,30 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import StorageIcon from "@mui/icons-material/Storage";
 import ListAltIcon from "@mui/icons-material/ListAlt";
 import LayersIcon from "@mui/icons-material/Layers";
+import PeopleIcon from "@mui/icons-material/People";
 import SettingsIcon from "@mui/icons-material/Settings";
+import { useAuth } from "../hooks/useAuth";
 
 const drawerWidth = 220;
-
-const navItems = [
-  { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
-  { text: "Containers", icon: <StorageIcon />, path: "/containers" },
-  { text: "Templates", icon: <ListAltIcon />, path: "/templates" },
-  { text: "Logs", icon: <LayersIcon />, path: "/logs" },
-  { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
-];
 
 const Sidebar: React.FC = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { user } = useAuth();
+
+  const navItems = [
+    { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
+    { text: "Containers", icon: <StorageIcon />, path: "/containers" },
+    { text: "Templates", icon: <ListAltIcon />, path: "/templates" },
+    { text: "Logs", icon: <LayersIcon />, path: "/logs" },
+    ...(user?.role === "admin"
+      ? [
+          { text: "Users", icon: <PeopleIcon />, path: "/users" },
+          { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
+        ]
+      : []),
+  ];
 
   return (
     <Drawer
