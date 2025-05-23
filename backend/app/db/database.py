@@ -43,6 +43,16 @@ def get_db() -> Generator:
         db.close()
 
 
+def get_database_url() -> str:
+    """
+    Get database URL.
+
+    Returns:
+        Database URL string
+    """
+    return SQLALCHEMY_DATABASE_URL
+
+
 def init_db() -> None:
     """
     Initialize database by creating all tables.
