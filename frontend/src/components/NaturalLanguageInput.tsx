@@ -146,7 +146,7 @@ const NaturalLanguageInput: React.FC = () => {
 
     try {
       saveCommandToHistory(command);
-      const res = await axios.post("/api/nlp/parse", { command });
+      const res = await axios.post("/nlp/parse", { command });
       setResponse(
         res.data?.action_plan
           ? JSON.stringify(res.data.action_plan, null, 2)
