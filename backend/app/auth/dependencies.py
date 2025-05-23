@@ -34,34 +34,32 @@ def get_current_user(
     Raises:
         HTTPException: If token is invalid or user not found
     """
-    # Decode token
-    payload = decode_token(token)
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
-    # Check token type
-    if payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    try:
+        # Decode token
+        payload = decode_token(token)
 
-    # Extract user ID from token
-    user_id: Optional[int] = payload.get("sub")
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # Check token type
+        if payload.get("type") != "access":
+            raise credentials_exception
+
+        # Extract user ID from token
+        user_id: Optional[int] = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+
+    except Exception:
+        raise credentials_exception
 
     # Get user from database
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise credentials_exception
 
     # Check if user is active
     if not user.is_active:
@@ -72,6 +70,27 @@ def get_current_user(
         )
 
     return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    """
+    Require admin role for the current user.
+
+    Args:
+        current_user: Current authenticated user
+
+    Returns:
+        Current user if admin
+
+    Raises:
+        HTTPException: If user is not admin
+    """
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return current_user
 
 
 def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
@@ -91,26 +110,5 @@ def get_current_active_user(current_user: User = Depends(get_current_user)) -> U
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Inactive user",
-        )
-    return current_user
-
-
-def get_current_admin_user(current_user: User = Depends(get_current_user)) -> User:
-    """
-    Get the current admin user.
-
-    Args:
-        current_user: Current authenticated user
-
-    Returns:
-        User object
-
-    Raises:
-        HTTPException: If user is not an admin
-    """
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not enough permissions",
         )
     return current_user

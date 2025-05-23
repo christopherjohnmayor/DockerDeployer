@@ -2,8 +2,9 @@
 Authentication router for FastAPI.
 """
 
+import secrets
 from datetime import datetime, timedelta
-from typing import Any
+from typing import Any, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -20,15 +21,19 @@ from app.auth.jwt import (
 )
 from app.auth.models import (
     LoginRequest,
+    PasswordResetConfirm,
+    PasswordResetRequest,
     RefreshRequest,
     Token,
     User,
     UserCreate,
+    UserManagement,
     UserUpdate,
+    UserUpdateAdmin,
 )
 from app.db.database import get_db
-from app.db.models import Token as TokenModel
-from app.db.models import User as UserModel
+from app.db.models import PasswordResetToken, Token as TokenModel
+from app.db.models import User as UserModel, UserRole
 
 router = APIRouter(tags=["auth"])
 
@@ -93,12 +98,15 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
     Raises:
         HTTPException: If login credentials are invalid
     """
-    # Get user by username
-    user = db.query(UserModel).filter(UserModel.username == login_data.username).first()
+    # Get user by username or email
+    user = db.query(UserModel).filter(
+        (UserModel.username == login_data.username) |
+        (UserModel.email == login_data.username)
+    ).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Invalid username/email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -114,7 +122,7 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
     if not verify_password(login_data.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Invalid username/email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -296,6 +304,108 @@ def logout(
     db.commit()
 
     return {"detail": "Successfully logged out"}
+
+
+@router.post("/password-reset-request")
+def request_password_reset(
+    reset_request: PasswordResetRequest, db: Session = Depends(get_db)
+) -> Any:
+    """
+    Request password reset.
+
+    Args:
+        reset_request: Password reset request data
+        db: Database session
+
+    Returns:
+        Success message
+    """
+    # Find user by email
+    user = db.query(UserModel).filter(UserModel.email == reset_request.email).first()
+
+    # Always return success to prevent email enumeration
+    if not user:
+        return {"message": "If the email exists, a password reset link has been sent"}
+
+    # Generate reset token
+    reset_token = secrets.token_urlsafe(32)
+
+    # Set expiration time (1 hour from now)
+    expires_at = datetime.utcnow() + timedelta(hours=1)
+
+    # Invalidate any existing reset tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.is_used == False
+    ).update({"is_used": True})
+
+    # Create new reset token
+    db_reset_token = PasswordResetToken(
+        token=reset_token,
+        user_id=user.id,
+        expires_at=expires_at,
+    )
+    db.add(db_reset_token)
+    db.commit()
+
+    # TODO: Send email with reset link
+    # For now, we'll just log the token (remove in production)
+    print(f"Password reset token for {user.email}: {reset_token}")
+
+    return {"message": "If the email exists, a password reset link has been sent"}
+
+
+@router.post("/password-reset-confirm")
+def confirm_password_reset(
+    reset_confirm: PasswordResetConfirm, db: Session = Depends(get_db)
+) -> Any:
+    """
+    Confirm password reset with token.
+
+    Args:
+        reset_confirm: Password reset confirmation data
+        db: Database session
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
+    # Find reset token
+    reset_token = (
+        db.query(PasswordResetToken)
+        .filter(
+            PasswordResetToken.token == reset_confirm.token,
+            PasswordResetToken.is_used == False,
+            PasswordResetToken.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
+    # Get user
+    user = db.query(UserModel).filter(UserModel.id == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User not found",
+        )
+
+    # Update user password
+    user.hashed_password = get_password_hash(reset_confirm.new_password)
+
+    # Mark token as used
+    reset_token.is_used = True
+
+    db.commit()
+
+    return {"message": "Password has been reset successfully"}
 
 
 @router.get("/me", response_model=User)
