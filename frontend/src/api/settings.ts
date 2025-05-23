@@ -6,6 +6,7 @@ export interface Settings {
   llm_provider: LLMProvider;
   llm_api_url: string;
   llm_api_key: string;
+  llm_model: string;
   openrouter_api_url?: string;
   openrouter_api_key?: string;
   secrets: Record<string, string>;

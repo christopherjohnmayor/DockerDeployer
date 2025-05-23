@@ -13,13 +13,22 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    open: true,
+    host: "0.0.0.0",
+    port: 3000,
+    open: false, // Disable auto-open in Docker
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "http://backend:8000",
         changeOrigin: true,
         // rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      "/auth": {
+        target: "http://backend:8000",
+        changeOrigin: true,
+      },
+      "/nlp": {
+        target: "http://backend:8000",
+        changeOrigin: true,
       },
     },
   },

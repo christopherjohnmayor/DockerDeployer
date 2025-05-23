@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   Box,
   Button,
@@ -6,56 +6,61 @@ import {
   TextField,
   Typography,
   Paper,
-  Alert,
   Link,
   CircularProgress,
-} from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+  Alert,
+} from "@mui/material";
+import { Link as RouterLink, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useToast } from "../components/Toast";
+import ErrorDisplay from "../components/ErrorDisplay";
+import { parseError, getValidationErrors } from "../utils/errorHandling";
 
 const Register: React.FC = () => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
+  const toast = useToast();
 
   const validateForm = () => {
     // Check if passwords match
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError("Passwords do not match");
       return false;
     }
 
     // Check password strength
     if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
+      setError("Password must be at least 8 characters long");
       return false;
     }
 
     if (!/[A-Z]/.test(password)) {
-      setError('Password must contain at least one uppercase letter');
+      setError("Password must contain at least one uppercase letter");
       return false;
     }
 
     if (!/[a-z]/.test(password)) {
-      setError('Password must contain at least one lowercase letter');
+      setError("Password must contain at least one lowercase letter");
       return false;
     }
 
     if (!/[0-9]/.test(password)) {
-      setError('Password must contain at least one number');
+      setError("Password must contain at least one number");
       return false;
     }
 
     // Check email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      setError('Please enter a valid email address');
+      setError("Please enter a valid email address");
       return false;
     }
 
@@ -66,6 +71,7 @@ const Register: React.FC = () => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+    setFieldErrors({});
 
     // Validate form
     if (!validateForm()) {
@@ -75,24 +81,29 @@ const Register: React.FC = () => {
     setLoading(true);
 
     try {
-      await axios.post('/auth/register', {
+      await axios.post("/auth/register", {
         username,
         email,
         password,
         full_name: fullName,
       });
 
-      setSuccess('Registration successful! You can now login.');
-      
+      setSuccess("Registration successful! You can now login.");
+      toast.showSuccess("Registration successful! Redirecting to login...");
+
       // Redirect to login page after 2 seconds
       setTimeout(() => {
-        navigate('/login');
+        navigate("/login");
       }, 2000);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail || 
-        'Registration failed. Please try again.'
-      );
+    } catch (err: unknown) {
+      const parsedError = parseError(err);
+      const validationErrors = getValidationErrors(err);
+
+      if (Object.keys(validationErrors).length > 0) {
+        setFieldErrors(validationErrors);
+      } else {
+        setError(parsedError.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -102,18 +113,18 @@ const Register: React.FC = () => {
     <Container maxWidth="sm">
       <Box
         sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          minHeight: '100vh',
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "100vh",
         }}
       >
         <Paper
           elevation={3}
           sx={{
             p: 4,
-            width: '100%',
+            width: "100%",
             borderRadius: 2,
           }}
         >
@@ -125,9 +136,11 @@ const Register: React.FC = () => {
           </Typography>
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <ErrorDisplay
+              error={error}
+              onDismiss={() => setError(null)}
+              variant="outlined"
+            />
           )}
 
           {success && (
@@ -149,6 +162,8 @@ const Register: React.FC = () => {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={loading}
+              error={!!fieldErrors.username}
+              helperText={fieldErrors.username}
             />
             <TextField
               margin="normal"
@@ -161,6 +176,8 @@ const Register: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email}
             />
             <TextField
               margin="normal"
@@ -172,6 +189,8 @@ const Register: React.FC = () => {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               disabled={loading}
+              error={!!fieldErrors.full_name}
+              helperText={fieldErrors.full_name}
             />
             <TextField
               margin="normal"
@@ -185,7 +204,11 @@ const Register: React.FC = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}
-              helperText="Password must be at least 8 characters long and contain uppercase, lowercase, and numbers"
+              error={!!fieldErrors.password}
+              helperText={
+                fieldErrors.password ||
+                "Password must be at least 8 characters long and contain uppercase, lowercase, and numbers"
+              }
             />
             <TextField
               margin="normal"
@@ -199,19 +222,23 @@ const Register: React.FC = () => {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               disabled={loading}
+              error={!!fieldErrors.confirmPassword}
+              helperText={fieldErrors.confirmPassword}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading || !username || !email || !password || !confirmPassword}
+              disabled={
+                loading || !username || !email || !password || !confirmPassword
+              }
             >
-              {loading ? <CircularProgress size={24} /> : 'Register'}
+              {loading ? <CircularProgress size={24} /> : "Register"}
             </Button>
-            <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Box sx={{ mt: 2, textAlign: "center" }}>
               <Typography variant="body2">
-                Already have an account?{' '}
+                Already have an account?{" "}
                 <Link component={RouterLink} to="/login" variant="body2">
                   Sign in
                 </Link>

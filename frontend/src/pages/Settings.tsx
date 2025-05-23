@@ -17,13 +17,23 @@ import {
 } from "@mui/material";
 import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { fetchSettings, saveSettings, Settings, LLMProvider } from "../api/settings";
+import {
+  fetchSettings,
+  saveSettings,
+  Settings,
+  LLMProvider,
+} from "../api/settings";
 
 const SettingsPage: React.FC = () => {
   const [llmProvider, setLlmProvider] = useState<LLMProvider>("ollama");
+  const [llmModel, setLlmModel] = useState(
+    "meta-llama/llama-3.2-3b-instruct:free"
+  );
   const [liteLLMApiUrl, setLiteLLMApiUrl] = useState("");
   const [liteLLMApiKey, setLiteLLMApiKey] = useState("");
-  const [openRouterApiUrl, setOpenRouterApiUrl] = useState("https://openrouter.ai/api/v1/chat/completions");
+  const [openRouterApiUrl, setOpenRouterApiUrl] = useState(
+    "https://openrouter.ai/api/v1/chat/completions"
+  );
   const [openRouterApiKey, setOpenRouterApiKey] = useState("");
   const [secrets, setSecrets] = useState<{ key: string; value: string }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -38,14 +48,19 @@ const SettingsPage: React.FC = () => {
       try {
         const data = await fetchSettings();
         // Ensure provider is always valid
-        let provider: LLMProvider = (data.llm_provider as LLMProvider) || "ollama";
+        let provider: LLMProvider =
+          (data.llm_provider as LLMProvider) || "ollama";
         if (!["ollama", "litellm", "openrouter"].includes(provider)) {
           provider = "ollama";
         }
         setLlmProvider(provider);
+        setLlmModel(data.llm_model || "meta-llama/llama-3.2-3b-instruct:free");
         // Map API URLs/keys for each provider
         if (provider === "openrouter") {
-          setOpenRouterApiUrl(data.openrouter_api_url || "https://openrouter.ai/api/v1/chat/completions");
+          setOpenRouterApiUrl(
+            data.openrouter_api_url ||
+              "https://openrouter.ai/api/v1/chat/completions"
+          );
           setOpenRouterApiKey(data.openrouter_api_key || "");
           setLiteLLMApiUrl("");
           setLiteLLMApiKey("");
@@ -57,7 +72,10 @@ const SettingsPage: React.FC = () => {
         }
         setSecrets(
           data.secrets
-            ? Object.entries(data.secrets).map(([key, value]) => ({ key, value }))
+            ? Object.entries(data.secrets).map(([key, value]) => ({
+                key,
+                value,
+              }))
             : []
         );
       } catch (err: any) {
@@ -73,7 +91,11 @@ const SettingsPage: React.FC = () => {
     loadSettings();
   }, []);
 
-  const handleSecretChange = (idx: number, field: "key" | "value", value: string) => {
+  const handleSecretChange = (
+    idx: number,
+    field: "key" | "value",
+    value: string
+  ) => {
     setSecrets((prev) =>
       prev.map((s, i) => (i === idx ? { ...s, [field]: value } : s))
     );
@@ -98,12 +120,16 @@ const SettingsPage: React.FC = () => {
         llm_provider: llmProvider,
         llm_api_url: "", // Default to empty string
         llm_api_key: "", // Default to empty string
+        llm_model: llmModel,
         openrouter_api_url: "",
         openrouter_api_key: "",
-        secrets: secrets.reduce((acc, s) => {
-          if (s.key.trim()) acc[s.key.trim()] = s.value;
-          return acc;
-        }, {} as Record<string, string>),
+        secrets: secrets.reduce(
+          (acc, s) => {
+            if (s.key.trim()) acc[s.key.trim()] = s.value;
+            return acc;
+          },
+          {} as Record<string, string>
+        ),
       };
 
       if (llmProvider === "ollama") {
@@ -112,7 +138,8 @@ const SettingsPage: React.FC = () => {
         settingsPayload.llm_api_url = liteLLMApiUrl;
         settingsPayload.llm_api_key = liteLLMApiKey;
       } else if (llmProvider === "openrouter") {
-        settingsPayload.openrouter_api_url = openRouterApiUrl || "https://openrouter.ai/api/v1/chat/completions";
+        settingsPayload.openrouter_api_url =
+          openRouterApiUrl || "https://openrouter.ai/api/v1/chat/completions";
         settingsPayload.openrouter_api_key = openRouterApiKey;
       }
 
@@ -159,6 +186,50 @@ const SettingsPage: React.FC = () => {
                 <MenuItem value="openrouter">OpenRouter</MenuItem>
               </Select>
             </FormControl>
+
+            {llmProvider === "openrouter" && (
+              <FormControl fullWidth>
+                <InputLabel id="llm-model-label">Model</InputLabel>
+                <Select
+                  labelId="llm-model-label"
+                  value={llmModel}
+                  label="Model"
+                  onChange={(e) => setLlmModel(e.target.value)}
+                  disabled={loading}
+                >
+                  <MenuItem value="meta-llama/llama-3.2-3b-instruct:free">
+                    Llama 3.2 3B (Free)
+                  </MenuItem>
+                  <MenuItem value="meta-llama/llama-3.2-1b-instruct:free">
+                    Llama 3.2 1B (Free)
+                  </MenuItem>
+                  <MenuItem value="meta-llama/llama-3.1-8b-instruct:free">
+                    Llama 3.1 8B (Free)
+                  </MenuItem>
+                  <MenuItem value="openai/gpt-3.5-turbo">
+                    GPT-3.5 Turbo (Paid)
+                  </MenuItem>
+                  <MenuItem value="openai/gpt-4o-mini">
+                    GPT-4o Mini (Paid)
+                  </MenuItem>
+                  <MenuItem value="anthropic/claude-3-haiku">
+                    Claude 3 Haiku (Paid)
+                  </MenuItem>
+                </Select>
+              </FormControl>
+            )}
+
+            {llmProvider !== "openrouter" && (
+              <TextField
+                label="Model Name"
+                value={llmModel}
+                onChange={(e) => setLlmModel(e.target.value)}
+                fullWidth
+                disabled={loading}
+                placeholder="llama2, gpt-3.5-turbo, etc."
+                helperText="Enter the model name for your LLM provider"
+              />
+            )}
             {llmProvider === "litellm" && (
               <>
                 <TextField
@@ -220,11 +291,18 @@ const SettingsPage: React.FC = () => {
             </Typography>
             <Stack spacing={2}>
               {secrets.map((s, idx) => (
-                <Stack direction="row" spacing={1} key={idx} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  key={idx}
+                  alignItems="center"
+                >
                   <TextField
                     label="Key"
                     value={s.key}
-                    onChange={(e) => handleSecretChange(idx, "key", e.target.value)}
+                    onChange={(e) =>
+                      handleSecretChange(idx, "key", e.target.value)
+                    }
                     size="small"
                     sx={{ flex: 2 }}
                     disabled={loading}
@@ -232,7 +310,9 @@ const SettingsPage: React.FC = () => {
                   <TextField
                     label="Value"
                     value={s.value}
-                    onChange={(e) => handleSecretChange(idx, "value", e.target.value)}
+                    onChange={(e) =>
+                      handleSecretChange(idx, "value", e.target.value)
+                    }
                     size="small"
                     sx={{ flex: 3 }}
                     disabled={loading}

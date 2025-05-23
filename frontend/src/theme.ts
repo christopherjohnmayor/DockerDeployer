@@ -1,6 +1,7 @@
 import { createTheme } from "@mui/material/styles";
+import type { Theme } from "@mui/material/styles";
 
-const theme = createTheme({
+const theme: Theme = createTheme({
   palette: {
     mode: "light",
     primary: {
@@ -11,12 +12,7 @@ const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: [
-      "Roboto",
-      "Helvetica Neue",
-      "Arial",
-      "sans-serif"
-    ].join(","),
+    fontFamily: ["Roboto", "Helvetica Neue", "Arial", "sans-serif"].join(","),
   },
   components: {
     MuiAppBar: {
