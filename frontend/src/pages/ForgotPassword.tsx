@@ -8,46 +8,54 @@ import {
   Paper,
   Link,
   CircularProgress,
+  Alert,
 } from "@mui/material";
-import { Link as RouterLink, useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import axios from "axios";
-import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../components/Toast";
 import ErrorDisplay from "../components/ErrorDisplay";
 import { parseError, getValidationErrors } from "../utils/errorHandling";
 
-const Login: React.FC = () => {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+const ForgotPassword: React.FC = () => {
+  const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
-  const navigate = useNavigate();
-  const { login } = useAuth();
   const toast = useToast();
+
+  const validateForm = () => {
+    // Check email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setSuccess(null);
     setFieldErrors({});
+
+    // Validate form
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await axios.post("/auth/login", {
-        username,
-        password,
+      await axios.post("/auth/password-reset-request", {
+        email,
       });
 
-      const { access_token, refresh_token } = response.data;
-
-      // Store tokens and login
-      login(access_token, refresh_token);
-
-      // Show success message
-      toast.showSuccess("Login successful! Welcome back.");
-
-      // Redirect to dashboard
-      navigate("/");
+      setSuccess(
+        "If an account with that email exists, a password reset link has been sent."
+      );
+      toast.showSuccess("Password reset email sent!");
     } catch (err: unknown) {
       const parsedError = parseError(err);
       const validationErrors = getValidationErrors(err);
@@ -85,7 +93,11 @@ const Login: React.FC = () => {
             DockerDeployer
           </Typography>
           <Typography variant="h5" component="h2" gutterBottom align="center">
-            Login
+            Reset Password
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ mb: 3 }}>
+            Enter your email address and we'll send you a link to reset your
+            password.
           </Typography>
 
           {error && (
@@ -96,62 +108,42 @@ const Login: React.FC = () => {
             />
           )}
 
+          {success && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {success}
+            </Alert>
+          )}
+
           <Box component="form" onSubmit={handleSubmit} noValidate>
             <TextField
               margin="normal"
               required
               fullWidth
-              id="username"
-              label="Username or Email"
-              name="username"
-              autoComplete="username"
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
               autoFocus
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
-              error={!!fieldErrors.username}
-              helperText={
-                fieldErrors.username || "Enter your username or email address"
-              }
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              error={!!fieldErrors.password}
-              helperText={fieldErrors.password}
+              error={!!fieldErrors.email}
+              helperText={fieldErrors.email}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading || !username || !password}
+              disabled={loading || !email}
             >
-              {loading ? <CircularProgress size={24} /> : "Sign In"}
+              {loading ? <CircularProgress size={24} /> : "Send Reset Link"}
             </Button>
             <Box sx={{ mt: 2, textAlign: "center" }}>
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                <Link
-                  component={RouterLink}
-                  to="/forgot-password"
-                  variant="body2"
-                >
-                  Forgot your password?
-                </Link>
-              </Typography>
               <Typography variant="body2">
-                Don't have an account?{" "}
-                <Link component={RouterLink} to="/register" variant="body2">
-                  Register
+                Remember your password?{" "}
+                <Link component={RouterLink} to="/login" variant="body2">
+                  Back to Login
                 </Link>
               </Typography>
             </Box>
@@ -162,4 +154,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default ForgotPassword;
