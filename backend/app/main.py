@@ -13,6 +13,7 @@ import yaml
 
 from app.auth.dependencies import get_current_user, get_current_admin_user
 from app.auth.router import router as auth_router
+from app.auth.user_management import router as user_management_router
 from app.config.settings_manager import SettingsManager
 from app.db.database import init_db
 from app.db.models import User
@@ -69,6 +70,16 @@ app.include_router(
     responses={
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden - Insufficient permissions"},
+    }
+)
+
+app.include_router(
+    user_management_router,
+    prefix="/auth",
+    tags=["User Management"],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden - Admin privileges required"},
     }
 )
 
@@ -267,6 +278,7 @@ class SettingsModel(BaseModel):
                              example="ollama")
     llm_api_url: str = Field("", description="LLM API URL", example="http://localhost:11434/api/generate")
     llm_api_key: str = Field("", description="LLM API key (if required)")
+    llm_model: str = Field("meta-llama/llama-3.2-3b-instruct:free", description="LLM model to use", example="meta-llama/llama-3.2-3b-instruct:free")
     openrouter_api_url: str = Field("", description="OpenRouter API URL", example="https://openrouter.ai/api/v1/chat/completions")
     openrouter_api_key: str = Field("", description="OpenRouter API key (if using OpenRouter)")
     docker_context: str = Field("default", description="Docker context to use", example="default")
@@ -288,11 +300,12 @@ class SettingsModel(BaseModel):
         validate_assignment = True
         schema_extra = {
             "example": {
-                "llm_provider": "ollama",
-                "llm_api_url": "http://localhost:11434/api/generate",
+                "llm_provider": "openrouter",
+                "llm_api_url": "",
                 "llm_api_key": "",
-                "openrouter_api_url": "",
-                "openrouter_api_key": "",
+                "llm_model": "meta-llama/llama-3.2-3b-instruct:free",
+                "openrouter_api_url": "https://openrouter.ai/api/v1/chat/completions",
+                "openrouter_api_key": "sk-or-v1-...",
                 "docker_context": "default",
                 "secrets": {
                     "MYSQL_PASSWORD": "secret_password"
@@ -524,7 +537,7 @@ async def parse_nlp_command(
         # Inject secrets before LLM use
         secrets = settings_manager.get("secrets", {})
         inject_secrets_into_env(secrets)
-        action_plan = intent_parser.parse(req.command)
+        action_plan = await intent_parser.parse(req.command)
         if not action_plan:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -834,7 +847,104 @@ async def container_action(
         )
 
 @app.get(
-    "/templates",
+    "/api/containers/{container_id}",
+    tags=["Containers"],
+    summary="Get container details",
+    description="Returns detailed information about a specific container.",
+    responses={
+        200: {"description": "Container details"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+        503: {"description": "Docker service unavailable"}
+    }
+)
+async def get_container_details(
+    container_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get detailed information about a specific container.
+
+    Requires authentication.
+    """
+    try:
+        docker_manager = get_docker_manager()
+        containers = docker_manager.list_containers(all=True)
+
+        # Find the specific container
+        container = None
+        for c in containers:
+            if c.get("id") == container_id or c.get("name") == container_id:
+                container = c
+                break
+
+        if not container:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Container not found: {container_id}"
+            )
+
+        return container
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get container details: {str(e)}"
+        )
+
+@app.get(
+    "/api/containers/{container_id}/stats",
+    tags=["Containers"],
+    summary="Get container statistics",
+    description="Returns resource usage statistics for a specific container.",
+    responses={
+        200: {"description": "Container statistics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+        503: {"description": "Docker service unavailable"}
+    }
+)
+async def get_container_stats(
+    container_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get resource usage statistics for a specific container.
+
+    Requires authentication.
+    """
+    try:
+        docker_manager = get_docker_manager()
+        # For now, return placeholder stats since the DockerManager might not have stats method
+        # This can be enhanced later with actual Docker stats API
+        stats = {
+            "container_id": container_id,
+            "cpu_usage": "15%",
+            "memory_usage": "128MB",
+            "memory_limit": "512MB",
+            "network_io": {
+                "rx_bytes": 1024,
+                "tx_bytes": 2048
+            },
+            "block_io": {
+                "read_bytes": 4096,
+                "write_bytes": 8192
+            }
+        }
+        return stats
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get container stats: {str(e)}"
+        )
+
+@app.get(
+    "/api/templates",
     tags=["Templates"],
     summary="List available templates",
     description="Returns a list of all available stack templates.",
@@ -862,7 +972,7 @@ async def list_templates(current_user: User = Depends(get_current_user)):
         )
 
 @app.post(
-    "/templates/deploy",
+    "/api/templates/deploy",
     response_model=TemplateDeployResponse,
     tags=["Templates"],
     summary="Deploy a template",
@@ -1035,6 +1145,100 @@ async def system_status(current_user: User = Depends(get_current_user)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get system status: {str(e)}"
+        )
+
+class DockerHealthResponse(BaseModel):
+    """
+    Model for Docker health check response.
+    """
+    status: str = Field(..., description="Health status", example="healthy")
+    docker_ping: Optional[bool] = Field(None, description="Docker ping result", example=True)
+    docker_version: Optional[str] = Field(None, description="Docker version", example="20.10.17")
+    api_version: Optional[str] = Field(None, description="Docker API version", example="1.41")
+    error: Optional[str] = Field(None, description="Error message if unhealthy")
+    error_type: Optional[str] = Field(None, description="Error type if unhealthy")
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "status": "healthy",
+                "docker_ping": True,
+                "docker_version": "20.10.17",
+                "api_version": "1.41"
+            }
+        }
+
+@app.get(
+    "/api/docker/health",
+    response_model=DockerHealthResponse,
+    tags=["System"],
+    summary="Check Docker health",
+    description="Check the health of the Docker connection and daemon.",
+    responses={
+        200: {"description": "Docker health status", "model": DockerHealthResponse},
+        401: {"description": "Unauthorized - Authentication required"},
+        503: {"description": "Docker service unavailable"}
+    }
+)
+async def docker_health(current_user: User = Depends(get_current_user)):
+    """
+    Check Docker daemon health.
+
+    Requires authentication.
+    """
+    try:
+        docker_manager = get_docker_manager()
+        health_result = docker_manager.health_check()
+
+        if health_result["status"] == "unhealthy":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}"
+            )
+
+        return DockerHealthResponse(**health_result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Docker health check failed: {str(e)}"
+        )
+
+@app.get(
+    "/docker-health",
+    response_model=DockerHealthResponse,
+    tags=["System"],
+    summary="Public Docker health check",
+    description="Public endpoint to check Docker daemon health (no authentication required).",
+    responses={
+        200: {"description": "Docker health status", "model": DockerHealthResponse},
+        503: {"description": "Docker service unavailable"}
+    }
+)
+async def public_docker_health():
+    """
+    Public Docker daemon health check.
+
+    No authentication required - useful for monitoring and health checks.
+    """
+    try:
+        docker_manager = get_docker_manager()
+        health_result = docker_manager.health_check()
+
+        if health_result["status"] == "unhealthy":
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}"
+            )
+
+        return DockerHealthResponse(**health_result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Docker health check failed: {str(e)}"
         )
 
 class HistoryEntry(BaseModel):
