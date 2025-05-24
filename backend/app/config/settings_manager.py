@@ -65,5 +65,13 @@ class SettingsManager:
             "openrouter_api_url": "https://openrouter.ai/api/v1/chat/completions",
             "openrouter_api_key": "",
             "docker_context": "default",
+            "email_provider": "sendgrid",  # "sendgrid" or "gmail"
+            "email_from": "noreply@example.com",
+            "email_from_name": "DockerDeployer",
+            "sendgrid_api_key": "",
+            "gmail_username": "",
+            "gmail_password": "",
+            "gmail_smtp_host": "smtp.gmail.com",
+            "gmail_smtp_port": 587,
             "secrets": {}
         }

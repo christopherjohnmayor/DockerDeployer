@@ -39,6 +39,7 @@ class User(Base):
     full_name = Column(String, nullable=True)
     role = Column(String, default=UserRole.USER)
     is_active = Column(Boolean, default=True)
+    is_email_verified = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -84,6 +85,21 @@ class Token(Base):
 class PasswordResetToken(Base):
     """Password reset token model."""
     __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    expires_at = Column(DateTime)
+    is_used = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
+
+
+class EmailVerificationToken(Base):
+    """Email verification token model."""
+    __tablename__ = "email_verification_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
     token = Column(String, unique=True, index=True)

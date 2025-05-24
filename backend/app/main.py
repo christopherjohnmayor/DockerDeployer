@@ -282,10 +282,19 @@ class SettingsModel(BaseModel):
     openrouter_api_url: str = Field("", description="OpenRouter API URL", example="https://openrouter.ai/api/v1/chat/completions")
     openrouter_api_key: str = Field("", description="OpenRouter API key (if using OpenRouter)")
     docker_context: str = Field("default", description="Docker context to use", example="default")
+    email_provider: str = Field("sendgrid", pattern="^(sendgrid|gmail)$", description="Email provider to use", example="sendgrid")
+    email_from: str = Field("noreply@example.com", description="From email address", example="noreply@example.com")
+    email_from_name: str = Field("DockerDeployer", description="From name for emails", example="DockerDeployer")
+    sendgrid_api_key: str = Field("", description="SendGrid API key (if using SendGrid)")
+    gmail_username: str = Field("", description="Gmail username (if using Gmail)")
+    gmail_password: str = Field("", description="Gmail password/app password (if using Gmail)")
+    gmail_smtp_host: str = Field("smtp.gmail.com", description="Gmail SMTP host", example="smtp.gmail.com")
+    gmail_smtp_port: int = Field(587, description="Gmail SMTP port", example=587)
     secrets: Dict[str, Any] = Field(default_factory=dict, description="Secrets to inject into environment variables")
 
     @classmethod
     def validate_provider_fields(cls, values):
+        # LLM provider validation
         provider = values.get("llm_provider")
         if provider == "litellm":
             if not values.get("llm_api_url"):
@@ -293,7 +302,16 @@ class SettingsModel(BaseModel):
         if provider == "openrouter":
             if not values.get("openrouter_api_key"):
                 raise ValueError("OpenRouter API Key is required for provider 'openrouter'")
-        # Ollama typically runs locally, so no extra fields required
+
+        # Email provider validation
+        email_provider = values.get("email_provider")
+        if email_provider == "sendgrid":
+            if not values.get("sendgrid_api_key"):
+                raise ValueError("SendGrid API Key is required for provider 'sendgrid'")
+        elif email_provider == "gmail":
+            if not values.get("gmail_username") or not values.get("gmail_password"):
+                raise ValueError("Gmail username and password are required for provider 'gmail'")
+
         return values
 
     class Config:

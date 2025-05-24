@@ -2,6 +2,7 @@
 Authentication router for FastAPI.
 """
 
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, List
@@ -20,6 +21,8 @@ from app.auth.jwt import (
     verify_password,
 )
 from app.auth.models import (
+    EmailVerificationConfirm,
+    EmailVerificationRequest,
     LoginRequest,
     PasswordResetConfirm,
     PasswordResetRequest,
@@ -32,16 +35,18 @@ from app.auth.models import (
     UserUpdateAdmin,
 )
 from app.db.database import get_db
-from app.db.models import PasswordResetToken, Token as TokenModel
+from app.db.models import EmailVerificationToken, PasswordResetToken, Token as TokenModel
 from app.db.models import User as UserModel, UserRole
+from app.email.service import get_email_service
+from app.email.templates import email_templates
 
 router = APIRouter(tags=["auth"])
 
 
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
-def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
+async def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
     """
-    Register a new user.
+    Register a new user and send email verification.
 
     Args:
         user_in: User creation data
@@ -69,16 +74,20 @@ def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> Any:
             detail="Email already registered",
         )
 
-    # Create new user
+    # Create new user (email not verified initially)
     db_user = UserModel(
         username=user_in.username,
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         full_name=user_in.full_name,
+        is_email_verified=False,  # Require email verification
     )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
+
+    # Send email verification
+    await _send_email_verification(db_user, db)
 
     return db_user
 
@@ -307,7 +316,7 @@ def logout(
 
 
 @router.post("/password-reset-request")
-def request_password_reset(
+async def request_password_reset(
     reset_request: PasswordResetRequest, db: Session = Depends(get_db)
 ) -> Any:
     """
@@ -348,9 +357,8 @@ def request_password_reset(
     db.add(db_reset_token)
     db.commit()
 
-    # TODO: Send email with reset link
-    # For now, we'll just log the token (remove in production)
-    print(f"Password reset token for {user.email}: {reset_token}")
+    # Send password reset email
+    await _send_password_reset_email(user, reset_token)
 
     return {"message": "If the email exists, a password reset link has been sent"}
 
@@ -464,3 +472,215 @@ def update_user_me(
     db.refresh(current_user)
 
     return current_user
+
+
+# Email verification endpoints
+@router.post("/email-verification-request")
+async def request_email_verification(
+    verification_request: EmailVerificationRequest, db: Session = Depends(get_db)
+) -> Any:
+    """
+    Request email verification (resend verification email).
+
+    Args:
+        verification_request: Email verification request data
+        db: Database session
+
+    Returns:
+        Success message
+    """
+    # Find user by email
+    user = db.query(UserModel).filter(UserModel.email == verification_request.email).first()
+    if not user:
+        # Don't reveal if email exists or not
+        return {"message": "If the email exists, a verification link has been sent"}
+
+    if user.is_email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email is already verified",
+        )
+
+    # Send email verification
+    await _send_email_verification(user, db)
+
+    return {"message": "If the email exists, a verification link has been sent"}
+
+
+@router.post("/email-verification-confirm")
+async def confirm_email_verification(
+    verification_confirm: EmailVerificationConfirm, db: Session = Depends(get_db)
+) -> Any:
+    """
+    Confirm email verification.
+
+    Args:
+        verification_confirm: Email verification confirmation data
+        db: Database session
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: If token is invalid or expired
+    """
+    # Find valid verification token
+    verification_token = (
+        db.query(EmailVerificationToken)
+        .filter(
+            EmailVerificationToken.token == verification_confirm.token,
+            EmailVerificationToken.is_used == False,
+            EmailVerificationToken.expires_at > datetime.utcnow(),
+        )
+        .first()
+    )
+
+    if not verification_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired verification token",
+        )
+
+    # Mark token as used
+    verification_token.is_used = True
+
+    # Mark user email as verified
+    user = verification_token.user
+    user.is_email_verified = True
+
+    db.commit()
+
+    # Send welcome email
+    await _send_welcome_email(user)
+
+    return {"message": "Email verified successfully"}
+
+
+# Helper functions
+async def _send_email_verification(user: UserModel, db: Session) -> None:
+    """Send email verification email."""
+    try:
+        # Generate verification token
+        verification_token = secrets.token_urlsafe(32)
+
+        # Set expiration time (24 hours from now)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+
+        # Invalidate any existing verification tokens for this user
+        db.query(EmailVerificationToken).filter(
+            EmailVerificationToken.user_id == user.id,
+            EmailVerificationToken.is_used == False,
+        ).update({"is_used": True})
+
+        # Create new verification token
+        db_verification_token = EmailVerificationToken(
+            token=verification_token,
+            user_id=user.id,
+            expires_at=expires_at,
+        )
+        db.add(db_verification_token)
+        db.commit()
+
+        # Get email service
+        email_service = get_email_service()
+        if not email_service.is_configured():
+            print("Warning: Email service not configured, skipping email verification")
+            return
+
+        # Generate verification URL
+        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        verification_url = f"{base_url}/verify-email?token={verification_token}"
+
+        # Render email template
+        html_content, text_content = email_templates.render_template(
+            "email_verification",
+            verification_url=verification_url,
+            username=user.username,
+            app_name="DockerDeployer",
+        )
+
+        # Send email
+        success = await email_service.send_email(
+            to_emails=[user.email],
+            subject="Verify Your Email - DockerDeployer",
+            html_content=html_content,
+            text_content=text_content,
+        )
+
+        if not success:
+            print(f"Failed to send verification email to {user.email}")
+
+    except Exception as e:
+        print(f"Error sending verification email: {e}")
+
+
+async def _send_password_reset_email(user: UserModel, reset_token: str) -> None:
+    """Send password reset email."""
+    try:
+        # Get email service
+        email_service = get_email_service()
+        if not email_service.is_configured():
+            print("Warning: Email service not configured, skipping password reset email")
+            return
+
+        # Generate reset URL
+        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        reset_url = f"{base_url}/reset-password?token={reset_token}"
+
+        # Render email template
+        html_content, text_content = email_templates.render_template(
+            "password_reset",
+            reset_url=reset_url,
+            username=user.username,
+            app_name="DockerDeployer",
+        )
+
+        # Send email
+        success = await email_service.send_email(
+            to_emails=[user.email],
+            subject="Reset Your Password - DockerDeployer",
+            html_content=html_content,
+            text_content=text_content,
+        )
+
+        if not success:
+            print(f"Failed to send password reset email to {user.email}")
+
+    except Exception as e:
+        print(f"Error sending password reset email: {e}")
+
+
+async def _send_welcome_email(user: UserModel) -> None:
+    """Send welcome email after email verification."""
+    try:
+        # Get email service
+        email_service = get_email_service()
+        if not email_service.is_configured():
+            print("Warning: Email service not configured, skipping welcome email")
+            return
+
+        # Generate login URL
+        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        login_url = f"{base_url}/login"
+
+        # Render email template
+        html_content, text_content = email_templates.render_template(
+            "welcome",
+            username=user.username,
+            app_name="DockerDeployer",
+            login_url=login_url,
+        )
+
+        # Send email
+        success = await email_service.send_email(
+            to_emails=[user.email],
+            subject="Welcome to DockerDeployer!",
+            html_content=html_content,
+            text_content=text_content,
+        )
+
+        if not success:
+            print(f"Failed to send welcome email to {user.email}")
+
+    except Exception as e:
+        print(f"Error sending welcome email: {e}")

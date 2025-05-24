@@ -17,3 +17,6 @@ passlib[bcrypt]
 python-jose[cryptography]
 PyYAML
 email-validator
+aiosmtplib
+jinja2
+sendgrid

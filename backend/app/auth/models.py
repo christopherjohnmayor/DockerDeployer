@@ -73,6 +73,7 @@ class User(UserBase):
     id: int
     role: str
     is_active: bool
+    is_email_verified: bool
 
     class Config:
         """Pydantic config."""
@@ -140,6 +141,16 @@ class PasswordResetConfirm(BaseModel):
         if not any(c.isdigit() for c in v):
             raise ValueError("Password must contain at least one digit")
         return v
+
+
+class EmailVerificationRequest(BaseModel):
+    """Email verification request model."""
+    email: EmailStr = Field(..., description="Email address to send verification link to")
+
+
+class EmailVerificationConfirm(BaseModel):
+    """Email verification confirmation model."""
+    token: str = Field(..., description="Email verification token")
 
 
 class UserManagement(BaseModel):
