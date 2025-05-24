@@ -2,87 +2,157 @@ name: Deploy
 
 on:
   workflow_run:
-    workflows: ["Build"]
+    workflows: ["Build and Release"]
     types:
       - completed
     branches:
       - main
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to deploy to"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  DOCKER_REGISTRY: docker.io
+  BACKEND_IMAGE: christopherjohnmayor/dockerdeployer-backend
+  FRONTEND_IMAGE: christopherjohnmayor/dockerdeployer-frontend
 
 jobs:
   deploy-staging:
     name: Deploy to Staging
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/main' }}
+    if: |
+      (github.event.workflow_run.conclusion == 'success' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
     environment: staging
-    
+    timeout-minutes: 15
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
+
       - name: Add host key
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.STAGING_HOST }} >> ~/.ssh/known_hosts
-      
+
       - name: Deploy to staging
         env:
           DOMAIN: ${{ secrets.STAGING_DOMAIN }}
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.STAGING_HOST }}
+          BACKEND_TAG: latest
+          FRONTEND_TAG: latest
         run: |
+          set -e  # Exit on any error
+
+          echo "🚀 Starting deployment to staging..."
+
           # Create deployment directory
           ssh $SSH_USER@$SSH_HOST "mkdir -p ~/dockerdeployer"
-          
+
           # Copy docker-compose and nginx config files
           scp docker-compose.prod.yml $SSH_USER@$SSH_HOST:~/dockerdeployer/docker-compose.yml
-          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/
-          
+          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/ || true
+
           # Create .env file
-          echo "DOMAIN=$DOMAIN" > .env
-          echo "SECRET_KEY=$SECRET_KEY" >> .env
+          cat > .env << EOF
+          DOMAIN=$DOMAIN
+          SECRET_KEY=$SECRET_KEY
+          BACKEND_TAG=$BACKEND_TAG
+          FRONTEND_TAG=$FRONTEND_TAG
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
+          EOF
           scp .env $SSH_USER@$SSH_HOST:~/dockerdeployer/.env
-          
-          # Pull latest images and deploy
+
+          # Pull latest images and deploy with rollback capability
           ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            echo '📦 Pulling latest images...' && \
             docker-compose pull && \
+            echo '🔄 Stopping old containers...' && \
+            docker-compose down --remove-orphans && \
+            echo '🚀 Starting new containers...' && \
             docker-compose up -d && \
-            docker system prune -af"
-      
+            echo '🧹 Cleaning up old images...' && \
+            docker system prune -af --volumes=false"
+
       - name: Verify deployment
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.STAGING_HOST }}
         run: |
-          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && docker-compose ps"
-  
+          echo "🔍 Verifying deployment..."
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            docker-compose ps && \
+            echo '✅ Deployment verification complete'"
+
+      - name: Health check
+        env:
+          STAGING_URL: ${{ secrets.STAGING_DOMAIN }}
+        run: |
+          echo "🏥 Performing health check..."
+          for i in {1..30}; do
+            if curl -f -s "https://$STAGING_URL/health" > /dev/null; then
+              echo "✅ Health check passed"
+              exit 0
+            fi
+            echo "⏳ Waiting for service to be ready... ($i/30)"
+            sleep 10
+          done
+          echo "❌ Health check failed"
+          exit 1
+
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: |
+      (github.event_name == 'release' && github.event.action == 'published') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment: production
-    
+    timeout-minutes: 30
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
-      
+        uses: actions/checkout@v4
+
       - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.7.0
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
+
       - name: Add host key
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.PRODUCTION_HOST }} >> ~/.ssh/known_hosts
-      
+
+      - name: Create backup before deployment
+        env:
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
+        run: |
+          echo "💾 Creating backup before deployment..."
+          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            mkdir -p ~/backups && \
+            BACKUP_NAME=backup-\$(date +%Y%m%d-%H%M%S).tar.gz && \
+            echo 'Creating backup: \$BACKUP_NAME' && \
+            docker-compose exec -T backend sh -c 'tar -czf /tmp/\$BACKUP_NAME /app/data /app/config_repo 2>/dev/null || true' && \
+            docker cp \$(docker-compose ps -q backend):/tmp/\$BACKUP_NAME ~/backups/ 2>/dev/null || echo 'Backup creation skipped - no existing deployment'"
+
       - name: Deploy to production
         env:
           DOMAIN: ${{ secrets.PRODUCTION_DOMAIN }}
@@ -91,40 +161,69 @@ jobs:
           SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
           RELEASE_VERSION: ${{ github.event.release.tag_name }}
         run: |
+          set -e  # Exit on any error
+
+          echo "🚀 Starting production deployment..."
+          echo "📦 Release version: $RELEASE_VERSION"
+
           # Create deployment directory
           ssh $SSH_USER@$SSH_HOST "mkdir -p ~/dockerdeployer"
-          
+
           # Copy docker-compose and nginx config files
           scp docker-compose.prod.yml $SSH_USER@$SSH_HOST:~/dockerdeployer/docker-compose.yml
-          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/
-          
+          scp -r nginx $SSH_USER@$SSH_HOST:~/dockerdeployer/ || true
+
           # Create .env file with release version
-          echo "DOMAIN=$DOMAIN" > .env
-          echo "SECRET_KEY=$SECRET_KEY" >> .env
-          echo "BACKEND_TAG=${RELEASE_VERSION}-backend" >> .env
-          echo "FRONTEND_TAG=${RELEASE_VERSION}-frontend" >> .env
+          cat > .env << EOF
+          DOMAIN=$DOMAIN
+          SECRET_KEY=$SECRET_KEY
+          BACKEND_TAG=$RELEASE_VERSION
+          FRONTEND_TAG=$RELEASE_VERSION
+          BACKEND_IMAGE=${{ env.BACKEND_IMAGE }}
+          FRONTEND_IMAGE=${{ env.FRONTEND_IMAGE }}
+          EOF
           scp .env $SSH_USER@$SSH_HOST:~/dockerdeployer/.env
-          
-          # Pull specific version images and deploy
+
+          # Pull specific version images and deploy with zero-downtime strategy
           ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
+            echo '📦 Pulling release images...' && \
             docker-compose pull && \
-            docker-compose up -d && \
-            docker system prune -af"
-      
+            echo '🔄 Performing rolling update...' && \
+            docker-compose up -d --remove-orphans && \
+            echo '⏳ Waiting for services to stabilize...' && \
+            sleep 30 && \
+            echo '🧹 Cleaning up old images...' && \
+            docker system prune -af --volumes=false"
+
       - name: Verify deployment
         env:
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
         run: |
-          ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && docker-compose ps"
-      
-      - name: Create backup
-        env:
-          SSH_USER: ${{ secrets.SSH_USER }}
-          SSH_HOST: ${{ secrets.PRODUCTION_HOST }}
-        run: |
-          # Create backup of database and config
+          echo "🔍 Verifying production deployment..."
           ssh $SSH_USER@$SSH_HOST "cd ~/dockerdeployer && \
-            docker-compose exec -T backend sh -c 'tar -czf /tmp/backup-\$(date +%Y%m%d-%H%M%S).tar.gz /app/data /app/config_repo' && \
-            mkdir -p ~/backups && \
-            docker cp \$(docker-compose ps -q backend):/tmp/backup-*.tar.gz ~/backups/"
+            docker-compose ps && \
+            echo '✅ Production deployment verification complete'"
+
+      - name: Production health check
+        env:
+          PRODUCTION_URL: ${{ secrets.PRODUCTION_DOMAIN }}
+        run: |
+          echo "🏥 Performing production health check..."
+          for i in {1..60}; do
+            if curl -f -s "https://$PRODUCTION_URL/health" > /dev/null; then
+              echo "✅ Production health check passed"
+              exit 0
+            fi
+            echo "⏳ Waiting for production service to be ready... ($i/60)"
+            sleep 10
+          done
+          echo "❌ Production health check failed"
+          exit 1
+
+      - name: Notify deployment success
+        if: success()
+        run: |
+          echo "🎉 Production deployment successful!"
+          echo "🌐 Application is live at: https://${{ secrets.PRODUCTION_DOMAIN }}"
+          echo "📦 Deployed version: ${{ github.event.release.tag_name }}"

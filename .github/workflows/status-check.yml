@@ -1,0 +1,123 @@
+name: Status Check
+
+on:
+  workflow_run:
+    workflows: ["Test", "Build and Release", "Deploy"]
+    types:
+      - completed
+  schedule:
+    # Check status every hour during business hours (9 AM - 6 PM UTC, Mon-Fri)
+    - cron: '0 9-18 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  status-check:
+    name: Check Workflow Status
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check workflow status
+        id: status
+        run: |
+          echo "Checking workflow status..."
+          
+          # Get the latest workflow runs
+          LATEST_TEST=$(gh api repos/${{ github.repository }}/actions/workflows/test.yml/runs --jq '.workflow_runs[0].conclusion')
+          LATEST_BUILD=$(gh api repos/${{ github.repository }}/actions/workflows/build.yml/runs --jq '.workflow_runs[0].conclusion')
+          LATEST_DEPLOY=$(gh api repos/${{ github.repository }}/actions/workflows/deploy.yml/runs --jq '.workflow_runs[0].conclusion')
+          
+          echo "test_status=$LATEST_TEST" >> $GITHUB_OUTPUT
+          echo "build_status=$LATEST_BUILD" >> $GITHUB_OUTPUT
+          echo "deploy_status=$LATEST_DEPLOY" >> $GITHUB_OUTPUT
+          
+          # Check if any critical workflows failed
+          if [[ "$LATEST_TEST" == "failure" || "$LATEST_BUILD" == "failure" ]]; then
+            echo "critical_failure=true" >> $GITHUB_OUTPUT
+          else
+            echo "critical_failure=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate status report
+        run: |
+          cat > status-report.md << EOF
+          # 📊 DockerDeployer Workflow Status Report
+          
+          **Generated:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          
+          ## Workflow Status
+          
+          | Workflow | Status | Badge |
+          |----------|--------|-------|
+          | Tests | ${{ steps.status.outputs.test_status }} | ![Test Status](https://github.com/${{ github.repository }}/actions/workflows/test.yml/badge.svg) |
+          | Build & Release | ${{ steps.status.outputs.build_status }} | ![Build Status](https://github.com/${{ github.repository }}/actions/workflows/build.yml/badge.svg) |
+          | Deploy | ${{ steps.status.outputs.deploy_status }} | ![Deploy Status](https://github.com/${{ github.repository }}/actions/workflows/deploy.yml/badge.svg) |
+          
+          ## Quick Links
+          
+          - [🔍 All Workflows](https://github.com/${{ github.repository }}/actions)
+          - [📊 Insights](https://github.com/${{ github.repository }}/pulse)
+          - [🐛 Issues](https://github.com/${{ github.repository }}/issues)
+          - [🔒 Security](https://github.com/${{ github.repository }}/security)
+          
+          EOF
+          
+          echo "Status report generated:"
+          cat status-report.md
+
+      - name: Upload status report
+        uses: actions/upload-artifact@v4
+        with:
+          name: status-report-${{ github.run_number }}
+          path: status-report.md
+
+      - name: Notify on critical failure
+        if: steps.status.outputs.critical_failure == 'true'
+        run: |
+          echo "🚨 Critical workflow failure detected!"
+          echo "Test Status: ${{ steps.status.outputs.test_status }}"
+          echo "Build Status: ${{ steps.status.outputs.build_status }}"
+          echo "Deploy Status: ${{ steps.status.outputs.deploy_status }}"
+          
+          # In a real environment, you might want to send notifications
+          # to Slack, Discord, email, etc. using appropriate actions
+
+  health-check:
+    name: Application Health Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Check staging health
+        continue-on-error: true
+        run: |
+          if [ -n "${{ secrets.STAGING_DOMAIN }}" ]; then
+            echo "🏥 Checking staging health..."
+            if curl -f -s "https://${{ secrets.STAGING_DOMAIN }}/health" > /dev/null; then
+              echo "✅ Staging is healthy"
+            else
+              echo "❌ Staging health check failed"
+            fi
+          else
+            echo "⚠️ Staging domain not configured"
+          fi
+
+      - name: Check production health
+        continue-on-error: true
+        run: |
+          if [ -n "${{ secrets.PRODUCTION_DOMAIN }}" ]; then
+            echo "🏥 Checking production health..."
+            if curl -f -s "https://${{ secrets.PRODUCTION_DOMAIN }}/health" > /dev/null; then
+              echo "✅ Production is healthy"
+            else
+              echo "❌ Production health check failed"
+            fi
+          else
+            echo "⚠️ Production domain not configured"
+          fi
