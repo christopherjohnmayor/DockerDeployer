@@ -92,6 +92,8 @@ class GmailProvider(EmailProvider):
     ) -> bool:
         """Send email via Gmail SMTP."""
         try:
+            print(f"📧 Attempting to send email to {to_emails} via Gmail SMTP...")
+
             # Create message
             message = MIMEMultipart("alternative")
             message["Subject"] = subject
@@ -107,7 +109,9 @@ class GmailProvider(EmailProvider):
             html_part = MIMEText(html_content, "html")
             message.attach(html_part)
 
-            # Send email
+            print(f"🔗 Connecting to {self.smtp_host}:{self.smtp_port}...")
+
+            # Send email with timeout
             await aiosmtplib.send(
                 message,
                 hostname=self.smtp_host,
@@ -115,10 +119,51 @@ class GmailProvider(EmailProvider):
                 start_tls=True,
                 username=self.username,
                 password=self.password,
+                timeout=30,  # 30 second timeout
             )
+            print("✅ Email sent successfully via Gmail SMTP")
             return True
         except Exception as e:
-            print(f"Gmail SMTP email error: {e}")
+            print(f"❌ Gmail SMTP email error: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
+
+class TestEmailProvider(EmailProvider):
+    """Test email provider that simulates email sending."""
+
+    def __init__(self, from_email: str, from_name: str):
+        self.from_email = from_email
+        self.from_name = from_name
+
+    async def send_email(
+        self,
+        to_emails: List[str],
+        subject: str,
+        html_content: str,
+        text_content: Optional[str] = None,
+    ) -> bool:
+        """Simulate email sending for testing."""
+        try:
+            print(f"📧 [TEST MODE] Simulating email send to {to_emails}")
+            print(f"📧 [TEST MODE] Subject: {subject}")
+            print(f"📧 [TEST MODE] From: {self.from_name} <{self.from_email}>")
+            print(f"📧 [TEST MODE] HTML Content Length: {len(html_content)} chars")
+            if text_content:
+                print(f"📧 [TEST MODE] Text Content Length: {len(text_content)} chars")
+
+            # Extract verification/reset URLs from content for easy testing
+            import re
+            url_pattern = r'http[s]?://[^\s<>"]+(?:verify-email|reset-password)[^\s<>"]*'
+            urls = re.findall(url_pattern, html_content)
+            if urls:
+                print(f"🔗 [TEST MODE] Action URL: {urls[0]}")
+
+            print("✅ [TEST MODE] Email simulation completed successfully")
+            return True
+        except Exception as e:
+            print(f"❌ [TEST MODE] Email simulation error: {e}")
             return False
 
 
@@ -158,6 +203,10 @@ class EmailService:
                 self._provider = GmailProvider(
                     username, password, from_email, from_name, smtp_host, smtp_port
                 )
+
+            elif email_provider == "test":
+                print("📧 Using test email provider (emails will be simulated)")
+                self._provider = TestEmailProvider(from_email, from_name)
 
             else:
                 print(f"Warning: Unknown email provider: {email_provider}")

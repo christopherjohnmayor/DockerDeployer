@@ -560,6 +560,8 @@ async def confirm_email_verification(
 async def _send_email_verification(user: UserModel, db: Session) -> None:
     """Send email verification email."""
     try:
+        print(f"🔧 Starting email verification process for user: {user.username}")
+
         # Generate verification token
         verification_token = secrets.token_urlsafe(32)
 
@@ -580,16 +582,18 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
         )
         db.add(db_verification_token)
         db.commit()
+        print(f"💾 Verification token created and saved to database")
 
         # Get email service
         email_service = get_email_service()
         if not email_service.is_configured():
-            print("Warning: Email service not configured, skipping email verification")
+            print("⚠️ Warning: Email service not configured, skipping email verification")
             return
 
         # Generate verification URL
-        base_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        base_url = os.getenv("FRONTEND_URL", "http://localhost:3001")
         verification_url = f"{base_url}/verify-email?token={verification_token}"
+        print(f"🔗 Generated verification URL: {verification_url}")
 
         # Render email template
         html_content, text_content = email_templates.render_template(
@@ -598,20 +602,33 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
             username=user.username,
             app_name="DockerDeployer",
         )
+        print(f"📝 Email template rendered successfully")
 
-        # Send email
-        success = await email_service.send_email(
-            to_emails=[user.email],
-            subject="Verify Your Email - DockerDeployer",
-            html_content=html_content,
-            text_content=text_content,
-        )
+        # Send email with timeout
+        import asyncio
+        try:
+            success = await asyncio.wait_for(
+                email_service.send_email(
+                    to_emails=[user.email],
+                    subject="Verify Your Email - DockerDeployer",
+                    html_content=html_content,
+                    text_content=text_content,
+                ),
+                timeout=45  # 45 second timeout
+            )
 
-        if not success:
-            print(f"Failed to send verification email to {user.email}")
+            if success:
+                print(f"✅ Verification email sent successfully to {user.email}")
+            else:
+                print(f"❌ Failed to send verification email to {user.email}")
+
+        except asyncio.TimeoutError:
+            print(f"⏰ Timeout sending verification email to {user.email}")
 
     except Exception as e:
-        print(f"Error sending verification email: {e}")
+        print(f"❌ Error sending verification email: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 async def _send_password_reset_email(user: UserModel, reset_token: str) -> None:
