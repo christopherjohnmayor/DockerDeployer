@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Backend service
   backend:
-    image: christopherjohnmayor/dockerdeployer:${BACKEND_TAG:-latest}-backend
+    image: ${BACKEND_IMAGE:-christopherjohnmayor/dockerdeployer-backend}:${BACKEND_TAG:-latest}
     container_name: dockerdeployer-backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -15,6 +15,15 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - CONFIG_REPO_PATH=/app/config_repo
       - CORS_ORIGINS=https://${DOMAIN}
+      - EMAIL_PROVIDER=${EMAIL_PROVIDER:-sendgrid}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_FROM_NAME=${EMAIL_FROM_NAME:-DockerDeployer}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
+      - GMAIL_USERNAME=${GMAIL_USERNAME}
+      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
+      - GMAIL_SMTP_HOST=${GMAIL_SMTP_HOST:-smtp.gmail.com}
+      - GMAIL_SMTP_PORT=${GMAIL_SMTP_PORT:-587}
+      - FRONTEND_URL=https://${DOMAIN}
     restart: unless-stopped
     networks:
       - app_network
@@ -27,10 +36,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
         reservations:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
       restart_policy:
         condition: on-failure
@@ -40,7 +49,7 @@ services:
 
   # Frontend service
   frontend:
-    image: christopherjohnmayor/dockerdeployer:${FRONTEND_TAG:-latest}-frontend
+    image: ${FRONTEND_IMAGE:-christopherjohnmayor/dockerdeployer-frontend}:${FRONTEND_TAG:-latest}
     container_name: dockerdeployer-frontend
     restart: unless-stopped
     networks:
@@ -56,10 +65,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.5'
+          cpus: "0.5"
           memory: 512M
         reservations:
-          cpus: '0.25'
+          cpus: "0.25"
           memory: 256M
       restart_policy:
         condition: on-failure

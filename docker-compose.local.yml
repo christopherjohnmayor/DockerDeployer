@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # Backend service
+  backend:
+    image: christopherjohnmayor/dockerdeployer-backend:latest
+    container_name: dockerdeployer-backend-local
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config_repo:/app/config_repo
+      - db_data:/app/data
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=sqlite:///./data/dockerdeployer.db
+      - SECRET_KEY=dev_secret_key_change_in_production
+      - CONFIG_REPO_PATH=/app/config_repo
+      - CORS_ORIGINS=http://localhost:3001,http://frontend:3001
+      - EMAIL_PROVIDER=gmail
+      - EMAIL_FROM=toph.homelab@gmail.com
+      - EMAIL_FROM_NAME=DockerDeployer Local
+      - GMAIL_USERNAME=toph.homelab@gmail.com
+      - GMAIL_PASSWORD=pclqytvrtoyskhs
+      - GMAIL_SMTP_HOST=smtp.gmail.com
+      - GMAIL_SMTP_PORT=587
+      - FRONTEND_URL=http://localhost:3001
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend service
+  frontend:
+    image: christopherjohnmayor/dockerdeployer-frontend:latest
+    container_name: dockerdeployer-frontend-local
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    ports:
+      - "3001:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  db_data:
