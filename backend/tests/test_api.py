@@ -3,7 +3,7 @@ Tests for the FastAPI endpoints.
 """
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import docker as docker_sdk
 import httpx
@@ -16,7 +16,6 @@ from backend.tests.conftest import (
     docker_available,
     docker_required,
     llm_available,
-    llm_required,
 )
 
 # For backward compatibility with existing tests
@@ -24,11 +23,38 @@ client = TestClient(app)
 
 
 def test_nlp_parse():
-    resp = client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "action_plan" in data
-    assert isinstance(data["action_plan"], dict)
+    """Test NLP parsing endpoint with mocked authentication."""
+    from unittest.mock import MagicMock
+    from backend.app.db.models import UserRole
+    from backend.app.auth.dependencies import get_current_user
+
+    # Create a mock user object
+    mock_user = MagicMock()
+    mock_user.id = 1
+    mock_user.username = "testuser"
+    mock_user.email = "test@example.com"
+    mock_user.full_name = "Test User"
+    mock_user.role = UserRole.USER
+    mock_user.is_active = True
+    mock_user.is_email_verified = True
+
+    # Override the dependency to return our mock user
+    def override_get_current_user():
+        return mock_user
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
+    try:
+        # Create client after setting override
+        client = TestClient(app)
+        resp = client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "action_plan" in data
+        assert isinstance(data["action_plan"], dict)
+    finally:
+        # Clean up dependency override
+        app.dependency_overrides.clear()
 
 
 @pytest.mark.skipif(not docker_available(), reason="Docker is not available")
@@ -44,7 +70,7 @@ def test_real_docker_container_lifecycle():
     )
     try:
         # Should appear in /containers
-        resp = client.get("/containers")
+        resp = client.get("/api/containers")
         assert resp.status_code == 200
         containers = resp.json()
         found = any("test_deployer_alpine" in c["name"] for c in containers)
@@ -87,8 +113,8 @@ def test_llm_integration():
 
 
 @docker_required
-def test_list_containers():
-    resp = client.get("/containers")
+def test_list_containers(authenticated_client):
+    resp = authenticated_client.get("/api/containers")
     # Accept 200 or 503 (service unavailable) if Docker is not running
     assert resp.status_code in (200, 503, 500)
     if resp.status_code == 200:
@@ -99,8 +125,8 @@ def test_list_containers():
 
 
 @docker_required
-def test_container_action_invalid():
-    resp = client.post("/containers/invalid_id/action", json={"action": "restart"})
+def test_container_action_invalid(authenticated_client):
+    resp = authenticated_client.post("/api/containers/invalid_id/action", json={"action": "restart"})
     assert resp.status_code in (200, 404, 503, 500)
     if resp.status_code == 200:
         data = resp.json()
@@ -111,8 +137,8 @@ def test_container_action_invalid():
         )
 
 
-def test_list_templates():
-    resp = client.get("/templates")
+def test_list_templates(authenticated_client):
+    resp = authenticated_client.get("/api/templates")
     assert resp.status_code == 200
     data = resp.json()
     assert isinstance(data, list)
@@ -120,8 +146,8 @@ def test_list_templates():
         assert "name" in t
 
 
-def test_deploy_template_not_found():
-    resp = client.post("/templates/deploy", json={"template_name": "nonexistent"})
+def test_deploy_template_not_found(authenticated_client):
+    resp = authenticated_client.post("/api/templates/deploy", json={"template_name": "nonexistent"})
     assert resp.status_code in (404, 503, 500)
     if resp.status_code == 404:
         data = resp.json()
@@ -129,8 +155,8 @@ def test_deploy_template_not_found():
 
 
 @docker_required
-def test_logs_invalid_container():
-    resp = client.get("/logs/invalid_id")
+def test_logs_invalid_container(authenticated_client):
+    resp = authenticated_client.get("/api/logs/invalid_id")
     assert resp.status_code in (200, 404, 503, 500)
     if resp.status_code == 200:
         data = resp.json()
@@ -138,16 +164,16 @@ def test_logs_invalid_container():
 
 
 @docker_required
-def test_system_status():
-    resp = client.get("/status")
+def test_system_status(authenticated_client):
+    resp = authenticated_client.get("/status")
     assert resp.status_code in (200, 503, 500)
     if resp.status_code == 200:
         data = resp.json()
         assert "cpu" in data and "memory" in data and "containers" in data
 
 
-def test_history():
-    resp = client.get("/history")
+def test_history(authenticated_client):
+    resp = authenticated_client.get("/history")
     assert resp.status_code in (200, 503, 500)
     if resp.status_code == 200:
         data = resp.json()
@@ -159,12 +185,12 @@ def test_history():
 class TestContainerEndpointsMocked:
     """Test suite for container-related API endpoints using mocks."""
 
-    def test_list_containers(self, test_client, mock_docker_manager):
+    def test_list_containers(self, authenticated_client, mock_docker_manager):
         """Test listing containers endpoint."""
         with patch(
             "backend.app.main.get_docker_manager", return_value=mock_docker_manager
         ):
-            response = test_client.get("/containers")
+            response = authenticated_client.get("/api/containers")
 
             assert response.status_code == 200
             assert isinstance(response.json(), list)
@@ -174,13 +200,13 @@ class TestContainerEndpointsMocked:
 
             mock_docker_manager.list_containers.assert_called_once_with(all=True)
 
-    def test_container_action_start(self, test_client, mock_docker_manager):
+    def test_container_action_start(self, authenticated_client, mock_docker_manager):
         """Test container start action endpoint."""
         with patch(
             "backend.app.main.get_docker_manager", return_value=mock_docker_manager
         ):
-            response = test_client.post(
-                "/containers/test_container_id/action", json={"action": "start"}
+            response = authenticated_client.post(
+                "/api/containers/test_container_id/action", json={"action": "start"}
             )
 
             assert response.status_code == 200
@@ -191,13 +217,13 @@ class TestContainerEndpointsMocked:
                 "test_container_id"
             )
 
-    def test_container_action_stop(self, test_client, mock_docker_manager):
+    def test_container_action_stop(self, authenticated_client, mock_docker_manager):
         """Test container stop action endpoint."""
         with patch(
             "backend.app.main.get_docker_manager", return_value=mock_docker_manager
         ):
-            response = test_client.post(
-                "/containers/test_container_id/action", json={"action": "stop"}
+            response = authenticated_client.post(
+                "/api/containers/test_container_id/action", json={"action": "stop"}
             )
 
             assert response.status_code == 200
@@ -208,13 +234,13 @@ class TestContainerEndpointsMocked:
                 "test_container_id"
             )
 
-    def test_container_action_restart(self, test_client, mock_docker_manager):
+    def test_container_action_restart(self, authenticated_client, mock_docker_manager):
         """Test container restart action endpoint."""
         with patch(
             "backend.app.main.get_docker_manager", return_value=mock_docker_manager
         ):
-            response = test_client.post(
-                "/containers/test_container_id/action", json={"action": "restart"}
+            response = authenticated_client.post(
+                "/api/containers/test_container_id/action", json={"action": "restart"}
             )
 
             assert response.status_code == 200
@@ -225,12 +251,12 @@ class TestContainerEndpointsMocked:
                 "test_container_id"
             )
 
-    def test_get_logs(self, test_client, mock_docker_manager):
+    def test_get_logs(self, authenticated_client, mock_docker_manager):
         """Test getting container logs endpoint."""
         with patch(
             "backend.app.main.get_docker_manager", return_value=mock_docker_manager
         ):
-            response = test_client.get("/logs/test_container_id")
+            response = authenticated_client.get("/api/logs/test_container_id")
 
             assert response.status_code == 200
             assert response.json()["id"] == "test_container_id"
@@ -242,9 +268,11 @@ class TestContainerEndpointsMocked:
 class TestTemplateEndpointsMocked:
     """Test suite for template-related API endpoints using mocks."""
 
-    def test_list_templates(self, test_client, mock_template_loader):
+    def test_list_templates(self, authenticated_client, mock_template_loader):
         """Test listing templates endpoint."""
-        response = test_client.get("/templates")
+        # Use mock_template_loader to avoid linting warning
+        _ = mock_template_loader
+        response = authenticated_client.get("/api/templates")
 
         assert response.status_code == 200
         assert isinstance(response.json(), list)
@@ -253,11 +281,13 @@ class TestTemplateEndpointsMocked:
         assert "mean" in [t["name"] for t in response.json()]
         assert "wordpress" in [t["name"] for t in response.json()]
 
-    def test_deploy_template(self, test_client, mock_template_loader, mock_git_manager):
+    def test_deploy_template(self, authenticated_client, mock_template_loader, mock_git_manager):
         """Test deploying a template endpoint."""
+        # Use mock_template_loader to avoid linting warning
+        _ = mock_template_loader
         with patch("backend.app.main.git_manager", mock_git_manager):
-            response = test_client.post(
-                "/templates/deploy", json={"template_name": "lemp"}
+            response = authenticated_client.post(
+                "/api/templates/deploy", json={"template_name": "lemp"}
             )
 
             assert response.status_code == 200
@@ -270,12 +300,14 @@ class TestTemplateEndpointsMocked:
 class TestNLPEndpointsMocked:
     """Test suite for NLP-related API endpoints using mocks."""
 
-    def test_parse_nlp_command(self, test_client, mock_llm_client):
+    def test_parse_nlp_command(self, authenticated_client, mock_llm_client):
         """Test parsing NLP command endpoint."""
+        # Use mock_llm_client to avoid linting warning
+        _ = mock_llm_client
         with patch("backend.app.main.intent_parser.parse") as mock_parse:
             mock_parse.return_value = {"action": "list_containers", "parameters": {}}
 
-            response = test_client.post(
+            response = authenticated_client.post(
                 "/nlp/parse", json={"command": "List all containers"}
             )
 
