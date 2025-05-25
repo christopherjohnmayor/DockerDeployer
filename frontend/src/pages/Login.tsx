@@ -149,7 +149,7 @@ const Login: React.FC = () => {
                 </Link>
               </Typography>
               <Typography variant="body2">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <Link component={RouterLink} to="/register" variant="body2">
                   Register
                 </Link>

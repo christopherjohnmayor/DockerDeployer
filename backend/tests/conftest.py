@@ -4,11 +4,12 @@ Pytest configuration file for DockerDeployer backend tests.
 
 import os
 import sys
-import pytest
-from fastapi.testclient import TestClient
+from unittest.mock import MagicMock, patch
+
 import docker as docker_sdk
 import httpx
-from unittest.mock import MagicMock, patch
+import pytest
+from fastapi.testclient import TestClient
 
 # Ensure project root is in path for imports
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -45,15 +46,27 @@ def mock_docker_manager():
         "status": "running",
         "image": ["test_image:latest"],
         "ports": {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]},
-        "labels": {"app": "test"}
+        "labels": {"app": "test"},
     }
 
     # Setup mock methods
     mock_manager.list_containers.return_value = [mock_container]
-    mock_manager.start_container.return_value = {"status": "started", "id": "test_container_id"}
-    mock_manager.stop_container.return_value = {"status": "stopped", "id": "test_container_id"}
-    mock_manager.restart_container.return_value = {"status": "restarted", "id": "test_container_id"}
-    mock_manager.get_logs.return_value = {"id": "test_container_id", "logs": "Test logs output"}
+    mock_manager.start_container.return_value = {
+        "status": "started",
+        "id": "test_container_id",
+    }
+    mock_manager.stop_container.return_value = {
+        "status": "stopped",
+        "id": "test_container_id",
+    }
+    mock_manager.restart_container.return_value = {
+        "status": "restarted",
+        "id": "test_container_id",
+    }
+    mock_manager.get_logs.return_value = {
+        "id": "test_container_id",
+        "logs": "Test logs output",
+    }
 
     return mock_manager
 
@@ -86,28 +99,27 @@ def mock_template_loader():
             "description": "Linux, Nginx, MySQL, and PHP stack",
             "version": "1.0.0",
             "category": "web",
-            "complexity": "medium"
+            "complexity": "medium",
         },
         {
             "name": "mean",
             "description": "MongoDB, Express, Angular, and Node.js stack",
             "version": "1.0.0",
             "category": "web",
-            "complexity": "medium"
+            "complexity": "medium",
         },
         {
             "name": "wordpress",
             "description": "WordPress with MySQL",
             "version": "1.0.0",
             "category": "cms",
-            "complexity": "simple"
-        }
+            "complexity": "simple",
+        },
     ]
 
     # Create patch for list_templates
     list_templates_patch = patch(
-        "backend.templates.loader.list_templates",
-        return_value=templates
+        "backend.templates.loader.list_templates", return_value=templates
     )
 
     # Create patch for load_template
@@ -118,8 +130,7 @@ def mock_template_loader():
         return None
 
     load_template_patch = patch(
-        "backend.templates.loader.load_template",
-        side_effect=mock_load_template
+        "backend.templates.loader.load_template", side_effect=mock_load_template
     )
 
     # Start patches
@@ -144,7 +155,7 @@ def mock_git_manager():
     mock_manager.commit_all.return_value = "test_commit_hash"
     mock_manager.get_history.return_value = [
         ("abc123", "Test User", "Initial commit"),
-        ("def456", "Test User", "Update configuration")
+        ("def456", "Test User", "Update configuration"),
     ]
 
     return mock_manager
@@ -168,7 +179,9 @@ def llm_available():
     """
     url = os.getenv("LLM_API_URL", "http://localhost:8001/generate")
     try:
-        resp = httpx.post(url, json={"prompt": "Hello", "context": None, "params": {}}, timeout=2.0)
+        resp = httpx.post(
+            url, json={"prompt": "Hello", "context": None, "params": {}}, timeout=2.0
+        )
         return resp.status_code == 200
     except Exception:
         return False
@@ -176,11 +189,9 @@ def llm_available():
 
 # Mark decorators for conditional tests
 docker_required = pytest.mark.skipif(
-    not docker_available(),
-    reason="Docker is not available"
+    not docker_available(), reason="Docker is not available"
 )
 
 llm_required = pytest.mark.skipif(
-    not llm_available(),
-    reason="LLM API is not available"
+    not llm_available(), reason="LLM API is not available"
 )

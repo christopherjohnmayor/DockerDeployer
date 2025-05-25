@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
-import { parseError, isRetryableError, AppError } from '../utils/errorHandling';
-import { useToast } from '../components/Toast';
+import { useState, useCallback } from "react";
+import { parseError, isRetryableError, AppError } from "../utils/errorHandling";
+import { useToast } from "../components/Toast";
 
 interface UseApiCallOptions {
   showSuccessToast?: boolean;
@@ -21,7 +21,7 @@ interface UseApiCallReturn<T> {
 
 /**
  * Custom hook for handling API calls with error handling, loading states, and retry logic
- * 
+ *
  * Features:
  * - Automatic error parsing and handling
  * - Loading state management
@@ -29,7 +29,7 @@ interface UseApiCallReturn<T> {
  * - Toast notifications for success/error
  * - Reset functionality
  * - Type-safe return values
- * 
+ *
  * @param apiFunction - The API function to call
  * @param options - Configuration options
  * @returns Object with data, loading, error states and control functions
@@ -41,7 +41,7 @@ export function useApiCall<T>(
   const {
     showSuccessToast = false,
     showErrorToast = true,
-    successMessage = 'Operation completed successfully',
+    successMessage = "Operation completed successfully",
     retryAttempts = 3,
     retryDelay = 1000,
   } = options;
@@ -50,41 +50,42 @@ export function useApiCall<T>(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<AppError | null>(null);
   const [lastArgs, setLastArgs] = useState<any[]>([]);
-  const [currentRetryAttempt, setCurrentRetryAttempt] = useState(0);
+  const [, setCurrentRetryAttempt] = useState(0);
 
   const toast = useToast();
 
-  const execute = useCallback(
-    async (...args: any[]): Promise<T | null> => {
-      setLoading(true);
-      setError(null);
-      setLastArgs(args);
-      setCurrentRetryAttempt(0);
+  // Simple execute function without retry logic
+  // const execute = useCallback(
+  //   async (...args: any[]): Promise<T | null> => {
+  //     setLoading(true);
+  //     setError(null);
+  //     setLastArgs(args);
+  //     setCurrentRetryAttempt(0);
 
-      try {
-        const result = await apiFunction(...args);
-        setData(result);
-        
-        if (showSuccessToast) {
-          toast.showSuccess(successMessage);
-        }
-        
-        return result;
-      } catch (err) {
-        const parsedError = parseError(err);
-        setError(parsedError);
-        
-        if (showErrorToast) {
-          toast.showError(parsedError.message);
-        }
-        
-        return null;
-      } finally {
-        setLoading(false);
-      }
-    },
-    [apiFunction, showSuccessToast, showErrorToast, successMessage, toast]
-  );
+  //     try {
+  //       const result = await apiFunction(...args);
+  //       setData(result);
+
+  //       if (showSuccessToast) {
+  //         toast.showSuccess(successMessage);
+  //       }
+
+  //       return result;
+  //     } catch (err) {
+  //       const parsedError = parseError(err);
+  //       setError(parsedError);
+
+  //       if (showErrorToast) {
+  //         toast.showError(parsedError.message);
+  //       }
+
+  //       return null;
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   },
+  //   [apiFunction, showSuccessToast, showErrorToast, successMessage, toast]
+  // );
 
   const executeWithRetry = useCallback(
     async (args: any[], attempt: number = 0): Promise<T | null> => {
@@ -92,43 +93,51 @@ export function useApiCall<T>(
         const result = await apiFunction(...args);
         setData(result);
         setCurrentRetryAttempt(0);
-        
+
         if (showSuccessToast) {
           toast.showSuccess(successMessage);
         }
-        
+
         return result;
       } catch (err) {
         const parsedError = parseError(err);
-        
+
         // Check if we should retry
-        if (
-          attempt < retryAttempts &&
-          isRetryableError(err)
-        ) {
+        if (attempt < retryAttempts && isRetryableError(err)) {
           setCurrentRetryAttempt(attempt + 1);
-          
+
           // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, retryDelay * (attempt + 1)));
-          
+          await new Promise((resolve) =>
+            setTimeout(resolve, retryDelay * (attempt + 1))
+          );
+
           return executeWithRetry(args, attempt + 1);
         }
-        
+
         // No more retries or non-retryable error
         setError(parsedError);
         setCurrentRetryAttempt(0);
-        
+
         if (showErrorToast) {
-          const retryMessage = attempt > 0 
-            ? ` (after ${attempt} ${attempt === 1 ? 'retry' : 'retries'})`
-            : '';
+          const retryMessage =
+            attempt > 0
+              ? ` (after ${attempt} ${attempt === 1 ? "retry" : "retries"})`
+              : "";
           toast.showError(`${parsedError.message}${retryMessage}`);
         }
-        
+
         return null;
       }
     },
-    [apiFunction, retryAttempts, retryDelay, showSuccessToast, showErrorToast, successMessage, toast]
+    [
+      apiFunction,
+      retryAttempts,
+      retryDelay,
+      showSuccessToast,
+      showErrorToast,
+      successMessage,
+      toast,
+    ]
   );
 
   const executeWithAutoRetry = useCallback(
@@ -138,24 +147,21 @@ export function useApiCall<T>(
       setLastArgs(args);
 
       const result = await executeWithRetry(args);
-      
+
       setLoading(false);
       return result;
     },
     [executeWithRetry]
   );
 
-  const retry = useCallback(
-    async (): Promise<T | null> => {
-      if (lastArgs.length === 0) {
-        console.warn('No previous arguments to retry with');
-        return null;
-      }
-      
-      return executeWithAutoRetry(...lastArgs);
-    },
-    [lastArgs, executeWithAutoRetry]
-  );
+  const _retry = useCallback(async (): Promise<T | null> => {
+    if (lastArgs.length === 0) {
+      console.warn("No previous arguments to retry with");
+      return null;
+    }
+
+    return executeWithAutoRetry(...lastArgs);
+  }, [lastArgs, executeWithAutoRetry]);
 
   const reset = useCallback(() => {
     setData(null);
@@ -170,7 +176,7 @@ export function useApiCall<T>(
     loading,
     error,
     execute: executeWithAutoRetry,
-    retry,
+    retry: _retry,
     reset,
   };
 }
@@ -180,9 +186,14 @@ export function useApiCall<T>(
  */
 export function useSimpleApiCall<T>(
   apiFunction: (...args: any[]) => Promise<T>,
-  options: Omit<UseApiCallOptions, 'retryAttempts' | 'retryDelay'> = {}
-): Omit<UseApiCallReturn<T>, 'retry'> {
-  const { retry, ...rest } = useApiCall(apiFunction, { ...options, retryAttempts: 0 });
+  options: Omit<UseApiCallOptions, "retryAttempts" | "retryDelay"> = {}
+): Omit<UseApiCallReturn<T>, "retry"> {
+  const result = useApiCall(apiFunction, {
+    ...options,
+    retryAttempts: 0,
+  });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { retry, ...rest } = result;
   return rest;
 }
 
@@ -194,7 +205,7 @@ export function useApiCallWithImmedateLoading<T>(
   options: UseApiCallOptions = {}
 ): UseApiCallReturn<T> {
   const result = useApiCall(apiFunction, options);
-  
+
   const executeWithImmediateLoading = useCallback(
     async (...args: any[]): Promise<T | null> => {
       // Set loading immediately

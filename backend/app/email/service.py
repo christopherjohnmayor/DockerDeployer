@@ -126,6 +126,7 @@ class GmailProvider(EmailProvider):
         except Exception as e:
             print(f"❌ Gmail SMTP email error: {e}")
             import traceback
+
             traceback.print_exc()
             return False
 
@@ -155,7 +156,10 @@ class TestEmailProvider(EmailProvider):
 
             # Extract verification/reset URLs from content for easy testing
             import re
-            url_pattern = r'http[s]?://[^\s<>"]+(?:verify-email|reset-password)[^\s<>"]*'
+
+            url_pattern = (
+                r'http[s]?://[^\s<>"]+(?:verify-email|reset-password)[^\s<>"]*'
+            )
             urls = re.findall(url_pattern, html_content)
             if urls:
                 print(f"🔗 [TEST MODE] Action URL: {urls[0]}")

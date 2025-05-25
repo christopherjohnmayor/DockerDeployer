@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   Alert,
   AlertTitle,
@@ -7,7 +7,7 @@ import {
   Collapse,
   IconButton,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Refresh as RefreshIcon,
   ExpandMore as ExpandMoreIcon,
@@ -15,21 +15,21 @@ import {
   Warning as WarningIcon,
   Error as ErrorIcon,
   Info as InfoIcon,
-} from '@mui/icons-material';
-import { AppError, ErrorType } from '../utils/errorHandling';
+} from "@mui/icons-material";
+import { AppError, ErrorType } from "../utils/errorHandling";
 
 interface ErrorDisplayProps {
   error: AppError | string | null;
   onRetry?: () => void;
   onDismiss?: () => void;
   showDetails?: boolean;
-  variant?: 'standard' | 'outlined' | 'filled';
-  size?: 'small' | 'medium';
+  variant?: "standard" | "outlined" | "filled";
+  size?: "small" | "medium";
 }
 
 /**
  * Comprehensive error display component
- * 
+ *
  * Features:
  * - Displays standardized error messages
  * - Shows appropriate severity and icons
@@ -43,8 +43,8 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   onRetry,
   onDismiss,
   showDetails = false,
-  variant = 'standard',
-  size = 'medium',
+  variant = "standard",
+  size = "medium",
 }) => {
   const [detailsExpanded, setDetailsExpanded] = React.useState(false);
 
@@ -53,30 +53,31 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   }
 
   // Parse error if it's a string
-  const parsedError: AppError = typeof error === 'string' 
-    ? { type: ErrorType.UNKNOWN, message: error }
-    : error;
+  const parsedError: AppError =
+    typeof error === "string"
+      ? { type: ErrorType.UNKNOWN, message: error }
+      : error;
 
   // Get appropriate severity and icon
   const getSeverity = () => {
     switch (parsedError.type) {
       case ErrorType.VALIDATION:
-        return 'warning' as const;
+        return "warning" as const;
       case ErrorType.AUTHENTICATION:
       case ErrorType.AUTHORIZATION:
-        return 'info' as const;
+        return "info" as const;
       case ErrorType.NOT_FOUND:
-        return 'warning' as const;
+        return "warning" as const;
       default:
-        return 'error' as const;
+        return "error" as const;
     }
   };
 
   const getIcon = () => {
     switch (getSeverity()) {
-      case 'warning':
+      case "warning":
         return <WarningIcon />;
-      case 'info':
+      case "info":
         return <InfoIcon />;
       default:
         return <ErrorIcon />;
@@ -86,26 +87,25 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
   const getTitle = () => {
     switch (parsedError.type) {
       case ErrorType.NETWORK:
-        return 'Connection Error';
+        return "Connection Error";
       case ErrorType.VALIDATION:
-        return 'Validation Error';
+        return "Validation Error";
       case ErrorType.AUTHENTICATION:
-        return 'Authentication Required';
+        return "Authentication Required";
       case ErrorType.AUTHORIZATION:
-        return 'Access Denied';
+        return "Access Denied";
       case ErrorType.NOT_FOUND:
-        return 'Not Found';
+        return "Not Found";
       case ErrorType.SERVER:
-        return 'Server Error';
+        return "Server Error";
       default:
-        return 'Error';
+        return "Error";
     }
   };
 
-  const isRetryable = [
-    ErrorType.NETWORK,
-    ErrorType.SERVER,
-  ].includes(parsedError.type);
+  const isRetryable = [ErrorType.NETWORK, ErrorType.SERVER].includes(
+    parsedError.type
+  );
 
   const hasDetails = parsedError.details || parsedError.code;
 
@@ -116,15 +116,15 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
       icon={getIcon()}
       onClose={onDismiss}
       sx={{
-        '& .MuiAlert-message': {
-          width: '100%',
+        "& .MuiAlert-message": {
+          width: "100%",
         },
       }}
     >
       <AlertTitle>{getTitle()}</AlertTitle>
-      
-      <Typography 
-        variant={size === 'small' ? 'body2' : 'body1'}
+
+      <Typography
+        variant={size === "small" ? "body2" : "body1"}
         sx={{ mb: hasDetails || onRetry ? 1 : 0 }}
       >
         {parsedError.message}
@@ -132,7 +132,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
 
       {/* Action buttons */}
       {(onRetry || hasDetails) && (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
           {onRetry && isRetryable && (
             <Button
               size="small"
@@ -144,12 +144,12 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
               Try Again
             </Button>
           )}
-          
+
           {hasDetails && showDetails && (
             <IconButton
               size="small"
               onClick={() => setDetailsExpanded(!detailsExpanded)}
-              aria-label={detailsExpanded ? 'Hide details' : 'Show details'}
+              aria-label={detailsExpanded ? "Hide details" : "Show details"}
             >
               {detailsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
             </IconButton>
@@ -160,29 +160,29 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
       {/* Error details */}
       {hasDetails && showDetails && (
         <Collapse in={detailsExpanded}>
-          <Box sx={{ mt: 2, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+          <Box sx={{ mt: 2, p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
               Error Details
             </Typography>
-            
+
             {parsedError.code && (
               <Typography variant="body2" color="text.secondary">
                 <strong>Code:</strong> {parsedError.code}
               </Typography>
             )}
-            
+
             {parsedError.details && (
-              <Typography 
-                variant="body2" 
+              <Typography
+                variant="body2"
                 color="text.secondary"
                 component="pre"
-                sx={{ 
+                sx={{
                   mt: 1,
-                  fontSize: '0.75rem',
-                  overflow: 'auto',
+                  fontSize: "0.75rem",
+                  overflow: "auto",
                   maxHeight: 200,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
                 }}
               >
                 {parsedError.details}
@@ -201,7 +201,7 @@ const ErrorDisplay: React.FC<ErrorDisplayProps> = ({
 export const InlineErrorDisplay: React.FC<{
   error: string | null;
   field?: string;
-}> = ({ error, field }) => {
+}> = ({ error, _field }) => {
   if (!error) {
     return null;
   }
@@ -210,10 +210,10 @@ export const InlineErrorDisplay: React.FC<{
     <Typography
       variant="caption"
       color="error"
-      sx={{ 
-        display: 'block',
+      sx={{
+        display: "block",
         mt: 0.5,
-        fontSize: '0.75rem'
+        fontSize: "0.75rem",
       }}
     >
       {error}
@@ -232,19 +232,19 @@ export const CompactErrorDisplay: React.FC<{
     return null;
   }
 
-  const message = typeof error === 'string' ? error : error.message;
+  const message = typeof error === "string" ? error : error.message;
 
   return (
     <Box
       sx={{
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         gap: 1,
         p: 1,
-        bgcolor: 'error.light',
-        color: 'error.contrastText',
+        bgcolor: "error.light",
+        color: "error.contrastText",
         borderRadius: 1,
-        fontSize: '0.875rem',
+        fontSize: "0.875rem",
       }}
     >
       <ErrorIcon fontSize="small" />
@@ -252,11 +252,7 @@ export const CompactErrorDisplay: React.FC<{
         {message}
       </Typography>
       {onRetry && (
-        <IconButton
-          size="small"
-          onClick={onRetry}
-          sx={{ color: 'inherit' }}
-        >
+        <IconButton size="small" onClick={onRetry} sx={{ color: "inherit" }}>
           <RefreshIcon fontSize="small" />
         </IconButton>
       )}

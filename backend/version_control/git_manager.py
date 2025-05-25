@@ -1,6 +1,8 @@
 import os
+from typing import List, Optional, Tuple
+
 import git
-from typing import Optional, List, Tuple
+
 
 class GitManager:
     """
@@ -39,7 +41,7 @@ class GitManager:
         """
         Returns a list of (commit_hash, author, message) for recent commits.
         """
-        commits = list(self.repo.iter_commits('master', max_count=max_count))
+        commits = list(self.repo.iter_commits("master", max_count=max_count))
         return [(c.hexsha, c.author.name, c.message.strip()) for c in commits]
 
     def get_diff(self, commit_a: str, commit_b: str) -> str:
@@ -55,7 +57,7 @@ class GitManager:
         Returns True if successful.
         """
         try:
-            self.repo.git.reset('--hard', commit_hash)
+            self.repo.git.reset("--hard", commit_hash)
             return True
         except Exception as e:
             print(f"Rollback failed: {e}")

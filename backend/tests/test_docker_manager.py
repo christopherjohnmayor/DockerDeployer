@@ -2,10 +2,11 @@
 Tests for the Docker manager module.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
 import docker
-from docker.errors import NotFound, APIError
+import pytest
+from docker.errors import APIError, NotFound
 
 from backend.docker_manager.manager import DockerManager
 
@@ -145,7 +146,9 @@ class TestDockerManager:
     def test_get_logs_api_error(self, mock_from_env, mock_docker_client):
         """Test handling API error when getting logs."""
         mock_from_env.return_value = mock_docker_client
-        mock_docker_client.containers.get.return_value.logs.side_effect = APIError("API Error")
+        mock_docker_client.containers.get.return_value.logs.side_effect = APIError(
+            "API Error"
+        )
 
         manager = DockerManager()
         result = manager.get_logs("test_container_id")

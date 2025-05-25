@@ -1,8 +1,12 @@
 import os
-import yaml
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
 
-TEMPLATES_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../templates"))
+import yaml
+
+TEMPLATES_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "../../templates")
+)
+
 
 def list_templates() -> List[Dict]:
     """
@@ -12,11 +16,14 @@ def list_templates() -> List[Dict]:
     templates = []
     for entry in os.listdir(TEMPLATES_DIR):
         entry_path = os.path.join(TEMPLATES_DIR, entry)
-        if os.path.isdir(entry_path) and os.path.exists(os.path.join(entry_path, "template.yaml")):
+        if os.path.isdir(entry_path) and os.path.exists(
+            os.path.join(entry_path, "template.yaml")
+        ):
             meta = load_template_metadata(entry)
             if meta:
                 templates.append(meta)
     return templates
+
 
 def load_template_metadata(template_name: str) -> Optional[Dict]:
     """
@@ -29,6 +36,7 @@ def load_template_metadata(template_name: str) -> Optional[Dict]:
         meta = yaml.safe_load(f)
     meta["name"] = template_name
     return meta
+
 
 def load_template(template_name: str) -> Optional[Dict]:
     """

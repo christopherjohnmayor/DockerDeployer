@@ -1,6 +1,6 @@
 try:
     import docker
-    from docker.errors import NotFound, APIError, DockerException
+    from docker.errors import APIError, DockerException, NotFound
 except ImportError:
     # Handle case where docker is not available
     docker = None
@@ -12,10 +12,13 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class DockerManager:
     def __init__(self):
         if docker is None:
-            raise ImportError("Docker SDK is not available. Please install docker package.")
+            raise ImportError(
+                "Docker SDK is not available. Please install docker package."
+            )
 
         try:
             self.client = docker.from_env()
@@ -44,14 +47,16 @@ class DockerManager:
         containers = self.client.containers.list(all=all)
         result = []
         for c in containers:
-            result.append({
-                "id": c.id,
-                "name": c.name,
-                "status": c.status,
-                "image": c.image.tags,
-                "ports": c.ports,
-                "labels": c.labels,
-            })
+            result.append(
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "status": c.status,
+                    "image": c.image.tags,
+                    "ports": c.ports,
+                    "labels": c.labels,
+                }
+            )
         return result
 
     def start_container(self, container_id: str):
@@ -110,19 +115,15 @@ class DockerManager:
                 "status": "healthy",
                 "docker_ping": ping_result,
                 "docker_version": version_info.get("Version", "unknown"),
-                "api_version": version_info.get("ApiVersion", "unknown")
+                "api_version": version_info.get("ApiVersion", "unknown"),
             }
         except DockerException as e:
             logger.error(f"Docker health check failed: {e}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "error_type": "docker_connection"
+                "error_type": "docker_connection",
             }
         except Exception as e:
             logger.error(f"Unexpected error in Docker health check: {e}")
-            return {
-                "status": "unhealthy",
-                "error": str(e),
-                "error_type": "unexpected"
-            }
+            return {"status": "unhealthy", "error": str(e), "error_type": "unexpected"}

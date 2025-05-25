@@ -4,7 +4,6 @@ import {
   Paper,
   Typography,
   Grid,
-  Divider,
   Chip,
   CircularProgress,
   Alert,
@@ -19,7 +18,6 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
-import DeleteIcon from "@mui/icons-material/Delete";
 
 /**
  * Props for the ContainerDetail component.

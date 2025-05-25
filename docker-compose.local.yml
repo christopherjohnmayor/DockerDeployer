@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Backend service
@@ -15,7 +15,7 @@ services:
       - SECRET_KEY=dev_secret_key_change_in_production
       - CONFIG_REPO_PATH=/app/config_repo
       - CORS_ORIGINS=http://localhost:3001,http://frontend:3001
-      - EMAIL_PROVIDER=gmail
+      - EMAIL_PROVIDER=test
       - EMAIL_FROM=toph.homelab@gmail.com
       - EMAIL_FROM_NAME=DockerDeployer Local
       - GMAIL_USERNAME=toph.homelab@gmail.com
@@ -27,7 +27,13 @@ services:
       - "8000:8000"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

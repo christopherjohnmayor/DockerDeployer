@@ -34,7 +34,7 @@ import {
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import InfoIcon from "@mui/icons-material/Info";
-import FilterListIcon from "@mui/icons-material/FilterList";
+
 import axios from "axios";
 
 interface Template {
@@ -249,7 +249,7 @@ const Templates: React.FC = () => {
     null
   );
   const [detailOpen, setDetailOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "grid">("grid");
+  const [viewMode] = useState<"table" | "grid">("grid");
 
   useEffect(() => {
     const fetchTemplates = async () => {

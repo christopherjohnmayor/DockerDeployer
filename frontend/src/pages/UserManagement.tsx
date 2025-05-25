@@ -29,7 +29,6 @@ import {
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
-  PersonAdd as PersonAddIcon,
   Block as BlockIcon,
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
@@ -116,7 +115,7 @@ const UserManagement: React.FC = () => {
       }
 
       await axios.patch(`/auth/admin/users/${selectedUser.id}`, updateData);
-      
+
       toast.showSuccess("User updated successfully");
       setEditDialogOpen(false);
       fetchUsers();
@@ -150,7 +149,7 @@ const UserManagement: React.FC = () => {
     try {
       const action = userToToggle.is_active ? "deactivate" : "activate";
       await axios.post(`/auth/admin/users/${userToToggle.id}/${action}`);
-      
+
       toast.showSuccess(
         `User ${userToToggle.is_active ? "deactivated" : "activated"} successfully`
       );
@@ -272,7 +271,12 @@ const UserManagement: React.FC = () => {
       </TableContainer>
 
       {/* Edit User Dialog */}
-      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Edit User</DialogTitle>
         <DialogContent>
           <TextField
@@ -280,7 +284,9 @@ const UserManagement: React.FC = () => {
             fullWidth
             label="Email"
             value={editForm.email}
-            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+            onChange={(e) =>
+              setEditForm({ ...editForm, email: e.target.value })
+            }
             error={!!fieldErrors.email}
             helperText={fieldErrors.email}
           />
@@ -289,7 +295,9 @@ const UserManagement: React.FC = () => {
             fullWidth
             label="Full Name"
             value={editForm.full_name}
-            onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+            onChange={(e) =>
+              setEditForm({ ...editForm, full_name: e.target.value })
+            }
             error={!!fieldErrors.full_name}
             helperText={fieldErrors.full_name}
           />
@@ -297,7 +305,9 @@ const UserManagement: React.FC = () => {
             <InputLabel>Role</InputLabel>
             <Select
               value={editForm.role}
-              onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, role: e.target.value })
+              }
               disabled={selectedUser?.id === user?.id}
             >
               <MenuItem value="user">User</MenuItem>
@@ -308,7 +318,9 @@ const UserManagement: React.FC = () => {
             control={
               <Switch
                 checked={editForm.is_active}
-                onChange={(e) => setEditForm({ ...editForm, is_active: e.target.checked })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, is_active: e.target.checked })
+                }
                 disabled={selectedUser?.id === user?.id}
               />
             }
@@ -320,9 +332,13 @@ const UserManagement: React.FC = () => {
             label="New Password (optional)"
             type="password"
             value={editForm.password}
-            onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+            onChange={(e) =>
+              setEditForm({ ...editForm, password: e.target.value })
+            }
             error={!!fieldErrors.password}
-            helperText={fieldErrors.password || "Leave blank to keep current password"}
+            helperText={
+              fieldErrors.password || "Leave blank to keep current password"
+            }
           />
         </DialogContent>
         <DialogActions>
@@ -334,11 +350,15 @@ const UserManagement: React.FC = () => {
       </Dialog>
 
       {/* Delete User Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
         <DialogTitle>Delete User</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to delete user "{selectedUser?.username}"? This action cannot be undone.
+            Are you sure you want to delete user &quot;{selectedUser?.username}
+            &quot;? This action cannot be undone.
           </Typography>
         </DialogContent>
         <DialogActions>

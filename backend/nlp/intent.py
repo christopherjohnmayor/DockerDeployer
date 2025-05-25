@@ -6,11 +6,13 @@ and extracting actionable intents and parameters for Docker deployment and manag
 """
 
 import asyncio
-from typing import Dict, Any, Optional
-from llm.client import LLMClient
-from llm.prompts.docker_commands import get_parse_command_prompt
-from llm.engine.parser import parse_llm_response, ResponseParsingError
+from typing import Any, Dict, Optional
+
 from app.config.settings_manager import SettingsManager
+from llm.client import LLMClient
+from llm.engine.parser import ResponseParsingError, parse_llm_response
+from llm.prompts.docker_commands import get_parse_command_prompt
+
 
 class IntentParser:
     def __init__(self):
@@ -26,7 +28,8 @@ class IntentParser:
             self._llm_client = LLMClient(
                 provider=settings.get("llm_provider", "ollama"),
                 api_url=settings.get("llm_api_url"),
-                api_key=settings.get("llm_api_key") or settings.get("openrouter_api_key")
+                api_key=settings.get("llm_api_key")
+                or settings.get("openrouter_api_key"),
             )
         except Exception as e:
             print(f"Warning: Failed to initialize LLM client: {e}")
@@ -77,7 +80,7 @@ class IntentParser:
                 "operation": "parse",
                 "parameters": {"raw_command": command},
                 "explanation": f"Processed command: {command}",
-                "llm_response": response
+                "llm_response": response,
             }
 
     def _fallback_parse(self, command: str) -> Dict[str, Any]:
@@ -85,30 +88,36 @@ class IntentParser:
         command_lower = command.lower()
 
         # Simple keyword-based parsing
-        if any(word in command_lower for word in ["show", "list", "get", "stats", "status"]):
+        if any(
+            word in command_lower for word in ["show", "list", "get", "stats", "status"]
+        ):
             if "container" in command_lower:
                 return {
                     "is_docker_command": True,
                     "command_type": "container",
                     "operation": "list",
                     "parameters": {"show_stats": "stats" in command_lower},
-                    "explanation": "List containers with optional stats"
+                    "explanation": "List containers with optional stats",
                 }
-        elif any(word in command_lower for word in ["deploy", "create", "start", "run"]):
+        elif any(
+            word in command_lower for word in ["deploy", "create", "start", "run"]
+        ):
             return {
                 "is_docker_command": True,
                 "command_type": "container",
                 "operation": "create",
                 "parameters": {"raw_command": command},
-                "explanation": "Deploy or create containers"
+                "explanation": "Deploy or create containers",
             }
-        elif any(word in command_lower for word in ["stop", "kill", "remove", "delete"]):
+        elif any(
+            word in command_lower for word in ["stop", "kill", "remove", "delete"]
+        ):
             return {
                 "is_docker_command": True,
                 "command_type": "container",
                 "operation": "stop",
                 "parameters": {"raw_command": command},
-                "explanation": "Stop or remove containers"
+                "explanation": "Stop or remove containers",
             }
 
         # Default fallback
@@ -117,5 +126,5 @@ class IntentParser:
             "command_type": "unknown",
             "operation": "parse",
             "parameters": {"raw_command": command},
-            "explanation": f"Processed command: {command} (fallback mode)"
+            "explanation": f"Processed command: {command} (fallback mode)",
         }

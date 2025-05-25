@@ -35,8 +35,10 @@ from app.auth.models import (
     UserUpdateAdmin,
 )
 from app.db.database import get_db
-from app.db.models import EmailVerificationToken, PasswordResetToken, Token as TokenModel
-from app.db.models import User as UserModel, UserRole
+from app.db.models import EmailVerificationToken, PasswordResetToken
+from app.db.models import Token as TokenModel
+from app.db.models import User as UserModel
+from app.db.models import UserRole
 from app.email.service import get_email_service
 from app.email.templates import email_templates
 
@@ -108,10 +110,14 @@ def login(login_data: LoginRequest, db: Session = Depends(get_db)) -> Any:
         HTTPException: If login credentials are invalid
     """
     # Get user by username or email
-    user = db.query(UserModel).filter(
-        (UserModel.username == login_data.username) |
-        (UserModel.email == login_data.username)
-    ).first()
+    user = (
+        db.query(UserModel)
+        .filter(
+            (UserModel.username == login_data.username)
+            | (UserModel.email == login_data.username)
+        )
+        .first()
+    )
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -344,8 +350,7 @@ async def request_password_reset(
 
     # Invalidate any existing reset tokens for this user
     db.query(PasswordResetToken).filter(
-        PasswordResetToken.user_id == user.id,
-        PasswordResetToken.is_used == False
+        PasswordResetToken.user_id == user.id, PasswordResetToken.is_used == False
     ).update({"is_used": True})
 
     # Create new reset token
@@ -490,7 +495,11 @@ async def request_email_verification(
         Success message
     """
     # Find user by email
-    user = db.query(UserModel).filter(UserModel.email == verification_request.email).first()
+    user = (
+        db.query(UserModel)
+        .filter(UserModel.email == verification_request.email)
+        .first()
+    )
     if not user:
         # Don't reveal if email exists or not
         return {"message": "If the email exists, a verification link has been sent"}
@@ -587,7 +596,9 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
         # Get email service
         email_service = get_email_service()
         if not email_service.is_configured():
-            print("⚠️ Warning: Email service not configured, skipping email verification")
+            print(
+                "⚠️ Warning: Email service not configured, skipping email verification"
+            )
             return
 
         # Generate verification URL
@@ -606,6 +617,7 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
 
         # Send email with timeout
         import asyncio
+
         try:
             success = await asyncio.wait_for(
                 email_service.send_email(
@@ -614,7 +626,7 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
                     html_content=html_content,
                     text_content=text_content,
                 ),
-                timeout=45  # 45 second timeout
+                timeout=45,  # 45 second timeout
             )
 
             if success:
@@ -628,6 +640,7 @@ async def _send_email_verification(user: UserModel, db: Session) -> None:
     except Exception as e:
         print(f"❌ Error sending verification email: {e}")
         import traceback
+
         traceback.print_exc()
 
 
@@ -637,7 +650,9 @@ async def _send_password_reset_email(user: UserModel, reset_token: str) -> None:
         # Get email service
         email_service = get_email_service()
         if not email_service.is_configured():
-            print("Warning: Email service not configured, skipping password reset email")
+            print(
+                "Warning: Email service not configured, skipping password reset email"
+            )
             return
 
         # Generate reset URL

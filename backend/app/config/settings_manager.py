@@ -1,15 +1,23 @@
 import os
-import yaml
-from typing import Optional, Dict, Any
 from threading import Lock
+from typing import Any, Dict, Optional
+
+import yaml
+
 
 class SettingsManager:
     """
     Manages loading and saving of application settings (LLM provider, API URL/key, secrets) to a YAML file.
     Thread-safe for basic use.
     """
+
     DEFAULT_PATH = os.path.abspath(
-        os.getenv("DOCKERDEPLOYER_SETTINGS_PATH", os.path.join(os.path.dirname(__file__), "../../../config_repo/settings.yaml"))
+        os.getenv(
+            "DOCKERDEPLOYER_SETTINGS_PATH",
+            os.path.join(
+                os.path.dirname(__file__), "../../../config_repo/settings.yaml"
+            ),
+        )
     )
 
     def __init__(self, path: Optional[str] = None):
@@ -73,5 +81,5 @@ class SettingsManager:
             "gmail_password": "",
             "gmail_smtp_host": "smtp.gmail.com",
             "gmail_smtp_port": 587,
-            "secrets": {}
+            "secrets": {},
         }

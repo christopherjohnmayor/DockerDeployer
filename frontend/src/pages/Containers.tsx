@@ -27,15 +27,6 @@ import StopIcon from "@mui/icons-material/Stop";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import TerminalIcon from "@mui/icons-material/Terminal";
 
-interface ContainerInfo {
-  id: string;
-  name: string;
-  status: string;
-  image?: string[];
-  ports?: Record<string, any>;
-  labels?: Record<string, any>;
-}
-
 const Containers: React.FC = () => {
   const [containers, setContainers] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -66,7 +57,10 @@ const Containers: React.FC = () => {
     // eslint-disable-next-line
   }, []);
 
-  const handleAction = async (containerId: string, action: "start" | "stop" | "restart") => {
+  const handleAction = async (
+    containerId: string,
+    action: "start" | "stop" | "restart"
+  ) => {
     try {
       await axios.post(`/api/containers/${containerId}/action`, { action });
       fetchContainers();
@@ -88,9 +82,7 @@ const Containers: React.FC = () => {
       setLogContent(resp.data.logs || "No logs found.");
     } catch (err: any) {
       setLogContent(
-        err?.response?.data?.detail ||
-          err.message ||
-          "Failed to fetch logs."
+        err?.response?.data?.detail || err.message || "Failed to fetch logs."
       );
     }
   };
@@ -113,7 +105,12 @@ const Containers: React.FC = () => {
       </Stack>
       <Paper sx={{ mt: 2, p: 2 }}>
         {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" minHeight={120}>
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight={120}
+          >
             <CircularProgress />
           </Box>
         ) : error ? (
@@ -146,8 +143,8 @@ const Containers: React.FC = () => {
                           container.status === "running"
                             ? "success"
                             : container.status === "exited"
-                            ? "default"
-                            : "warning"
+                              ? "default"
+                              : "warning"
                         }
                         size="small"
                       />
@@ -175,14 +172,20 @@ const Containers: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <Stack direction="row" spacing={1} justifyContent="center">
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        justifyContent="center"
+                      >
                         <Tooltip title="Start">
                           <span>
                             <IconButton
                               color="success"
                               size="small"
                               disabled={container.status === "running"}
-                              onClick={() => handleAction(container.id, "start")}
+                              onClick={() =>
+                                handleAction(container.id, "start")
+                              }
                             >
                               <PlayArrowIcon />
                             </IconButton>
@@ -206,7 +209,9 @@ const Containers: React.FC = () => {
                               color="primary"
                               size="small"
                               disabled={container.status !== "running"}
-                              onClick={() => handleAction(container.id, "restart")}
+                              onClick={() =>
+                                handleAction(container.id, "restart")
+                              }
                             >
                               <RestartAltIcon />
                             </IconButton>
@@ -217,7 +222,9 @@ const Containers: React.FC = () => {
                             <IconButton
                               color="info"
                               size="small"
-                              onClick={() => handleShowLogs(container.id, container.name)}
+                              onClick={() =>
+                                handleShowLogs(container.id, container.name)
+                              }
                             >
                               <TerminalIcon />
                             </IconButton>

@@ -15,6 +15,7 @@ Base = declarative_base()
 
 class UserRole(str, Enum):
     """User role enum."""
+
     ADMIN = "admin"
     USER = "user"
 
@@ -30,6 +31,7 @@ user_team = Table(
 
 class User(Base):
     """User model."""
+
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -52,6 +54,7 @@ class User(Base):
 
 class Team(Base):
     """Team model for grouping users."""
+
     __tablename__ = "teams"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -69,6 +72,7 @@ class Team(Base):
 
 class Token(Base):
     """Token model for user authentication."""
+
     __tablename__ = "tokens"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -84,6 +88,7 @@ class Token(Base):
 
 class PasswordResetToken(Base):
     """Password reset token model."""
+
     __tablename__ = "password_reset_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -99,6 +104,7 @@ class PasswordResetToken(Base):
 
 class EmailVerificationToken(Base):
     """Email verification token model."""
+
     __tablename__ = "email_verification_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -114,6 +120,7 @@ class EmailVerificationToken(Base):
 
 class DeploymentHistory(Base):
     """Deployment history model."""
+
     __tablename__ = "deployment_history"
 
     id = Column(Integer, primary_key=True, index=True)

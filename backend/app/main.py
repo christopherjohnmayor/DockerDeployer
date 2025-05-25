@@ -1,27 +1,29 @@
-import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import sys
 
-from fastapi import FastAPI, HTTPException, Depends, Body, status
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.docs import get_swagger_ui_html
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from typing import Any, Dict, List, Optional
 
 import yaml
+from fastapi import Body, Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
 
-from app.auth.dependencies import get_current_user, get_current_admin_user
+from app.auth.dependencies import get_current_admin_user, get_current_user
 from app.auth.router import router as auth_router
 from app.auth.user_management import router as user_management_router
 from app.config.settings_manager import SettingsManager
 from app.db.database import init_db
 from app.db.models import User
+from llm.client import LLMClient
 
 # from docker.manager import DockerManager
 from nlp.intent import IntentParser
-from llm.client import LLMClient
-from templates.loader import list_templates as list_stack_templates, load_template
+from templates.loader import list_templates as list_stack_templates
+from templates.loader import load_template
 from version_control.git_manager import GitManager
 
 app = FastAPI(
@@ -47,7 +49,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url=None,
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
 )
 
 # Configure CORS
@@ -70,7 +72,7 @@ app.include_router(
     responses={
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden - Insufficient permissions"},
-    }
+    },
 )
 
 app.include_router(
@@ -80,8 +82,9 @@ app.include_router(
     responses={
         401: {"description": "Unauthorized"},
         403: {"description": "Forbidden - Admin privileges required"},
-    }
+    },
 )
+
 
 # Custom Swagger UI with authentication support
 @app.get("/docs", include_in_schema=False)
@@ -99,18 +102,25 @@ async def custom_swagger_ui_html():
             "persistAuthorization": True,
             "displayRequestDuration": True,
             "filter": True,
-        }
+        },
     )
 
+
 settings_manager = SettingsManager()
+
 
 # --- Module Instances ---
 def get_docker_manager():
     try:
         from docker_manager.manager import DockerManager
+
         return DockerManager()
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Docker service unavailable: {str(e)}")
+        raise HTTPException(
+            status_code=503, detail=f"Docker service unavailable: {str(e)}"
+        )
+
+
 intent_parser = IntentParser()
 # Load initial settings for LLMClient and secrets
 initial_settings = settings_manager.load()
@@ -119,29 +129,41 @@ llm_client = LLMClient(
     api_url=initial_settings.get("llm_api_url"),
     api_key=initial_settings.get("llm_api_key"),
 )
-repo_path = os.getenv("CONFIG_REPO_PATH", os.path.abspath(os.path.join(os.path.dirname(__file__), "../../config_repo")))
+repo_path = os.getenv(
+    "CONFIG_REPO_PATH",
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "../../config_repo")),
+)
 git_manager = GitManager(repo_path)
 
 # --- Models ---
+
 
 class NLPParseRequest(BaseModel):
     """
     Request model for parsing natural language commands.
     """
-    command: str = Field(..., description="Natural language command to parse", example="Deploy a WordPress stack")
+
+    command: str = Field(
+        ...,
+        description="Natural language command to parse",
+        example="Deploy a WordPress stack",
+    )
 
     class Config:
         schema_extra = {
-            "example": {
-                "command": "Deploy a WordPress stack with MySQL 8.0"
-            }
+            "example": {"command": "Deploy a WordPress stack with MySQL 8.0"}
         }
+
 
 class NLPParseResponse(BaseModel):
     """
     Response model for parsed natural language commands.
     """
-    action_plan: Dict[str, Any] = Field(..., description="Structured action plan derived from the natural language command")
+
+    action_plan: Dict[str, Any] = Field(
+        ...,
+        description="Structured action plan derived from the natural language command",
+    )
 
     class Config:
         schema_extra = {
@@ -149,17 +171,17 @@ class NLPParseResponse(BaseModel):
                 "action_plan": {
                     "action": "deploy_template",
                     "template": "wordpress",
-                    "parameters": {
-                        "MYSQL_VERSION": "8.0"
-                    }
+                    "parameters": {"MYSQL_VERSION": "8.0"},
                 }
             }
         }
+
 
 class DeployRequest(BaseModel):
     """
     Request model for deploying containers with a configuration.
     """
+
     config: Dict[str, Any] = Field(..., description="Docker Compose configuration")
 
     class Config:
@@ -167,22 +189,21 @@ class DeployRequest(BaseModel):
             "example": {
                 "config": {
                     "version": "3",
-                    "services": {
-                        "web": {
-                            "image": "nginx:latest",
-                            "ports": ["80:80"]
-                        }
-                    }
+                    "services": {"web": {"image": "nginx:latest", "ports": ["80:80"]}},
                 }
             }
         }
+
 
 class DeployResponse(BaseModel):
     """
     Response model for deployment operations.
     """
+
     status: str = Field(..., description="Deployment status", example="success")
-    details: Optional[Dict[str, Any]] = Field(None, description="Additional deployment details")
+    details: Optional[Dict[str, Any]] = Field(
+        None, description="Additional deployment details"
+    )
 
     class Config:
         schema_extra = {
@@ -190,10 +211,11 @@ class DeployResponse(BaseModel):
                 "status": "success",
                 "details": {
                     "info": "Config committed and deployment started",
-                    "commit_id": "abc123"
-                }
+                    "commit_id": "abc123",
+                },
             }
         }
+
 
 def inject_secrets_into_env(secrets: dict):
     """
@@ -202,23 +224,25 @@ def inject_secrets_into_env(secrets: dict):
     for k, v in secrets.items():
         os.environ[str(k)] = str(v)
 
+
 class ContainerActionRequest(BaseModel):
     """
     Request model for container actions.
     """
-    action: str = Field(..., description="Action to perform on the container", example="restart")
+
+    action: str = Field(
+        ..., description="Action to perform on the container", example="restart"
+    )
 
     class Config:
-        schema_extra = {
-            "example": {
-                "action": "restart"
-            }
-        }
+        schema_extra = {"example": {"action": "restart"}}
+
 
 class ContainerActionResponse(BaseModel):
     """
     Response model for container actions.
     """
+
     container_id: str = Field(..., description="ID of the container")
     action: str = Field(..., description="Action performed")
     result: Dict[str, Any] = Field(..., description="Result of the action")
@@ -228,69 +252,103 @@ class ContainerActionResponse(BaseModel):
             "example": {
                 "container_id": "abc123",
                 "action": "restart",
-                "result": {
-                    "status": "restarted",
-                    "id": "abc123"
-                }
+                "result": {"status": "restarted", "id": "abc123"},
             }
         }
+
 
 class TemplateDeployRequest(BaseModel):
     """
     Request model for deploying a template.
     """
-    template_name: str = Field(..., description="Name of the template to deploy", example="wordpress")
-    overrides: Optional[Dict[str, Any]] = Field(None, description="Template variable overrides")
+
+    template_name: str = Field(
+        ..., description="Name of the template to deploy", example="wordpress"
+    )
+    overrides: Optional[Dict[str, Any]] = Field(
+        None, description="Template variable overrides"
+    )
 
     class Config:
         schema_extra = {
             "example": {
                 "template_name": "wordpress",
-                "overrides": {
-                    "MYSQL_VERSION": "8.0",
-                    "WORDPRESS_PORT": "8080"
-                }
+                "overrides": {"MYSQL_VERSION": "8.0", "WORDPRESS_PORT": "8080"},
             }
         }
+
 
 class TemplateDeployResponse(BaseModel):
     """
     Response model for template deployment.
     """
+
     template: str = Field(..., description="Name of the deployed template")
     status: str = Field(..., description="Deployment status")
 
     class Config:
-        schema_extra = {
-            "example": {
-                "template": "wordpress",
-                "status": "deployed"
-            }
-        }
+        schema_extra = {"example": {"template": "wordpress", "status": "deployed"}}
+
 
 class SettingsModel(BaseModel):
     """
     Model for application settings.
     """
-    llm_provider: str = Field(...,
-                             pattern="^(ollama|litellm|openrouter)$",
-                             description="LLM provider to use",
-                             example="ollama")
-    llm_api_url: str = Field("", description="LLM API URL", example="http://localhost:11434/api/generate")
+
+    llm_provider: str = Field(
+        ...,
+        pattern="^(ollama|litellm|openrouter)$",
+        description="LLM provider to use",
+        example="ollama",
+    )
+    llm_api_url: str = Field(
+        "", description="LLM API URL", example="http://localhost:11434/api/generate"
+    )
     llm_api_key: str = Field("", description="LLM API key (if required)")
-    llm_model: str = Field("meta-llama/llama-3.2-3b-instruct:free", description="LLM model to use", example="meta-llama/llama-3.2-3b-instruct:free")
-    openrouter_api_url: str = Field("", description="OpenRouter API URL", example="https://openrouter.ai/api/v1/chat/completions")
-    openrouter_api_key: str = Field("", description="OpenRouter API key (if using OpenRouter)")
-    docker_context: str = Field("default", description="Docker context to use", example="default")
-    email_provider: str = Field("sendgrid", pattern="^(sendgrid|gmail)$", description="Email provider to use", example="sendgrid")
-    email_from: str = Field("noreply@example.com", description="From email address", example="noreply@example.com")
-    email_from_name: str = Field("DockerDeployer", description="From name for emails", example="DockerDeployer")
-    sendgrid_api_key: str = Field("", description="SendGrid API key (if using SendGrid)")
+    llm_model: str = Field(
+        "meta-llama/llama-3.2-3b-instruct:free",
+        description="LLM model to use",
+        example="meta-llama/llama-3.2-3b-instruct:free",
+    )
+    openrouter_api_url: str = Field(
+        "",
+        description="OpenRouter API URL",
+        example="https://openrouter.ai/api/v1/chat/completions",
+    )
+    openrouter_api_key: str = Field(
+        "", description="OpenRouter API key (if using OpenRouter)"
+    )
+    docker_context: str = Field(
+        "default", description="Docker context to use", example="default"
+    )
+    email_provider: str = Field(
+        "sendgrid",
+        pattern="^(sendgrid|gmail)$",
+        description="Email provider to use",
+        example="sendgrid",
+    )
+    email_from: str = Field(
+        "noreply@example.com",
+        description="From email address",
+        example="noreply@example.com",
+    )
+    email_from_name: str = Field(
+        "DockerDeployer", description="From name for emails", example="DockerDeployer"
+    )
+    sendgrid_api_key: str = Field(
+        "", description="SendGrid API key (if using SendGrid)"
+    )
     gmail_username: str = Field("", description="Gmail username (if using Gmail)")
-    gmail_password: str = Field("", description="Gmail password/app password (if using Gmail)")
-    gmail_smtp_host: str = Field("smtp.gmail.com", description="Gmail SMTP host", example="smtp.gmail.com")
+    gmail_password: str = Field(
+        "", description="Gmail password/app password (if using Gmail)"
+    )
+    gmail_smtp_host: str = Field(
+        "smtp.gmail.com", description="Gmail SMTP host", example="smtp.gmail.com"
+    )
     gmail_smtp_port: int = Field(587, description="Gmail SMTP port", example=587)
-    secrets: Dict[str, Any] = Field(default_factory=dict, description="Secrets to inject into environment variables")
+    secrets: Dict[str, Any] = Field(
+        default_factory=dict, description="Secrets to inject into environment variables"
+    )
 
     @classmethod
     def validate_provider_fields(cls, values):
@@ -301,7 +359,9 @@ class SettingsModel(BaseModel):
                 raise ValueError("LiteLLM API URL is required for provider 'litellm'")
         if provider == "openrouter":
             if not values.get("openrouter_api_key"):
-                raise ValueError("OpenRouter API Key is required for provider 'openrouter'")
+                raise ValueError(
+                    "OpenRouter API Key is required for provider 'openrouter'"
+                )
 
         # Email provider validation
         email_provider = values.get("email_provider")
@@ -310,7 +370,9 @@ class SettingsModel(BaseModel):
                 raise ValueError("SendGrid API Key is required for provider 'sendgrid'")
         elif email_provider == "gmail":
             if not values.get("gmail_username") or not values.get("gmail_password"):
-                raise ValueError("Gmail username and password are required for provider 'gmail'")
+                raise ValueError(
+                    "Gmail username and password are required for provider 'gmail'"
+                )
 
         return values
 
@@ -325,9 +387,7 @@ class SettingsModel(BaseModel):
                 "openrouter_api_url": "https://openrouter.ai/api/v1/chat/completions",
                 "openrouter_api_key": "sk-or-v1-...",
                 "docker_context": "default",
-                "secrets": {
-                    "MYSQL_PASSWORD": "secret_password"
-                }
+                "secrets": {"MYSQL_PASSWORD": "secret_password"},
             }
         }
 
@@ -337,7 +397,9 @@ class SettingsModel(BaseModel):
         values = dict(value)
         return cls.validate_provider_fields(values)
 
+
 # --- Endpoints ---
+
 
 @app.get("/health", include_in_schema=False)
 async def health_check():
@@ -346,6 +408,7 @@ async def health_check():
     Used by Docker health checks.
     """
     return {"status": "healthy"}
+
 
 @app.get(
     "/api/settings",
@@ -356,8 +419,8 @@ async def health_check():
     responses={
         200: {"description": "Current application settings"},
         401: {"description": "Unauthorized - Authentication required"},
-        403: {"description": "Forbidden - Admin privileges required"}
-    }
+        403: {"description": "Forbidden - Admin privileges required"},
+    },
 )
 async def get_settings(current_user: User = Depends(get_current_admin_user)):
     """
@@ -378,12 +441,14 @@ async def get_settings(current_user: User = Depends(get_current_admin_user)):
         return SettingsModel(**settings)
     except Exception as e:
         import traceback
+
         print("DEBUG: Exception in /api/settings GET:", e)
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to load settings: {str(e)}"
+            detail=f"Failed to load settings: {str(e)}",
         )
+
 
 @app.post(
     "/api/settings",
@@ -395,12 +460,12 @@ async def get_settings(current_user: User = Depends(get_current_admin_user)):
         200: {"description": "Settings updated successfully"},
         400: {"description": "Bad request - Invalid settings"},
         401: {"description": "Unauthorized - Authentication required"},
-        403: {"description": "Forbidden - Admin privileges required"}
-    }
+        403: {"description": "Forbidden - Admin privileges required"},
+    },
 )
 async def update_settings(
     settings: SettingsModel = Body(...),
-    current_user: User = Depends(get_current_admin_user)
+    current_user: User = Depends(get_current_admin_user),
 ):
     """
     Updates and persists the LLM and secrets settings.
@@ -420,31 +485,28 @@ async def update_settings(
             llm_client.set_provider(
                 "ollama",
                 api_url=settings.llm_api_url or "http://localhost:11434/api/generate",
-                api_key=""
+                api_key="",
             )
         elif settings.llm_provider == "litellm":
             llm_client.set_provider(
-                "litellm",
-                api_url=settings.llm_api_url,
-                api_key=settings.llm_api_key
+                "litellm", api_url=settings.llm_api_url, api_key=settings.llm_api_key
             )
         elif settings.llm_provider == "openrouter":
             llm_client.set_provider(
                 "openrouter",
-                api_url=settings.openrouter_api_url or "https://openrouter.ai/api/v1/chat/completions",
-                api_key=settings.openrouter_api_key
+                api_url=settings.openrouter_api_url
+                or "https://openrouter.ai/api/v1/chat/completions",
+                api_key=settings.openrouter_api_key,
             )
         return settings
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update settings: {str(e)}"
+            detail=f"Failed to update settings: {str(e)}",
         )
+
 
 @app.post(
     "/nlp/parse",
@@ -478,12 +540,12 @@ async def update_settings(
                             "template": "wordpress",
                             "parameters": {
                                 "php_version": "8.1",
-                                "mysql_version": "8.0"
-                            }
+                                "mysql_version": "8.0",
+                            },
                         }
                     }
                 }
-            }
+            },
         },
         400: {"description": "Bad request - Invalid command"},
         401: {"description": "Unauthorized - Authentication required"},
@@ -495,23 +557,20 @@ async def update_settings(
                         "detail": "Could not parse command. Please try rephrasing your request."
                     }
                 }
-            }
+            },
         },
         500: {
             "description": "Internal server error - NLP parsing failed",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "NLP parsing failed: LLM service unavailable"
-                    }
+                    "example": {"detail": "NLP parsing failed: LLM service unavailable"}
                 }
-            }
-        }
-    }
+            },
+        },
+    },
 )
 async def parse_nlp_command(
-    req: NLPParseRequest,
-    current_user: User = Depends(get_current_user)
+    req: NLPParseRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Parse a natural language command into an action plan.
@@ -559,7 +618,7 @@ async def parse_nlp_command(
         if not action_plan:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Could not parse command."
+                detail="Could not parse command.",
             )
         return NLPParseResponse(action_plan=action_plan)
     except HTTPException:
@@ -567,8 +626,9 @@ async def parse_nlp_command(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"NLP parsing failed: {str(e)}"
+            detail=f"NLP parsing failed: {str(e)}",
         )
+
 
 @app.post(
     "/deploy",
@@ -580,12 +640,11 @@ async def parse_nlp_command(
         200: {"description": "Deployment successful", "model": DeployResponse},
         400: {"description": "Bad request - Invalid configuration"},
         401: {"description": "Unauthorized - Authentication required"},
-        500: {"description": "Internal server error - Deployment failed"}
-    }
+        500: {"description": "Internal server error - Deployment failed"},
+    },
 )
 async def deploy_containers(
-    req: DeployRequest,
-    current_user: User = Depends(get_current_user)
+    req: DeployRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Deploy containers using the provided configuration.
@@ -596,7 +655,7 @@ async def deploy_containers(
         if not req.config or not isinstance(req.config, dict):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Missing or invalid config for deployment."
+                detail="Missing or invalid config for deployment.",
             )
         # Inject secrets from settings into environment for deployment
         secrets = settings_manager.get("secrets", {})
@@ -608,18 +667,19 @@ async def deploy_containers(
         # TODO: Add actual deployment logic (e.g., docker-compose up) using secrets if needed
         return DeployResponse(
             status="success",
-            details={"info": "Config committed and (placeholder) deployment started"}
+            details={"info": "Config committed and (placeholder) deployment started"},
         )
     except (OSError, yaml.YAMLError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to write config: {str(e)}"
+            detail=f"Failed to write config: {str(e)}",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Deployment failed: {str(e)}"
+            detail=f"Deployment failed: {str(e)}",
         )
+
 
 @app.get(
     "/api/containers",
@@ -654,8 +714,10 @@ async def deploy_containers(
                             "name": "nginx-web",
                             "status": "running",
                             "image": ["nginx:latest"],
-                            "ports": {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]},
-                            "labels": {"app": "web", "environment": "production"}
+                            "ports": {
+                                "80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]
+                            },
+                            "labels": {"app": "web", "environment": "production"},
                         },
                         {
                             "id": "def456ghi789",
@@ -663,16 +725,16 @@ async def deploy_containers(
                             "status": "stopped",
                             "image": ["mysql:8.0"],
                             "ports": {},
-                            "labels": {"app": "database"}
-                        }
+                            "labels": {"app": "database"},
+                        },
                     ]
                 }
-            }
+            },
         },
         401: {"description": "Unauthorized - Authentication required"},
         500: {"description": "Internal server error - Failed to list containers"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def list_containers(current_user: User = Depends(get_current_user)):
     """
@@ -715,13 +777,14 @@ async def list_containers(current_user: User = Depends(get_current_user)):
             raise
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list containers: {str(he)}"
+            detail=f"Failed to list containers: {str(he)}",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list containers: {str(e)}"
+            detail=f"Failed to list containers: {str(e)}",
         )
+
 
 @app.post(
     "/api/containers/{container_id}/action",
@@ -756,41 +819,37 @@ async def list_containers(current_user: User = Depends(get_current_user)):
                         "action": "start",
                         "result": {
                             "status": "success",
-                            "message": "Container started successfully"
-                        }
+                            "message": "Container started successfully",
+                        },
                     }
                 }
-            }
+            },
         },
         400: {
             "description": "Bad request - Invalid action",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Unsupported action: invalid_action"
-                    }
+                    "example": {"detail": "Unsupported action: invalid_action"}
                 }
-            }
+            },
         },
         401: {"description": "Unauthorized - Authentication required"},
         404: {
             "description": "Container not found",
             "content": {
                 "application/json": {
-                    "example": {
-                        "detail": "Container not found: abc123def456"
-                    }
+                    "example": {"detail": "Container not found: abc123def456"}
                 }
-            }
+            },
         },
         500: {"description": "Internal server error - Action failed"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def container_action(
     container_id: str,
     req: ContainerActionRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Perform an action on a specific Docker container.
@@ -844,25 +903,23 @@ async def container_action(
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported action: {action}"
+                detail=f"Unsupported action: {action}",
             )
         if "error" in result:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=result["error"]
+                status_code=status.HTTP_404_NOT_FOUND, detail=result["error"]
             )
         return ContainerActionResponse(
-            container_id=container_id,
-            action=action,
-            result=result
+            container_id=container_id, action=action, result=result
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Container action failed: {str(e)}"
+            detail=f"Container action failed: {str(e)}",
         )
+
 
 @app.get(
     "/api/containers/{container_id}",
@@ -874,12 +931,11 @@ async def container_action(
         401: {"description": "Unauthorized - Authentication required"},
         404: {"description": "Container not found"},
         500: {"description": "Internal server error"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def get_container_details(
-    container_id: str,
-    current_user: User = Depends(get_current_user)
+    container_id: str, current_user: User = Depends(get_current_user)
 ):
     """
     Get detailed information about a specific container.
@@ -900,7 +956,7 @@ async def get_container_details(
         if not container:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Container not found: {container_id}"
+                detail=f"Container not found: {container_id}",
             )
 
         return container
@@ -909,8 +965,9 @@ async def get_container_details(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get container details: {str(e)}"
+            detail=f"Failed to get container details: {str(e)}",
         )
+
 
 @app.get(
     "/api/containers/{container_id}/stats",
@@ -922,12 +979,11 @@ async def get_container_details(
         401: {"description": "Unauthorized - Authentication required"},
         404: {"description": "Container not found"},
         500: {"description": "Internal server error"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def get_container_stats(
-    container_id: str,
-    current_user: User = Depends(get_current_user)
+    container_id: str, current_user: User = Depends(get_current_user)
 ):
     """
     Get resource usage statistics for a specific container.
@@ -943,14 +999,8 @@ async def get_container_stats(
             "cpu_usage": "15%",
             "memory_usage": "128MB",
             "memory_limit": "512MB",
-            "network_io": {
-                "rx_bytes": 1024,
-                "tx_bytes": 2048
-            },
-            "block_io": {
-                "read_bytes": 4096,
-                "write_bytes": 8192
-            }
+            "network_io": {"rx_bytes": 1024, "tx_bytes": 2048},
+            "block_io": {"read_bytes": 4096, "write_bytes": 8192},
         }
         return stats
     except HTTPException:
@@ -958,8 +1008,9 @@ async def get_container_stats(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get container stats: {str(e)}"
+            detail=f"Failed to get container stats: {str(e)}",
         )
+
 
 @app.get(
     "/api/templates",
@@ -969,8 +1020,8 @@ async def get_container_stats(
     responses={
         200: {"description": "List of templates"},
         401: {"description": "Unauthorized - Authentication required"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 async def list_templates(current_user: User = Depends(get_current_user)):
     """
@@ -986,8 +1037,9 @@ async def list_templates(current_user: User = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list templates: {str(e)}"
+            detail=f"Failed to list templates: {str(e)}",
         )
+
 
 @app.post(
     "/api/templates/deploy",
@@ -996,16 +1048,18 @@ async def list_templates(current_user: User = Depends(get_current_user)):
     summary="Deploy a template",
     description="Deploy a pre-configured stack template with optional variable overrides.",
     responses={
-        200: {"description": "Template deployed successfully", "model": TemplateDeployResponse},
+        200: {
+            "description": "Template deployed successfully",
+            "model": TemplateDeployResponse,
+        },
         400: {"description": "Bad request - Invalid template request"},
         401: {"description": "Unauthorized - Authentication required"},
         404: {"description": "Template not found"},
-        500: {"description": "Internal server error"}
-    }
+        500: {"description": "Internal server error"},
+    },
 )
 async def deploy_template(
-    req: TemplateDeployRequest,
-    current_user: User = Depends(get_current_user)
+    req: TemplateDeployRequest, current_user: User = Depends(get_current_user)
 ):
     """
     Deploy a template.
@@ -1016,37 +1070,40 @@ async def deploy_template(
         if not req.template_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Template name is required."
+                detail="Template name is required.",
             )
         template = load_template(req.template_name)
         if not template:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Template not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Template not found"
             )
         config_path = os.path.join(repo_path, f"{req.template_name}_template.yaml")
         with open(config_path, "w") as f:
             yaml.safe_dump(template, f)
-        git_manager.commit_all(f"Deploy template {req.template_name} by {current_user.username}")
+        git_manager.commit_all(
+            f"Deploy template {req.template_name} by {current_user.username}"
+        )
         # TODO: Add actual deployment logic
         return TemplateDeployResponse(template=req.template_name, status="deployed")
     except (OSError, yaml.YAMLError) as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to deploy template: {str(e)}"
+            detail=f"Failed to deploy template: {str(e)}",
         )
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Template deployment failed: {str(e)}"
+            detail=f"Template deployment failed: {str(e)}",
         )
+
 
 class LogsResponse(BaseModel):
     """
     Response model for container logs.
     """
+
     container_id: str = Field(..., description="ID of the container")
     logs: str = Field(..., description="Container logs")
 
@@ -1054,9 +1111,10 @@ class LogsResponse(BaseModel):
         schema_extra = {
             "example": {
                 "container_id": "abc123",
-                "logs": "2023-05-01 12:00:00 Server started\n2023-05-01 12:01:00 Request received"
+                "logs": "2023-05-01 12:00:00 Server started\n2023-05-01 12:01:00 Request received",
             }
         }
+
 
 @app.get(
     "/api/logs/{container_id}",
@@ -1069,13 +1127,10 @@ class LogsResponse(BaseModel):
         401: {"description": "Unauthorized - Authentication required"},
         404: {"description": "Container not found"},
         500: {"description": "Internal server error"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
-async def get_logs(
-    container_id: str,
-    current_user: User = Depends(get_current_user)
-):
+async def get_logs(container_id: str, current_user: User = Depends(get_current_user)):
     """
     Get logs for a container.
 
@@ -1087,8 +1142,7 @@ async def get_logs(
         logs_result = docker_manager.get_logs(container_id)
         if "error" in logs_result:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=logs_result["error"]
+                status_code=status.HTTP_404_NOT_FOUND, detail=logs_result["error"]
             )
         return LogsResponse(container_id=container_id, logs=logs_result["logs"])
     except HTTPException:
@@ -1096,25 +1150,22 @@ async def get_logs(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get logs: {str(e)}"
+            detail=f"Failed to get logs: {str(e)}",
         )
+
 
 class SystemStatusResponse(BaseModel):
     """
     Response model for system status.
     """
+
     cpu: str = Field(..., description="CPU usage percentage", example="25%")
     memory: str = Field(..., description="Memory usage in MB", example="1024MB")
     containers: int = Field(..., description="Number of containers", example=5)
 
     class Config:
-        schema_extra = {
-            "example": {
-                "cpu": "25%",
-                "memory": "1024MB",
-                "containers": 5
-            }
-        }
+        schema_extra = {"example": {"cpu": "25%", "memory": "1024MB", "containers": 5}}
+
 
 @app.get(
     "/status",
@@ -1126,8 +1177,8 @@ class SystemStatusResponse(BaseModel):
         200: {"description": "System status", "model": SystemStatusResponse},
         401: {"description": "Unauthorized - Authentication required"},
         500: {"description": "Internal server error"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def system_status(current_user: User = Depends(get_current_user)):
     """
@@ -1139,6 +1190,7 @@ async def system_status(current_user: User = Depends(get_current_user)):
         # Import psutil here to avoid dependency issues
         try:
             import psutil
+
             cpu = psutil.cpu_percent()
             mem = psutil.virtual_memory().used // (1024 * 1024)
         except ImportError:
@@ -1148,31 +1200,37 @@ async def system_status(current_user: User = Depends(get_current_user)):
         docker_manager = get_docker_manager()
         containers = len(docker_manager.list_containers(all=True))
         return SystemStatusResponse(
-            cpu=f"{cpu}%",
-            memory=f"{mem}MB",
-            containers=containers
+            cpu=f"{cpu}%", memory=f"{mem}MB", containers=containers
         )
     except HTTPException as he:
         if he.status_code == 503:
             raise
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get system status: {str(he)}"
+            detail=f"Failed to get system status: {str(he)}",
         )
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get system status: {str(e)}"
+            detail=f"Failed to get system status: {str(e)}",
         )
+
 
 class DockerHealthResponse(BaseModel):
     """
     Model for Docker health check response.
     """
+
     status: str = Field(..., description="Health status", example="healthy")
-    docker_ping: Optional[bool] = Field(None, description="Docker ping result", example=True)
-    docker_version: Optional[str] = Field(None, description="Docker version", example="20.10.17")
-    api_version: Optional[str] = Field(None, description="Docker API version", example="1.41")
+    docker_ping: Optional[bool] = Field(
+        None, description="Docker ping result", example=True
+    )
+    docker_version: Optional[str] = Field(
+        None, description="Docker version", example="20.10.17"
+    )
+    api_version: Optional[str] = Field(
+        None, description="Docker API version", example="1.41"
+    )
     error: Optional[str] = Field(None, description="Error message if unhealthy")
     error_type: Optional[str] = Field(None, description="Error type if unhealthy")
 
@@ -1182,9 +1240,10 @@ class DockerHealthResponse(BaseModel):
                 "status": "healthy",
                 "docker_ping": True,
                 "docker_version": "20.10.17",
-                "api_version": "1.41"
+                "api_version": "1.41",
             }
         }
+
 
 @app.get(
     "/api/docker/health",
@@ -1195,8 +1254,8 @@ class DockerHealthResponse(BaseModel):
     responses={
         200: {"description": "Docker health status", "model": DockerHealthResponse},
         401: {"description": "Unauthorized - Authentication required"},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def docker_health(current_user: User = Depends(get_current_user)):
     """
@@ -1211,7 +1270,7 @@ async def docker_health(current_user: User = Depends(get_current_user)):
         if health_result["status"] == "unhealthy":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}"
+                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}",
             )
 
         return DockerHealthResponse(**health_result)
@@ -1220,8 +1279,9 @@ async def docker_health(current_user: User = Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Docker health check failed: {str(e)}"
+            detail=f"Docker health check failed: {str(e)}",
         )
+
 
 @app.get(
     "/docker-health",
@@ -1231,8 +1291,8 @@ async def docker_health(current_user: User = Depends(get_current_user)):
     description="Public endpoint to check Docker daemon health (no authentication required).",
     responses={
         200: {"description": "Docker health status", "model": DockerHealthResponse},
-        503: {"description": "Docker service unavailable"}
-    }
+        503: {"description": "Docker service unavailable"},
+    },
 )
 async def public_docker_health():
     """
@@ -1247,7 +1307,7 @@ async def public_docker_health():
         if health_result["status"] == "unhealthy":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}"
+                detail=f"Docker unhealthy: {health_result.get('error', 'Unknown error')}",
             )
 
         return DockerHealthResponse(**health_result)
@@ -1256,25 +1316,30 @@ async def public_docker_health():
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Docker health check failed: {str(e)}"
+            detail=f"Docker health check failed: {str(e)}",
         )
+
 
 class HistoryEntry(BaseModel):
     """
     Model for a deployment history entry.
     """
+
     commit: str = Field(..., description="Commit hash", example="abc123")
     author: str = Field(..., description="Author name", example="John Doe")
-    message: str = Field(..., description="Commit message", example="Deploy WordPress stack")
+    message: str = Field(
+        ..., description="Commit message", example="Deploy WordPress stack"
+    )
 
     class Config:
         schema_extra = {
             "example": {
                 "commit": "abc123",
                 "author": "John Doe",
-                "message": "Deploy WordPress stack"
+                "message": "Deploy WordPress stack",
             }
         }
+
 
 @app.get(
     "/history",
@@ -1285,8 +1350,8 @@ class HistoryEntry(BaseModel):
     responses={
         200: {"description": "Deployment history", "model": List[HistoryEntry]},
         401: {"description": "Unauthorized - Authentication required"},
-        503: {"description": "Service unavailable - History unavailable"}
-    }
+        503: {"description": "Service unavailable - History unavailable"},
+    },
 )
 async def deployment_history(current_user: User = Depends(get_current_user)):
     """
@@ -1296,12 +1361,9 @@ async def deployment_history(current_user: User = Depends(get_current_user)):
     """
     try:
         history = git_manager.get_history()
-        return [
-            HistoryEntry(commit=h[0], author=h[1], message=h[2])
-            for h in history
-        ]
+        return [HistoryEntry(commit=h[0], author=h[1], message=h[2]) for h in history]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"History unavailable: {str(e)}"
+            detail=f"History unavailable: {str(e)}",
         )

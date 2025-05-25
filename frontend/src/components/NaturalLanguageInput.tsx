@@ -10,7 +10,6 @@ import {
   Stack,
   Chip,
   Autocomplete,
-  Divider,
   IconButton,
   Tooltip,
   List,
@@ -22,8 +21,6 @@ import {
 import SendIcon from "@mui/icons-material/Send";
 import HistoryIcon from "@mui/icons-material/History";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import axios from "axios";
 

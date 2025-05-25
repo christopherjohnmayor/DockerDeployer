@@ -4,7 +4,7 @@ These templates are used to generate prompts for the LLM to understand and proce
 natural language commands related to Docker operations.
 """
 
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 # Base system prompt that defines the LLM's role and capabilities
 SYSTEM_PROMPT = """
@@ -113,38 +113,47 @@ Provide a clear explanation that includes:
 Explanation:
 """
 
+
 def get_parse_command_prompt(
     user_command: str,
     running_containers: Optional[List[Dict[str, Any]]] = None,
     available_images: Optional[List[str]] = None,
     networks: Optional[List[str]] = None,
-    volumes: Optional[List[str]] = None
+    volumes: Optional[List[str]] = None,
 ) -> str:
     """
     Generate a prompt for parsing a natural language Docker command.
-    
+
     Args:
         user_command: The natural language command from the user
         running_containers: List of currently running containers
         available_images: List of available Docker images
         networks: List of Docker networks
         volumes: List of Docker volumes
-        
+
     Returns:
         A formatted prompt string
     """
     context = {
         "system_prompt": SYSTEM_PROMPT,
         "user_command": user_command,
-        "running_containers": "None" if not running_containers else 
-                             ", ".join([f"{c.get('name', 'unnamed')} ({c.get('id', 'unknown')[:12]})" 
-                                       for c in (running_containers or [])]),
-        "available_images": "None" if not available_images else ", ".join(available_images or []),
+        "running_containers": "None"
+        if not running_containers
+        else ", ".join(
+            [
+                f"{c.get('name', 'unnamed')} ({c.get('id', 'unknown')[:12]})"
+                for c in (running_containers or [])
+            ]
+        ),
+        "available_images": "None"
+        if not available_images
+        else ", ".join(available_images or []),
         "networks": "None" if not networks else ", ".join(networks or []),
-        "volumes": "None" if not volumes else ", ".join(volumes or [])
+        "volumes": "None" if not volumes else ", ".join(volumes or []),
     }
-    
+
     return PARSE_COMMAND_TEMPLATE.format(**context)
+
 
 def get_generate_compose_prompt(
     stack_type: str,
@@ -152,11 +161,11 @@ def get_generate_compose_prompt(
     environment: str = "development",
     host_os: str = "Linux",
     available_ports: List[int] = None,
-    persistence_needed: bool = True
+    persistence_needed: bool = True,
 ) -> str:
     """
     Generate a prompt for creating a docker-compose.yml file.
-    
+
     Args:
         stack_type: Type of stack (e.g., "LEMP", "MEAN", "WordPress")
         requirements: Specific requirements for the stack
@@ -164,13 +173,13 @@ def get_generate_compose_prompt(
         host_os: Host operating system
         available_ports: List of available ports
         persistence_needed: Whether data persistence is needed
-        
+
     Returns:
         A formatted prompt string
     """
     if available_ports is None:
         available_ports = [80, 443, 3306, 5432, 27017, 6379, 8080]
-        
+
     context = {
         "system_prompt": SYSTEM_PROMPT,
         "stack_type": stack_type,
@@ -178,28 +187,29 @@ def get_generate_compose_prompt(
         "environment": environment,
         "host_os": host_os,
         "available_ports": ", ".join(map(str, available_ports)),
-        "persistence_needed": "Yes" if persistence_needed else "No"
+        "persistence_needed": "Yes" if persistence_needed else "No",
     }
-    
+
     return GENERATE_COMPOSE_TEMPLATE.format(**context)
+
 
 def get_troubleshoot_prompt(
     issue_description: str,
     docker_version: str = "latest",
     host_os: str = "Linux",
     container_logs: str = "",
-    error_message: str = ""
+    error_message: str = "",
 ) -> str:
     """
     Generate a prompt for troubleshooting Docker issues.
-    
+
     Args:
         issue_description: Description of the issue
         docker_version: Docker version
         host_os: Host operating system
         container_logs: Relevant container logs
         error_message: Error message if any
-        
+
     Returns:
         A formatted prompt string
     """
@@ -209,24 +219,22 @@ def get_troubleshoot_prompt(
         "docker_version": docker_version,
         "host_os": host_os,
         "container_logs": container_logs or "Not provided",
-        "error_message": error_message or "Not provided"
+        "error_message": error_message or "Not provided",
     }
-    
+
     return TROUBLESHOOT_TEMPLATE.format(**context)
+
 
 def get_explain_concept_prompt(concept: str) -> str:
     """
     Generate a prompt for explaining Docker concepts.
-    
+
     Args:
         concept: The Docker concept to explain
-        
+
     Returns:
         A formatted prompt string
     """
-    context = {
-        "system_prompt": SYSTEM_PROMPT,
-        "concept": concept
-    }
-    
+    context = {"system_prompt": SYSTEM_PROMPT, "concept": concept}
+
     return EXPLAIN_CONCEPT_TEMPLATE.format(**context)

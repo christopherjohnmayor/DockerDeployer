@@ -25,6 +25,12 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+  packages: write
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: dockerdeployer
@@ -130,8 +136,9 @@ jobs:
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         if: always()
+        continue-on-error: true
         with:
-          sarif_file: "."
+          sarif_file: "backend-trivy-results.sarif,frontend-trivy-results.sarif"
 
   create-release:
     name: Create Release

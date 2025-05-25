@@ -3,7 +3,8 @@ Email templates for DockerDeployer.
 """
 
 import os
-from typing import Dict, Any
+from typing import Any, Dict
+
 from jinja2 import Environment, FileSystemLoader, Template
 
 
@@ -21,7 +22,7 @@ class EmailTemplates:
     def render_template(self, template_name: str, **kwargs) -> tuple[str, str]:
         """
         Render an email template.
-        
+
         Returns:
             tuple: (html_content, text_content)
         """

@@ -11,7 +11,8 @@ from app.auth.dependencies import get_current_user, require_admin
 from app.auth.jwt import get_password_hash
 from app.auth.models import UserManagement, UserUpdateAdmin
 from app.db.database import get_db
-from app.db.models import User as UserModel, UserRole
+from app.db.models import User as UserModel
+from app.db.models import UserRole
 
 router = APIRouter(prefix="/admin/users", tags=["user-management"])
 
@@ -112,7 +113,10 @@ def update_user(
         )
 
     # Validate role
-    if user_update.role is not None and user_update.role not in [UserRole.ADMIN, UserRole.USER]:
+    if user_update.role is not None and user_update.role not in [
+        UserRole.ADMIN,
+        UserRole.USER,
+    ]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid role. Must be 'admin' or 'user'",
@@ -120,10 +124,11 @@ def update_user(
 
     # Check if email is already taken by another user
     if user_update.email is not None:
-        existing_user = db.query(UserModel).filter(
-            UserModel.email == user_update.email,
-            UserModel.id != user_id
-        ).first()
+        existing_user = (
+            db.query(UserModel)
+            .filter(UserModel.email == user_update.email, UserModel.id != user_id)
+            .first()
+        )
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -132,7 +137,7 @@ def update_user(
 
     # Update user fields
     update_data = user_update.dict(exclude_unset=True)
-    
+
     # Hash password if provided
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))

@@ -3,19 +3,20 @@ Tests for the template system (loader and validator).
 """
 
 import os
+from unittest.mock import mock_open, patch
+
 import pytest
 import yaml
-from unittest.mock import patch, mock_open
 
 from backend.templates.loader import list_templates, load_template
 from backend.templates.validator import (
-    validate_template_structure,
-    validate_variables,
-    validate_services,
     validate_files,
+    validate_services,
     validate_template,
     validate_template_file,
-    validate_variable_values
+    validate_template_structure,
+    validate_variable_values,
+    validate_variables,
 )
 
 
@@ -28,9 +29,9 @@ class TestTemplateLoader:
         """Test listing templates when none exist."""
         mock_listdir.return_value = []
         mock_isdir.return_value = True
-        
+
         templates = list_templates()
-        
+
         assert templates == []
         mock_listdir.assert_called_once()
 
@@ -41,33 +42,21 @@ class TestTemplateLoader:
         """Test listing templates."""
         mock_listdir.return_value = ["lemp", "mean", "wordpress"]
         mock_isdir.return_value = True
-        
+
         # Mock template data
         mock_load_template.side_effect = [
-            {
-                "name": "lemp",
-                "description": "LEMP Stack",
-                "version": "1.0.0"
-            },
-            {
-                "name": "mean",
-                "description": "MEAN Stack",
-                "version": "1.0.0"
-            },
-            {
-                "name": "wordpress",
-                "description": "WordPress",
-                "version": "1.0.0"
-            }
+            {"name": "lemp", "description": "LEMP Stack", "version": "1.0.0"},
+            {"name": "mean", "description": "MEAN Stack", "version": "1.0.0"},
+            {"name": "wordpress", "description": "WordPress", "version": "1.0.0"},
         ]
-        
+
         templates = list_templates()
-        
+
         assert len(templates) == 3
         assert templates[0]["name"] == "lemp"
         assert templates[1]["name"] == "mean"
         assert templates[2]["name"] == "wordpress"
-        
+
         assert mock_load_template.call_count == 3
 
     @patch("os.path.exists")
@@ -76,7 +65,7 @@ class TestTemplateLoader:
     def test_load_template_success(self, mock_yaml_load, mock_file_open, mock_exists):
         """Test loading a template successfully."""
         mock_exists.return_value = True
-        
+
         # Mock YAML data
         mock_yaml_data = {
             "name": "lemp",
@@ -85,13 +74,13 @@ class TestTemplateLoader:
             "services": {
                 "nginx": {"image": "nginx:latest"},
                 "php": {"image": "php:8.0-fpm"},
-                "mysql": {"image": "mysql:8.0"}
-            }
+                "mysql": {"image": "mysql:8.0"},
+            },
         }
         mock_yaml_load.return_value = mock_yaml_data
-        
+
         template = load_template("lemp")
-        
+
         assert template == mock_yaml_data
         mock_exists.assert_called_once()
         mock_file_open.assert_called_once()
@@ -101,22 +90,24 @@ class TestTemplateLoader:
     def test_load_template_not_found(self, mock_exists):
         """Test loading a non-existent template."""
         mock_exists.return_value = False
-        
+
         template = load_template("nonexistent")
-        
+
         assert template is None
         mock_exists.assert_called_once()
 
     @patch("os.path.exists")
     @patch("builtins.open", new_callable=mock_open)
     @patch("yaml.safe_load")
-    def test_load_template_invalid_yaml(self, mock_yaml_load, mock_file_open, mock_exists):
+    def test_load_template_invalid_yaml(
+        self, mock_yaml_load, mock_file_open, mock_exists
+    ):
         """Test loading a template with invalid YAML."""
         mock_exists.return_value = True
         mock_yaml_load.side_effect = yaml.YAMLError("Invalid YAML")
-        
+
         template = load_template("invalid")
-        
+
         assert template is None
         mock_exists.assert_called_once()
         mock_file_open.assert_called_once()
@@ -132,13 +123,11 @@ class TestTemplateValidator:
             "name": "test",
             "description": "Test template",
             "version": "1.0.0",
-            "services": {
-                "web": {"image": "nginx"}
-            }
+            "services": {"web": {"image": "nginx"}},
         }
-        
+
         is_valid, error = validate_template_structure(template_data)
-        
+
         assert is_valid is True
         assert error is None
 
@@ -149,9 +138,9 @@ class TestTemplateValidator:
             "description": "Test template"
             # Missing version and services
         }
-        
+
         is_valid, error = validate_template_structure(template_data)
-        
+
         assert is_valid is False
         assert "Missing required field" in error
 
@@ -161,11 +150,11 @@ class TestTemplateValidator:
             "name": "test",
             "description": "Test template",
             "version": "1.0.0",
-            "services": {}
+            "services": {},
         }
-        
+
         is_valid, error = validate_template_structure(template_data)
-        
+
         assert is_valid is False
         assert "Services must be a non-empty dictionary" in error
 
@@ -175,18 +164,18 @@ class TestTemplateValidator:
             "variables": {
                 "PROJECT_NAME": {
                     "description": "Project name",
-                    "default": "test-project"
+                    "default": "test-project",
                 },
                 "PHP_VERSION": {
                     "description": "PHP version",
                     "default": "8.0",
-                    "options": ["7.4", "8.0", "8.1"]
-                }
+                    "options": ["7.4", "8.0", "8.1"],
+                },
             }
         }
-        
+
         is_valid, error = validate_variables(template_data)
-        
+
         assert is_valid is True
         assert error is None
 
@@ -196,13 +185,13 @@ class TestTemplateValidator:
             "variables": {
                 "project_name": {  # Should be uppercase
                     "description": "Project name",
-                    "default": "test-project"
+                    "default": "test-project",
                 }
             }
         }
-        
+
         is_valid, error = validate_variables(template_data)
-        
+
         assert is_valid is False
         assert "Invalid variable name format" in error
 
@@ -216,9 +205,9 @@ class TestTemplateValidator:
                 }
             }
         }
-        
+
         is_valid, error = validate_variables(template_data)
-        
+
         assert is_valid is False
         assert "Missing description" in error
 
@@ -229,13 +218,13 @@ class TestTemplateValidator:
                 "PHP_VERSION": {
                     "description": "PHP version",
                     "default": "8.2",  # Not in options
-                    "options": ["7.4", "8.0", "8.1"]
+                    "options": ["7.4", "8.0", "8.1"],
                 }
             }
         }
-        
+
         is_valid, error = validate_variables(template_data)
-        
+
         assert is_valid is False
         assert "Default value" in error
         assert "must be one of the options" in error
@@ -244,27 +233,22 @@ class TestTemplateValidator:
         """Test validating valid services."""
         template_data = {
             "services": {
-                "web": {
-                    "image": "nginx:latest",
-                    "ports": ["80:80"]
-                },
+                "web": {"image": "nginx:latest", "ports": ["80:80"]},
                 "db": {
                     "image": "mysql:8.0",
-                    "environment": {
-                        "MYSQL_ROOT_PASSWORD": "${MYSQL_PASSWORD}"
-                    }
-                }
+                    "environment": {"MYSQL_ROOT_PASSWORD": "${MYSQL_PASSWORD}"},
+                },
             },
             "variables": {
                 "MYSQL_PASSWORD": {
                     "description": "MySQL password",
-                    "default": "password"
+                    "default": "password",
                 }
-            }
+            },
         }
-        
+
         is_valid, error = validate_services(template_data)
-        
+
         assert is_valid is True
         assert error is None
 
@@ -277,9 +261,9 @@ class TestTemplateValidator:
                 }
             }
         }
-        
+
         is_valid, error = validate_services(template_data)
-        
+
         assert is_valid is False
         assert "Invalid service name" in error
 
@@ -293,9 +277,9 @@ class TestTemplateValidator:
                 }
             }
         }
-        
+
         is_valid, error = validate_services(template_data)
-        
+
         assert is_valid is False
         assert "must have either 'image' or 'build'" in error
 
@@ -305,16 +289,14 @@ class TestTemplateValidator:
             "services": {
                 "db": {
                     "image": "mysql:8.0",
-                    "environment": {
-                        "MYSQL_ROOT_PASSWORD": "${MYSQL_PASSWORD}"
-                    }
+                    "environment": {"MYSQL_ROOT_PASSWORD": "${MYSQL_PASSWORD}"},
                 }
             }
             # Missing variables section
         }
-        
+
         is_valid, error = validate_services(template_data)
-        
+
         assert is_valid is False
         assert "references undefined variable" in error
 
@@ -322,25 +304,22 @@ class TestTemplateValidator:
         """Test validating valid files section."""
         template_data = {
             "files": [
-                {
-                    "path": "nginx/default.conf",
-                    "content": "server { listen 80; }"
-                },
+                {"path": "nginx/default.conf", "content": "server { listen 80; }"},
                 {
                     "path": "php/custom.ini",
-                    "content": "memory_limit = ${PHP_MEMORY_LIMIT}"
-                }
+                    "content": "memory_limit = ${PHP_MEMORY_LIMIT}",
+                },
             ],
             "variables": {
                 "PHP_MEMORY_LIMIT": {
                     "description": "PHP memory limit",
-                    "default": "128M"
+                    "default": "128M",
                 }
-            }
+            },
         }
-        
+
         is_valid, error = validate_files(template_data)
-        
+
         assert is_valid is True
         assert error is None
 
@@ -354,9 +333,9 @@ class TestTemplateValidator:
                 }
             ]
         }
-        
+
         is_valid, error = validate_files(template_data)
-        
+
         assert is_valid is False
         assert "missing required field: path" in error.lower()
 
@@ -366,13 +345,13 @@ class TestTemplateValidator:
             "files": [
                 {
                     "path": "../etc/passwd",  # Path traversal attempt
-                    "content": "malicious content"
+                    "content": "malicious content",
                 }
             ]
         }
-        
+
         is_valid, error = validate_files(template_data)
-        
+
         assert is_valid is False
         assert "Invalid file path" in error
 
@@ -380,16 +359,13 @@ class TestTemplateValidator:
         """Test validating files with undefined variable reference."""
         template_data = {
             "files": [
-                {
-                    "path": "config.ini",
-                    "content": "value = ${UNDEFINED_VARIABLE}"
-                }
+                {"path": "config.ini", "content": "value = ${UNDEFINED_VARIABLE}"}
             ]
             # Missing variables section
         }
-        
+
         is_valid, error = validate_files(template_data)
-        
+
         assert is_valid is False
         assert "references undefined variable" in error
 
@@ -400,25 +376,16 @@ class TestTemplateValidator:
             "description": "Test template",
             "version": "1.0.0",
             "services": {
-                "web": {
-                    "image": "nginx:${NGINX_VERSION}",
-                    "ports": ["${WEB_PORT}:80"]
-                }
+                "web": {"image": "nginx:${NGINX_VERSION}", "ports": ["${WEB_PORT}:80"]}
             },
             "variables": {
-                "NGINX_VERSION": {
-                    "description": "Nginx version",
-                    "default": "latest"
-                },
-                "WEB_PORT": {
-                    "description": "Web port",
-                    "default": "80"
-                }
-            }
+                "NGINX_VERSION": {"description": "Nginx version", "default": "latest"},
+                "WEB_PORT": {"description": "Web port", "default": "80"},
+            },
         }
-        
+
         is_valid, error = validate_template(template_data)
-        
+
         assert is_valid is True
         assert error is None
 
@@ -431,14 +398,12 @@ class TestTemplateValidator:
             "name": "test",
             "description": "Test template",
             "version": "1.0.0",
-            "services": {
-                "web": {"image": "nginx"}
-            }
+            "services": {"web": {"image": "nginx"}},
         }
         mock_yaml_load.return_value = mock_yaml_data
-        
+
         is_valid, error = validate_template_file("test_template.yaml")
-        
+
         assert is_valid is True
         assert error is None
         mock_file_open.assert_called_once_with("test_template.yaml", "r")
@@ -449,9 +414,9 @@ class TestTemplateValidator:
     def test_validate_template_file_invalid_yaml(self, mock_yaml_load, mock_file_open):
         """Test validating a template file with invalid YAML."""
         mock_yaml_load.side_effect = yaml.YAMLError("Invalid YAML")
-        
+
         is_valid, error = validate_template_file("invalid.yaml")
-        
+
         assert is_valid is False
         assert "Invalid YAML" in error
         mock_file_open.assert_called_once_with("invalid.yaml", "r")
@@ -463,23 +428,22 @@ class TestTemplateValidator:
             "variables": {
                 "PROJECT_NAME": {
                     "description": "Project name",
-                    "default": "test-project"
+                    "default": "test-project",
                 },
                 "PHP_VERSION": {
                     "description": "PHP version",
                     "default": "8.0",
-                    "options": ["7.4", "8.0", "8.1"]
-                }
+                    "options": ["7.4", "8.0", "8.1"],
+                },
             }
         }
-        
-        variable_values = {
-            "PROJECT_NAME": "my-project",
-            "PHP_VERSION": "8.1"
-        }
-        
-        is_valid, error, processed = validate_variable_values(template_data, variable_values)
-        
+
+        variable_values = {"PROJECT_NAME": "my-project", "PHP_VERSION": "8.1"}
+
+        is_valid, error, processed = validate_variable_values(
+            template_data, variable_values
+        )
+
         assert is_valid is True
         assert error is None
         assert processed["PROJECT_NAME"] == "my-project"
@@ -496,11 +460,13 @@ class TestTemplateValidator:
                 }
             }
         }
-        
+
         variable_values = {}  # Missing API_KEY
-        
-        is_valid, error, processed = validate_variable_values(template_data, variable_values)
-        
+
+        is_valid, error, processed = validate_variable_values(
+            template_data, variable_values
+        )
+
         assert is_valid is False
         assert "Missing required variable" in error
         assert processed == {}
