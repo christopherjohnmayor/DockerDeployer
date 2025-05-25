@@ -141,15 +141,30 @@ def validate_services(template_data: Dict[str, Any]) -> Tuple[bool, Optional[str
             )
 
         # Check variable references in service configuration
-        for key, value in service_config.items():
-            if isinstance(value, str):
-                var_refs = re.findall(r"\${([A-Z][A-Z0-9_]*)}", value)
+        def check_variable_refs(obj, path=""):
+            if isinstance(obj, str):
+                var_refs = re.findall(r"\${([A-Z][A-Z0-9_]*)}", obj)
                 for var_ref in var_refs:
                     if var_ref not in template_data.get("variables", {}):
                         return (
                             False,
                             f"Service {service_name} references undefined variable: {var_ref}",
                         )
+            elif isinstance(obj, dict):
+                for key, value in obj.items():
+                    result = check_variable_refs(value, f"{path}.{key}" if path else key)
+                    if result and not result[0]:
+                        return result
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    result = check_variable_refs(item, f"{path}[{i}]" if path else f"[{i}]")
+                    if result and not result[0]:
+                        return result
+            return True, None
+
+        result = check_variable_refs(service_config)
+        if not result[0]:
+            return result
 
     return True, None
 

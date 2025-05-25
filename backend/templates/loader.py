@@ -32,10 +32,13 @@ def load_template_metadata(template_name: str) -> Optional[Dict]:
     meta_path = os.path.join(TEMPLATES_DIR, template_name, "template.yaml")
     if not os.path.exists(meta_path):
         return None
-    with open(meta_path, "r") as f:
-        meta = yaml.safe_load(f)
-    meta["name"] = template_name
-    return meta
+    try:
+        with open(meta_path, "r") as f:
+            meta = yaml.safe_load(f)
+        meta["name"] = template_name
+        return meta
+    except yaml.YAMLError:
+        return None
 
 
 def load_template(template_name: str) -> Optional[Dict]:

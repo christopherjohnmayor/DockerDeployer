@@ -37,14 +37,16 @@ class TestTemplateLoader:
 
     @patch("os.listdir")
     @patch("os.path.isdir")
-    @patch("backend.templates.loader.load_template")
-    def test_list_templates(self, mock_load_template, mock_isdir, mock_listdir):
+    @patch("os.path.exists")
+    @patch("backend.templates.loader.load_template_metadata")
+    def test_list_templates(self, mock_load_metadata, mock_exists, mock_isdir, mock_listdir):
         """Test listing templates."""
         mock_listdir.return_value = ["lemp", "mean", "wordpress"]
         mock_isdir.return_value = True
+        mock_exists.return_value = True  # template.yaml exists
 
-        # Mock template data
-        mock_load_template.side_effect = [
+        # Mock template metadata
+        mock_load_metadata.side_effect = [
             {"name": "lemp", "description": "LEMP Stack", "version": "1.0.0"},
             {"name": "mean", "description": "MEAN Stack", "version": "1.0.0"},
             {"name": "wordpress", "description": "WordPress", "version": "1.0.0"},
@@ -57,7 +59,7 @@ class TestTemplateLoader:
         assert templates[1]["name"] == "mean"
         assert templates[2]["name"] == "wordpress"
 
-        assert mock_load_template.call_count == 3
+        assert mock_load_metadata.call_count == 3
 
     @patch("os.path.exists")
     @patch("builtins.open", new_callable=mock_open)
@@ -68,7 +70,6 @@ class TestTemplateLoader:
 
         # Mock YAML data
         mock_yaml_data = {
-            "name": "lemp",
             "description": "LEMP Stack",
             "version": "1.0.0",
             "services": {
@@ -81,8 +82,17 @@ class TestTemplateLoader:
 
         template = load_template("lemp")
 
-        assert template == mock_yaml_data
-        mock_exists.assert_called_once()
+        # The function adds name and path to the template
+        expected_template = {**mock_yaml_data, "name": "lemp"}
+        expected_template["path"] = "/Volumes/2TB/Projects/DockerDeployer/templates/lemp"
+
+        assert template["name"] == "lemp"
+        assert template["description"] == "LEMP Stack"
+        assert template["version"] == "1.0.0"
+        assert "path" in template
+
+        # exists is called twice: once for directory, once for template.yaml
+        assert mock_exists.call_count == 2
         mock_file_open.assert_called_once()
         mock_yaml_load.assert_called_once()
 
@@ -109,7 +119,8 @@ class TestTemplateLoader:
         template = load_template("invalid")
 
         assert template is None
-        mock_exists.assert_called_once()
+        # exists is called twice: once for directory, once for template.yaml
+        assert mock_exists.call_count == 2
         mock_file_open.assert_called_once()
         mock_yaml_load.assert_called_once()
 
