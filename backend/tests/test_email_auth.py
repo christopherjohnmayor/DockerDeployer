@@ -58,7 +58,7 @@ class TestEmailVerification:
             json={
                 "username": "newuser",
                 "email": "newuser@example.com",
-                "password": "newpassword123",
+                "password": "NewPassword123",
                 "full_name": "New User",
             },
         )

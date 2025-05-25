@@ -32,7 +32,7 @@ def test_nlp_parse(authenticated_client):
 
 
 @pytest.mark.skipif(not docker_available(), reason="Docker is not available")
-def test_real_docker_container_lifecycle():
+def test_real_docker_container_lifecycle(authenticated_client):
     # Pull and run a simple container
     docker_client = docker_sdk.from_env()
     container = docker_client.containers.run(
@@ -44,46 +44,21 @@ def test_real_docker_container_lifecycle():
     )
     try:
         # Should appear in /containers
-        from backend.app.auth.dependencies import get_current_user
-        from backend.app.db.models import UserRole
-
-        # Create a mock user for this test
-        class MockUser:
-            def __init__(self):
-                self.id = 1
-                self.username = "testuser"
-                self.email = "test@example.com"
-                self.full_name = "Test User"
-                self.role = UserRole.USER
-                self.is_active = True
-                self.is_email_verified = True
-
-        mock_user = MockUser()
-
-        def override_get_current_user():
-            return mock_user
-
-        from backend.app.main import app
-        app.dependency_overrides[get_current_user] = override_get_current_user
-
-        try:
-            resp = client.get("/api/containers")
-            assert resp.status_code == 200
-        finally:
-            app.dependency_overrides.clear()
+        resp = authenticated_client.get("/api/containers")
+        assert resp.status_code == 200
         containers = resp.json()
         found = any("test_deployer_alpine" in c["name"] for c in containers)
         assert found
 
         # Restart the container
-        resp = client.post(
+        resp = authenticated_client.post(
             f"/api/containers/{container.id}/action", json={"action": "restart"}
         )
         assert resp.status_code == 200
         assert "result" in resp.json()
 
         # Get logs (should be empty for sleep)
-        resp = client.get(f"/api/logs/{container.id}")
+        resp = authenticated_client.get(f"/api/logs/{container.id}")
         assert resp.status_code == 200
         logs = resp.json()
         assert "logs" in logs
@@ -258,7 +233,7 @@ class TestContainerEndpointsMocked:
             response = authenticated_client.get("/api/logs/test_container_id")
 
             assert response.status_code == 200
-            assert response.json()["id"] == "test_container_id"
+            assert response.json()["container_id"] == "test_container_id"
             assert response.json()["logs"] == "Test logs output"
 
             mock_docker_manager.get_logs.assert_called_once_with("test_container_id")
