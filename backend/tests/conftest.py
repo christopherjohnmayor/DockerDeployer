@@ -86,19 +86,21 @@ def authenticated_client():
     """
     Create an authenticated test client with mocked authentication.
     """
-    from unittest.mock import MagicMock
-    from backend.app.db.models import UserRole
-    from backend.app.auth.dependencies import get_current_user
+    from app.auth.dependencies import get_current_user
+    from app.db.models import UserRole
 
-    # Create a mock user object
-    mock_user = MagicMock()
-    mock_user.id = 1
-    mock_user.username = "testuser"
-    mock_user.email = "test@example.com"
-    mock_user.full_name = "Test User"
-    mock_user.role = UserRole.USER
-    mock_user.is_active = True
-    mock_user.is_email_verified = True
+    # Create a mock user that behaves like a real User model
+    class MockUser:
+        def __init__(self):
+            self.id = 1
+            self.username = "testuser"
+            self.email = "test@example.com"
+            self.full_name = "Test User"
+            self.role = UserRole.USER
+            self.is_active = True
+            self.is_email_verified = True
+
+    mock_user = MockUser()
 
     # Override the dependency to return our mock user
     def override_get_current_user():

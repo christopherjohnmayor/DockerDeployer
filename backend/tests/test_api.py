@@ -22,39 +22,13 @@ from backend.tests.conftest import (
 client = TestClient(app)
 
 
-def test_nlp_parse():
+def test_nlp_parse(authenticated_client):
     """Test NLP parsing endpoint with mocked authentication."""
-    from unittest.mock import MagicMock
-    from backend.app.db.models import UserRole
-    from backend.app.auth.dependencies import get_current_user
-
-    # Create a mock user object
-    mock_user = MagicMock()
-    mock_user.id = 1
-    mock_user.username = "testuser"
-    mock_user.email = "test@example.com"
-    mock_user.full_name = "Test User"
-    mock_user.role = UserRole.USER
-    mock_user.is_active = True
-    mock_user.is_email_verified = True
-
-    # Override the dependency to return our mock user
-    def override_get_current_user():
-        return mock_user
-
-    app.dependency_overrides[get_current_user] = override_get_current_user
-
-    try:
-        # Create client after setting override
-        client = TestClient(app)
-        resp = client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
-        assert resp.status_code == 200
-        data = resp.json()
-        assert "action_plan" in data
-        assert isinstance(data["action_plan"], dict)
-    finally:
-        # Clean up dependency override
-        app.dependency_overrides.clear()
+    resp = authenticated_client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "action_plan" in data
+    assert isinstance(data["action_plan"], dict)
 
 
 @pytest.mark.skipif(not docker_available(), reason="Docker is not available")
@@ -70,21 +44,46 @@ def test_real_docker_container_lifecycle():
     )
     try:
         # Should appear in /containers
-        resp = client.get("/api/containers")
-        assert resp.status_code == 200
+        from backend.app.auth.dependencies import get_current_user
+        from backend.app.db.models import UserRole
+
+        # Create a mock user for this test
+        class MockUser:
+            def __init__(self):
+                self.id = 1
+                self.username = "testuser"
+                self.email = "test@example.com"
+                self.full_name = "Test User"
+                self.role = UserRole.USER
+                self.is_active = True
+                self.is_email_verified = True
+
+        mock_user = MockUser()
+
+        def override_get_current_user():
+            return mock_user
+
+        from backend.app.main import app
+        app.dependency_overrides[get_current_user] = override_get_current_user
+
+        try:
+            resp = client.get("/api/containers")
+            assert resp.status_code == 200
+        finally:
+            app.dependency_overrides.clear()
         containers = resp.json()
         found = any("test_deployer_alpine" in c["name"] for c in containers)
         assert found
 
         # Restart the container
         resp = client.post(
-            f"/containers/{container.id}/action", json={"action": "restart"}
+            f"/api/containers/{container.id}/action", json={"action": "restart"}
         )
         assert resp.status_code == 200
         assert "result" in resp.json()
 
         # Get logs (should be empty for sleep)
-        resp = client.get(f"/logs/{container.id}")
+        resp = client.get(f"/api/logs/{container.id}")
         assert resp.status_code == 200
         logs = resp.json()
         assert "logs" in logs
