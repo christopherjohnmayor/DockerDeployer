@@ -22,28 +22,28 @@ logger = logging.getLogger(__name__)
 
 class MetricsService:
     """Service for managing container metrics and alerts."""
-    
+
     def __init__(self, db: Session, docker_manager: DockerManager):
         self.db = db
         self.docker_manager = docker_manager
-    
+
     def collect_and_store_metrics(self, container_id: str) -> Dict[str, Any]:
         """
         Collect current metrics for a container and store in database.
-        
+
         Args:
             container_id: Container ID or name
-            
+
         Returns:
             Dictionary containing the collected metrics or error
         """
         try:
             # Get current stats from Docker
             stats_result = self.docker_manager.get_container_stats(container_id)
-            
+
             if "error" in stats_result:
                 return stats_result
-            
+
             # Create metrics record
             metrics = ContainerMetrics(
                 container_id=stats_result.get("container_id"),
@@ -58,45 +58,45 @@ class MetricsService:
                 block_read_bytes=stats_result.get("block_read_bytes"),
                 block_write_bytes=stats_result.get("block_write_bytes"),
             )
-            
+
             # Save to database
             self.db.add(metrics)
             self.db.commit()
-            
+
             logger.info(f"Stored metrics for container {container_id}")
             return stats_result
-            
+
         except Exception as e:
             logger.error(f"Error collecting metrics for container {container_id}: {e}")
             self.db.rollback()
             return {"error": f"Failed to collect metrics: {str(e)}"}
-    
+
     def get_current_metrics(self, container_id: str) -> Dict[str, Any]:
         """
         Get current metrics for a container without storing.
-        
+
         Args:
             container_id: Container ID or name
-            
+
         Returns:
             Dictionary containing current metrics
         """
         return self.docker_manager.get_container_stats(container_id)
-    
+
     def get_historical_metrics(
-        self, 
-        container_id: str, 
+        self,
+        container_id: str,
         hours: int = 24,
         limit: int = 1000
     ) -> List[Dict[str, Any]]:
         """
         Get historical metrics for a container.
-        
+
         Args:
             container_id: Container ID or name
             hours: Number of hours of history to retrieve
             limit: Maximum number of records to return
-            
+
         Returns:
             List of historical metrics
         """
@@ -104,7 +104,7 @@ class MetricsService:
             # Calculate time range
             end_time = datetime.utcnow()
             start_time = end_time - timedelta(hours=hours)
-            
+
             # Query historical metrics
             metrics_query = self.db.query(ContainerMetrics).filter(
                 and_(
@@ -113,9 +113,9 @@ class MetricsService:
                     ContainerMetrics.timestamp <= end_time
                 )
             ).order_by(desc(ContainerMetrics.timestamp)).limit(limit)
-            
+
             metrics = metrics_query.all()
-            
+
             # Convert to dictionaries
             result = []
             for metric in metrics:
@@ -133,49 +133,49 @@ class MetricsService:
                     "block_read_bytes": metric.block_read_bytes,
                     "block_write_bytes": metric.block_write_bytes,
                 })
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error retrieving historical metrics for {container_id}: {e}")
             return []
-    
+
     def get_system_metrics(self) -> Dict[str, Any]:
         """
         Get system-wide metrics.
-        
+
         Returns:
             Dictionary containing system metrics
         """
         return self.docker_manager.get_system_stats()
-    
+
     def cleanup_old_metrics(self, days: int = 30) -> int:
         """
         Clean up old metrics data.
-        
+
         Args:
             days: Number of days of data to keep
-            
+
         Returns:
             Number of records deleted
         """
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
-            
+
             deleted_count = self.db.query(ContainerMetrics).filter(
                 ContainerMetrics.timestamp < cutoff_date
             ).delete()
-            
+
             self.db.commit()
-            
+
             logger.info(f"Cleaned up {deleted_count} old metrics records")
             return deleted_count
-            
+
         except Exception as e:
             logger.error(f"Error cleaning up old metrics: {e}")
             self.db.rollback()
             return 0
-    
+
     def create_alert(
         self,
         user_id: int,
@@ -188,7 +188,7 @@ class MetricsService:
     ) -> Dict[str, Any]:
         """
         Create a new metrics alert.
-        
+
         Args:
             user_id: ID of the user creating the alert
             container_id: Container ID to monitor
@@ -197,7 +197,7 @@ class MetricsService:
             threshold_value: Threshold value for the alert
             comparison_operator: Comparison operator (>, <, >=, <=, ==, !=)
             description: Optional description
-            
+
         Returns:
             Dictionary containing the created alert or error
         """
@@ -205,7 +205,7 @@ class MetricsService:
             # Get container name for display
             container_stats = self.docker_manager.get_container_stats(container_id)
             container_name = container_stats.get("container_name", container_id)
-            
+
             alert = MetricsAlert(
                 name=name,
                 description=description,
@@ -216,12 +216,12 @@ class MetricsService:
                 comparison_operator=comparison_operator,
                 created_by=user_id,
             )
-            
+
             self.db.add(alert)
             self.db.commit()
-            
+
             logger.info(f"Created alert '{name}' for container {container_id}")
-            
+
             return {
                 "id": alert.id,
                 "name": alert.name,
@@ -234,19 +234,19 @@ class MetricsService:
                 "is_active": alert.is_active,
                 "created_at": alert.created_at.isoformat(),
             }
-            
+
         except Exception as e:
             logger.error(f"Error creating alert: {e}")
             self.db.rollback()
             return {"error": f"Failed to create alert: {str(e)}"}
-    
+
     def get_user_alerts(self, user_id: int) -> List[Dict[str, Any]]:
         """
         Get all alerts for a user.
-        
+
         Args:
             user_id: User ID
-            
+
         Returns:
             List of user alerts
         """
@@ -254,7 +254,7 @@ class MetricsService:
             alerts = self.db.query(MetricsAlert).filter(
                 MetricsAlert.created_by == user_id
             ).order_by(desc(MetricsAlert.created_at)).all()
-            
+
             result = []
             for alert in alerts:
                 result.append({
@@ -273,9 +273,216 @@ class MetricsService:
                     "created_at": alert.created_at.isoformat(),
                     "updated_at": alert.updated_at.isoformat(),
                 })
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"Error retrieving alerts for user {user_id}: {e}")
             return []
+
+    def update_alert(
+        self,
+        alert_id: int,
+        user_id: int,
+        update_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Update an existing metrics alert.
+
+        Args:
+            alert_id: ID of the alert to update
+            user_id: ID of the user (for ownership verification)
+            update_data: Dictionary containing fields to update
+
+        Returns:
+            Dictionary containing the updated alert or error
+        """
+        try:
+            # Get the existing alert and verify ownership
+            alert = self.db.query(MetricsAlert).filter(
+                and_(
+                    MetricsAlert.id == alert_id,
+                    MetricsAlert.created_by == user_id
+                )
+            ).first()
+
+            if not alert:
+                return {"error": f"Alert {alert_id} not found or access denied"}
+
+            # Update allowed fields
+            allowed_fields = [
+                'name', 'description', 'metric_type', 'threshold_value',
+                'comparison_operator', 'is_active'
+            ]
+
+            for field, value in update_data.items():
+                if field in allowed_fields and hasattr(alert, field):
+                    setattr(alert, field, value)
+
+            # Update timestamp
+            alert.updated_at = datetime.utcnow()
+
+            self.db.commit()
+
+            logger.info(f"Updated alert {alert_id}")
+
+            return {
+                "id": alert.id,
+                "name": alert.name,
+                "description": alert.description,
+                "container_id": alert.container_id,
+                "container_name": alert.container_name,
+                "metric_type": alert.metric_type,
+                "threshold_value": alert.threshold_value,
+                "comparison_operator": alert.comparison_operator,
+                "is_active": alert.is_active,
+                "is_triggered": alert.is_triggered,
+                "last_triggered_at": alert.last_triggered_at.isoformat() if alert.last_triggered_at else None,
+                "trigger_count": alert.trigger_count,
+                "created_at": alert.created_at.isoformat(),
+                "updated_at": alert.updated_at.isoformat(),
+            }
+
+        except Exception as e:
+            logger.error(f"Error updating alert {alert_id}: {e}")
+            self.db.rollback()
+            return {"error": f"Failed to update alert: {str(e)}"}
+
+    def delete_alert(self, alert_id: int, user_id: int) -> Dict[str, Any]:
+        """
+        Delete a metrics alert.
+
+        Args:
+            alert_id: ID of the alert to delete
+            user_id: ID of the user (for ownership verification)
+
+        Returns:
+            Dictionary containing success message or error
+        """
+        try:
+            # Get the existing alert and verify ownership
+            alert = self.db.query(MetricsAlert).filter(
+                and_(
+                    MetricsAlert.id == alert_id,
+                    MetricsAlert.created_by == user_id
+                )
+            ).first()
+
+            if not alert:
+                return {"error": f"Alert {alert_id} not found or access denied"}
+
+            # Delete the alert
+            self.db.delete(alert)
+            self.db.commit()
+
+            logger.info(f"Deleted alert {alert_id}")
+            return {"message": f"Alert {alert_id} deleted successfully"}
+
+        except Exception as e:
+            logger.error(f"Error deleting alert {alert_id}: {e}")
+            self.db.rollback()
+            return {"error": f"Failed to delete alert: {str(e)}"}
+
+    def check_alerts(self, container_id: str, current_metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Check if any alerts should be triggered based on current metrics.
+
+        Args:
+            container_id: Container ID to check alerts for
+            current_metrics: Current metrics data
+
+        Returns:
+            List of triggered alerts
+        """
+        try:
+            # Get active alerts for this container
+            alerts = self.db.query(MetricsAlert).filter(
+                and_(
+                    MetricsAlert.container_id == container_id,
+                    MetricsAlert.is_active == True
+                )
+            ).all()
+
+            triggered_alerts = []
+
+            for alert in alerts:
+                # Get the metric value
+                metric_value = current_metrics.get(alert.metric_type)
+                if metric_value is None:
+                    continue
+
+                # Check if alert condition is met
+                should_trigger = self._evaluate_alert_condition(
+                    metric_value,
+                    alert.threshold_value,
+                    alert.comparison_operator
+                )
+
+                if should_trigger and not alert.is_triggered:
+                    # Trigger the alert
+                    alert.is_triggered = True
+                    alert.last_triggered_at = datetime.utcnow()
+                    alert.trigger_count += 1
+
+                    triggered_alerts.append({
+                        "alert_id": alert.id,
+                        "alert_name": alert.name,
+                        "container_id": alert.container_id,
+                        "container_name": alert.container_name,
+                        "metric_type": alert.metric_type,
+                        "metric_value": metric_value,
+                        "threshold_value": alert.threshold_value,
+                        "comparison_operator": alert.comparison_operator,
+                    })
+
+                elif not should_trigger and alert.is_triggered:
+                    # Reset the alert
+                    alert.is_triggered = False
+
+            if triggered_alerts:
+                self.db.commit()
+                logger.info(f"Triggered {len(triggered_alerts)} alerts for container {container_id}")
+
+            return triggered_alerts
+
+        except Exception as e:
+            logger.error(f"Error checking alerts for container {container_id}: {e}")
+            self.db.rollback()
+            return []
+
+    def _evaluate_alert_condition(
+        self,
+        metric_value: float,
+        threshold_value: float,
+        comparison_operator: str
+    ) -> bool:
+        """
+        Evaluate if an alert condition is met.
+
+        Args:
+            metric_value: Current metric value
+            threshold_value: Alert threshold value
+            comparison_operator: Comparison operator (>, <, >=, <=, ==, !=)
+
+        Returns:
+            True if condition is met, False otherwise
+        """
+        try:
+            if comparison_operator == ">":
+                return metric_value > threshold_value
+            elif comparison_operator == "<":
+                return metric_value < threshold_value
+            elif comparison_operator == ">=":
+                return metric_value >= threshold_value
+            elif comparison_operator == "<=":
+                return metric_value <= threshold_value
+            elif comparison_operator == "==":
+                return metric_value == threshold_value
+            elif comparison_operator == "!=":
+                return metric_value != threshold_value
+            else:
+                logger.warning(f"Unknown comparison operator: {comparison_operator}")
+                return False
+        except Exception as e:
+            logger.error(f"Error evaluating alert condition: {e}")
+            return False

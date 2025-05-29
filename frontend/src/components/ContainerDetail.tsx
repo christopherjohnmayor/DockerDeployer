@@ -20,6 +20,7 @@ import StopIcon from "@mui/icons-material/Stop";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import RealTimeMetrics from "./RealTimeMetrics";
 import MetricsHistory from "./MetricsHistory";
+import AlertsManager from "./AlertsManager";
 
 /**
  * Props for the ContainerDetail component.
@@ -311,6 +312,7 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
           <Tab label="Logs" />
           <Tab label="Real-time Metrics" />
           <Tab label="Metrics History" />
+          <Tab label="Alerts" />
           <Tab label="Environment" />
         </Tabs>
 
@@ -397,6 +399,10 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={4}>
+          <AlertsManager containerId={containerId} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={5}>
           <Typography variant="h6" gutterBottom>
             Environment Variables
           </Typography>

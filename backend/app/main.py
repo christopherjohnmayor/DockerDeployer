@@ -1104,6 +1104,193 @@ async def get_system_metrics(
         )
 
 
+@app.post(
+    "/api/alerts",
+    tags=["Alerts"],
+    summary="Create metrics alert",
+    description="Create a new metrics alert for container monitoring.",
+    responses={
+        201: {"description": "Alert created successfully"},
+        400: {"description": "Invalid alert configuration"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def create_alert(
+    alert_data: dict,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Create a new metrics alert.
+
+    Requires authentication.
+    """
+    try:
+        required_fields = ['name', 'container_id', 'metric_type', 'threshold_value', 'comparison_operator']
+        for field in required_fields:
+            if field not in alert_data:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Missing required field: {field}"
+                )
+
+        result = metrics_service.create_alert(
+            user_id=current_user.id,
+            container_id=alert_data['container_id'],
+            name=alert_data['name'],
+            metric_type=alert_data['metric_type'],
+            threshold_value=float(alert_data['threshold_value']),
+            comparison_operator=alert_data['comparison_operator'],
+            description=alert_data.get('description')
+        )
+
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create alert: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/alerts",
+    tags=["Alerts"],
+    summary="Get user alerts",
+    description="Get all alerts created by the current user.",
+    responses={
+        200: {"description": "List of user alerts"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_user_alerts(
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Get all alerts for the current user.
+
+    Requires authentication.
+    """
+    try:
+        alerts = metrics_service.get_user_alerts(current_user.id)
+        return alerts
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get alerts: {str(e)}",
+        )
+
+
+@app.put(
+    "/api/alerts/{alert_id}",
+    tags=["Alerts"],
+    summary="Update metrics alert",
+    description="Update an existing metrics alert.",
+    responses={
+        200: {"description": "Alert updated successfully"},
+        400: {"description": "Invalid alert configuration"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Alert not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def update_alert(
+    alert_id: int,
+    alert_data: dict,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Update an existing metrics alert.
+
+    Requires authentication and ownership of the alert.
+    """
+    try:
+        result = metrics_service.update_alert(
+            alert_id=alert_id,
+            user_id=current_user.id,
+            update_data=alert_data
+        )
+
+        if "error" in result:
+            if "not found" in result["error"].lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=result["error"]
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=result["error"]
+                )
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update alert: {str(e)}",
+        )
+
+
+@app.delete(
+    "/api/alerts/{alert_id}",
+    tags=["Alerts"],
+    summary="Delete metrics alert",
+    description="Delete an existing metrics alert.",
+    responses={
+        200: {"description": "Alert deleted successfully"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Alert not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def delete_alert(
+    alert_id: int,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Delete an existing metrics alert.
+
+    Requires authentication and ownership of the alert.
+    """
+    try:
+        result = metrics_service.delete_alert(alert_id, current_user.id)
+
+        if "error" in result:
+            if "not found" in result["error"].lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=result["error"]
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=result["error"]
+                )
+
+        return {"message": "Alert deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete alert: {str(e)}",
+        )
+
+
 @app.get(
     "/api/templates",
     tags=["Templates"],
