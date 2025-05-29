@@ -17,10 +17,10 @@ logger = logging.getLogger(__name__)
 def get_user_id_or_ip(request: Request) -> str:
     """
     Get user ID from request or fall back to IP address for rate limiting.
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         User identifier for rate limiting
     """
@@ -31,7 +31,7 @@ def get_user_id_or_ip(request: Request) -> str:
             token = auth_header[7:]
             # Import here to avoid circular imports
             from app.auth.jwt import decode_token
-            
+
             try:
                 payload = decode_token(token)
                 user_id = payload.get("sub")
@@ -41,7 +41,7 @@ def get_user_id_or_ip(request: Request) -> str:
                 pass  # Fall back to IP address
     except Exception:
         pass
-    
+
     # Fall back to IP address
     return get_remote_address(request)
 
@@ -49,17 +49,17 @@ def get_user_id_or_ip(request: Request) -> str:
 def get_api_key_or_ip(request: Request) -> str:
     """
     Get API key from request or fall back to IP address for rate limiting.
-    
+
     Args:
         request: FastAPI request object
-        
+
     Returns:
         API key or IP address for rate limiting
     """
     api_key = request.headers.get("x-api-key")
     if api_key:
         return f"api_key:{api_key}"
-    
+
     return get_remote_address(request)
 
 
@@ -81,11 +81,11 @@ api_limiter = Limiter(
 def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
     """
     Custom handler for rate limit exceeded errors.
-    
+
     Args:
         request: FastAPI request object
         exc: Rate limit exceeded exception
-        
+
     Returns:
         HTTP response with rate limit information
     """
@@ -93,7 +93,7 @@ def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
         f"Rate limit exceeded for {get_user_id_or_ip(request)} "
         f"on {request.url.path}: {exc.detail}"
     )
-    
+
     response = Response(
         content=f'{{"detail": "Rate limit exceeded: {exc.detail}"}}',
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -105,7 +105,7 @@ def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
             "X-RateLimit-Reset": str(exc.reset_time) if exc.reset_time else "",
         }
     )
-    
+
     return response
 
 
@@ -144,7 +144,7 @@ class RateLimitingMiddleware:
     """
     Custom rate limiting middleware with enhanced features.
     """
-    
+
     def __init__(
         self,
         app,
@@ -154,7 +154,7 @@ class RateLimitingMiddleware:
     ):
         """
         Initialize rate limiting middleware.
-        
+
         Args:
             app: FastAPI application instance
             limiter_instance: Limiter instance to use
@@ -171,39 +171,39 @@ class RateLimitingMiddleware:
             "/favicon.ico"
         ]
         self.enable_logging = enable_logging
-    
-    async def __call__(self, request: Request, call_next: Callable) -> Response:
+
+    async def __call__(self, scope, receive, send):
         """
         Process request with rate limiting.
-        
+
         Args:
             request: FastAPI request object
             call_next: Next middleware in chain
-            
+
         Returns:
             HTTP response
         """
         # Skip rate limiting for exempt paths
         if request.url.path in self.exempt_paths:
             return await call_next(request)
-        
+
         # Skip rate limiting for OPTIONS requests (CORS preflight)
         if request.method == "OPTIONS":
             return await call_next(request)
-        
+
         try:
             # Apply rate limiting
             response = await call_next(request)
-            
+
             # Add rate limit headers to successful responses
             if hasattr(request.state, "rate_limit_info"):
                 info = request.state.rate_limit_info
                 response.headers["X-RateLimit-Limit"] = str(info.get("limit", ""))
                 response.headers["X-RateLimit-Remaining"] = str(info.get("remaining", ""))
                 response.headers["X-RateLimit-Reset"] = str(info.get("reset_time", ""))
-            
+
             return response
-            
+
         except RateLimitExceeded as exc:
             return custom_rate_limit_exceeded_handler(request, exc)
         except Exception as e:
@@ -216,28 +216,14 @@ class RateLimitingMiddleware:
 def setup_rate_limiting(app):
     """
     Set up rate limiting for the FastAPI application.
-    
+
     Args:
         app: FastAPI application instance
     """
     # Add SlowAPI middleware
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
-    
-    # Add custom middleware for enhanced features
-    app.add_middleware(
-        RateLimitingMiddleware,
-        limiter_instance=limiter,
-        exempt_paths=[
-            "/health",
-            "/docs",
-            "/redoc",
-            "/openapi.json",
-            "/favicon.ico",
-            "/static"
-        ]
-    )
-    
+
     logger.info("Rate limiting middleware configured")
 
 
@@ -245,10 +231,10 @@ def setup_rate_limiting(app):
 async def get_user_rate_limit_info(user_id: str) -> dict:
     """
     Get rate limit information for a specific user.
-    
+
     Args:
         user_id: User identifier
-        
+
     Returns:
         Dictionary with rate limit information
     """
@@ -269,10 +255,10 @@ async def get_user_rate_limit_info(user_id: str) -> dict:
 async def reset_user_rate_limit(user_id: str) -> bool:
     """
     Reset rate limit for a specific user (admin function).
-    
+
     Args:
         user_id: User identifier
-        
+
     Returns:
         True if successful, False otherwise
     """
