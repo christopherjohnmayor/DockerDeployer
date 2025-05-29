@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axios from "axios";
 import Templates from "./Templates";
@@ -7,6 +13,25 @@ import Templates from "./Templates";
 // Mock axios
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Suppress Material-UI warnings in tests
+const originalError = console.error;
+beforeAll(() => {
+  console.error = (...args: any[]) => {
+    if (
+      typeof args[0] === "string" &&
+      (args[0].includes("Warning: An update to") ||
+        args[0].includes("Warning: validateDOMNesting"))
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
 
 describe("Templates Component", () => {
   const mockTemplates = [
@@ -49,17 +74,19 @@ describe("Templates Component", () => {
   });
 
   test("renders templates list correctly", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
       expect(screen.getByText("Templates")).toBeInTheDocument();
     });
 
-    // Check if all templates are displayed
+    // Check if all templates are displayed (using getAllByText for templates that appear multiple times)
     expect(screen.getByText("lemp")).toBeInTheDocument();
     expect(screen.getByText("mean")).toBeInTheDocument();
-    expect(screen.getByText("wordpress")).toBeInTheDocument();
+    expect(screen.getAllByText("wordpress")).toHaveLength(2); // Appears as title and tag
 
     // Check if template descriptions are displayed
     expect(
@@ -72,7 +99,9 @@ describe("Templates Component", () => {
   });
 
   test("filters templates by search term", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
@@ -81,60 +110,90 @@ describe("Templates Component", () => {
 
     // Get the search input and type in it
     const searchInput = screen.getByPlaceholderText("Search templates...");
-    await userEvent.type(searchInput, "mysql");
 
-    // Check if only templates with MySQL are displayed
-    expect(screen.getByText("lemp")).toBeInTheDocument();
-    expect(screen.getByText("wordpress")).toBeInTheDocument();
-    expect(screen.queryByText("mean")).not.toBeInTheDocument();
+    await act(async () => {
+      await userEvent.type(searchInput, "mysql");
+    });
+
+    // Wait for filtering to complete
+    await waitFor(() => {
+      // Check if only templates with MySQL are displayed
+      expect(screen.getByText("lemp")).toBeInTheDocument();
+      expect(screen.getAllByText("wordpress")).toHaveLength(2); // Appears as title and tag
+      expect(screen.queryByText("mean")).not.toBeInTheDocument();
+    });
   });
 
   test("filters templates by category", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
       expect(screen.getByText("Templates")).toBeInTheDocument();
     });
 
-    // Open the category dropdown
-    const categorySelect = screen.getByLabelText("Category");
-    fireEvent.mouseDown(categorySelect);
+    // Find the category select by its text content
+    const categorySelect = screen.getByText("All Categories");
 
-    // Select the CMS category
-    const cmsOption = screen.getByText("Content Management");
-    fireEvent.click(cmsOption);
+    await act(async () => {
+      fireEvent.mouseDown(categorySelect);
+    });
 
-    // Check if only CMS templates are displayed
-    expect(screen.queryByText("lemp")).not.toBeInTheDocument();
-    expect(screen.queryByText("mean")).not.toBeInTheDocument();
-    expect(screen.getByText("wordpress")).toBeInTheDocument();
+    // Wait for dropdown to open and select the CMS category
+    await waitFor(() => {
+      const cmsOption = screen.getByText("Content Management");
+      fireEvent.click(cmsOption);
+    });
+
+    // Wait for filtering to complete
+    await waitFor(() => {
+      // Check if only CMS templates are displayed
+      expect(screen.queryByText("lemp")).not.toBeInTheDocument();
+      expect(screen.queryByText("mean")).not.toBeInTheDocument();
+      // WordPress appears as both title and tag, so use getAllByText
+      expect(screen.getAllByText("wordpress")).toHaveLength(2);
+    });
   });
 
   test("filters templates by complexity", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
       expect(screen.getByText("Templates")).toBeInTheDocument();
     });
 
-    // Open the complexity dropdown
-    const complexitySelect = screen.getByLabelText("Complexity");
-    fireEvent.mouseDown(complexitySelect);
+    // Find the complexity select by its text content
+    const complexitySelect = screen.getByText("All Levels");
 
-    // Select the Simple complexity
-    const simpleOption = screen.getByText("Simple");
-    fireEvent.click(simpleOption);
+    await act(async () => {
+      fireEvent.mouseDown(complexitySelect);
+    });
 
-    // Check if only Simple templates are displayed
-    expect(screen.queryByText("lemp")).not.toBeInTheDocument();
-    expect(screen.queryByText("mean")).not.toBeInTheDocument();
-    expect(screen.getByText("wordpress")).toBeInTheDocument();
+    // Wait for dropdown to open and select the Simple complexity
+    await waitFor(() => {
+      const simpleOption = screen.getByText("Simple");
+      fireEvent.click(simpleOption);
+    });
+
+    // Wait for filtering to complete
+    await waitFor(() => {
+      // Check if only Simple templates are displayed
+      expect(screen.queryByText("lemp")).not.toBeInTheDocument();
+      expect(screen.queryByText("mean")).not.toBeInTheDocument();
+      // WordPress appears as both title and tag, so use getAllByText
+      expect(screen.getAllByText("wordpress")).toHaveLength(2);
+    });
   });
 
   test("deploys a template when deploy button is clicked", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
@@ -144,7 +203,10 @@ describe("Templates Component", () => {
     // Find and click the deploy button for the LEMP stack
     const deployButtons = screen.getAllByText("Deploy");
     const lempDeployButton = deployButtons[0]; // Assuming LEMP is the first template
-    fireEvent.click(lempDeployButton);
+
+    await act(async () => {
+      fireEvent.click(lempDeployButton);
+    });
 
     // Check if the API was called correctly
     expect(mockedAxios.post).toHaveBeenCalledWith("/api/templates/deploy", {
@@ -177,7 +239,9 @@ describe("Templates Component", () => {
       response: { data: { detail: "Failed to fetch templates" } },
     });
 
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for error message
     await waitFor(() => {
@@ -186,7 +250,9 @@ describe("Templates Component", () => {
   });
 
   test("displays message when no templates match filters", async () => {
-    render(<Templates />);
+    await act(async () => {
+      render(<Templates />);
+    });
 
     // Wait for templates to load
     await waitFor(() => {
@@ -195,11 +261,16 @@ describe("Templates Component", () => {
 
     // Search for a non-existent template
     const searchInput = screen.getByPlaceholderText("Search templates...");
-    await userEvent.type(searchInput, "nonexistent");
 
-    // Check if no results message is displayed
-    expect(
-      screen.getByText("No templates match your search criteria.")
-    ).toBeInTheDocument();
+    await act(async () => {
+      await userEvent.type(searchInput, "nonexistent");
+    });
+
+    // Wait for filtering to complete and check if no results message is displayed
+    await waitFor(() => {
+      expect(
+        screen.getByText("No templates match your search criteria.")
+      ).toBeInTheDocument();
+    });
   });
 });

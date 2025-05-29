@@ -39,12 +39,9 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [user, setUser] = useState<User | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(
-    localStorage.getItem("accessToken")
-  );
-  const [refreshToken, setRefreshToken] = useState<string | null>(
-    localStorage.getItem("refreshToken")
-  );
+  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [initialized, setInitialized] = useState<boolean>(false);
 
   // Set up axios interceptor for authentication
   useEffect(() => {
@@ -89,35 +86,94 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [accessToken]);
 
-  // Check if token is valid on mount
+  // Initialize tokens from localStorage and validate on mount
   useEffect(() => {
-    const validateToken = async () => {
-      if (accessToken) {
-        try {
-          // Decode token to check expiration
-          const decoded = jwtDecode<JwtPayload>(accessToken);
-          const currentTime = Date.now() / 1000;
+    const storedAccessToken = localStorage.getItem("accessToken");
+    const storedRefreshToken = localStorage.getItem("refreshToken");
 
-          if (decoded.exp < currentTime) {
-            // Token is expired, try to refresh
-            await refreshAuth();
+    setAccessToken(storedAccessToken);
+    setRefreshToken(storedRefreshToken);
+
+    if (storedAccessToken) {
+      try {
+        // Decode token to check expiration
+        const decoded = jwtDecode<JwtPayload>(storedAccessToken);
+        const currentTime = Date.now() / 1000;
+
+        if (decoded.exp < currentTime) {
+          // Token is expired, try to refresh
+          if (storedRefreshToken) {
+            axios
+              .post("/auth/refresh", {
+                refresh_token: storedRefreshToken,
+              })
+              .then((response) => {
+                const { access_token, refresh_token } = response.data;
+
+                // Update tokens directly to avoid circular dependency
+                localStorage.setItem("accessToken", access_token);
+                localStorage.setItem("refreshToken", refresh_token);
+                setAccessToken(access_token);
+                setRefreshToken(refresh_token);
+
+                // Decode new token and set user
+                const newDecoded = jwtDecode<JwtPayload>(access_token);
+                setUser({
+                  id: newDecoded.sub,
+                  username: newDecoded.username,
+                  role: newDecoded.role,
+                });
+                setIsAuthenticated(true);
+                axios.defaults.headers.common["Authorization"] =
+                  `Bearer ${access_token}`;
+              })
+              .catch((error) => {
+                console.error("Failed to refresh token:", error);
+                // Clear everything on refresh failure
+                localStorage.removeItem("accessToken");
+                localStorage.removeItem("refreshToken");
+                setAccessToken(null);
+                setRefreshToken(null);
+                setUser(null);
+                setIsAuthenticated(false);
+                delete axios.defaults.headers.common["Authorization"];
+              });
           } else {
-            // Token is valid
-            setIsAuthenticated(true);
-            setUser({
-              id: decoded.sub,
-              username: decoded.username,
-              role: decoded.role,
-            });
+            // No refresh token, clear everything
+            localStorage.removeItem("accessToken");
+            localStorage.removeItem("refreshToken");
+            setAccessToken(null);
+            setRefreshToken(null);
+            setUser(null);
+            setIsAuthenticated(false);
+            delete axios.defaults.headers.common["Authorization"];
           }
-        } catch (error) {
-          // Invalid token
-          logout();
+        } else {
+          // Token is valid
+          setIsAuthenticated(true);
+          setUser({
+            id: decoded.sub,
+            username: decoded.username,
+            role: decoded.role,
+          });
+          // Set authorization header
+          axios.defaults.headers.common["Authorization"] =
+            `Bearer ${storedAccessToken}`;
         }
+      } catch (error) {
+        // Invalid token, clear everything
+        console.error("Failed to decode token:", error);
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        setAccessToken(null);
+        setRefreshToken(null);
+        setUser(null);
+        setIsAuthenticated(false);
+        delete axios.defaults.headers.common["Authorization"];
       }
-    };
+    }
 
-    validateToken();
+    setInitialized(true);
   }, []);
 
   const login = (newAccessToken: string, newRefreshToken: string) => {
@@ -135,6 +191,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         role: decoded.role,
       });
       setIsAuthenticated(true);
+      // Set authorization header
+      axios.defaults.headers.common["Authorization"] =
+        `Bearer ${newAccessToken}`;
     } catch (error) {
       console.error("Failed to decode token:", error);
       logout();

@@ -13,6 +13,24 @@ import ContainerDetail from "./ContainerDetail";
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
+// Suppress Material-UI warnings in tests
+const originalError = console.error;
+beforeAll(() => {
+  console.error = (...args: any[]) => {
+    if (
+      typeof args[0] === "string" &&
+      args[0].includes("Warning: An update to")
+    ) {
+      return;
+    }
+    originalError.call(console, ...args);
+  };
+});
+
+afterAll(() => {
+  console.error = originalError;
+});
+
 describe("ContainerDetail Component", () => {
   const mockContainer = {
     id: "test-container-id",
@@ -40,7 +58,7 @@ describe("ContainerDetail Component", () => {
 
     // Mock successful container fetch
     mockedAxios.get.mockImplementation((url) => {
-      if (url.includes("/api/containers/")) {
+      if (url.includes("/api/containers/") && !url.includes("/stats")) {
         return Promise.resolve({ data: mockContainer });
       }
       if (url.includes("/api/logs/")) {
@@ -59,7 +77,9 @@ describe("ContainerDetail Component", () => {
   });
 
   test("renders container details correctly", async () => {
-    render(<ContainerDetail containerId="test-container-id" />);
+    await act(async () => {
+      render(<ContainerDetail containerId="test-container-id" />);
+    });
 
     // Wait for container data to load
     await waitFor(() => {
@@ -80,7 +100,9 @@ describe("ContainerDetail Component", () => {
   });
 
   test("switches tabs correctly", async () => {
-    render(<ContainerDetail containerId="test-container-id" />);
+    await act(async () => {
+      render(<ContainerDetail containerId="test-container-id" />);
+    });
 
     // Wait for container data to load
     await waitFor(() => {
@@ -88,7 +110,9 @@ describe("ContainerDetail Component", () => {
     });
 
     // Click on Logs tab
-    fireEvent.click(screen.getByText("Logs"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Logs"));
+    });
 
     // Wait for logs to load
     await waitFor(() => {
@@ -96,8 +120,10 @@ describe("ContainerDetail Component", () => {
     });
 
     // Check logs content
-    const logsElement = screen.getByText(/Container log output/);
-    expect(logsElement).toBeInTheDocument();
+    await waitFor(() => {
+      const logsElement = screen.getByText(/Container log output/);
+      expect(logsElement).toBeInTheDocument();
+    });
 
     // Click on Metrics tab
     await act(async () => {
@@ -114,6 +140,7 @@ describe("ContainerDetail Component", () => {
       expect(screen.getByText("CPU Usage")).toBeInTheDocument();
     });
 
+    // Check for the actual CPU usage value from our mock
     await waitFor(() => {
       expect(screen.getByText("5%")).toBeInTheDocument();
     });
@@ -123,17 +150,30 @@ describe("ContainerDetail Component", () => {
   });
 
   test("handles container actions correctly", async () => {
-    render(<ContainerDetail containerId="test-container-id" />);
+    await act(async () => {
+      render(<ContainerDetail containerId="test-container-id" />);
+    });
 
     // Wait for container data to load
     await waitFor(() => {
       expect(screen.getByText("test-container")).toBeInTheDocument();
     });
 
-    // Find and click the stop button (using aria-label from Tooltip)
-    const stopButton = screen.getByLabelText("Stop");
+    // Wait for the container status to be properly set
+    await waitFor(() => {
+      expect(screen.getByText("running")).toBeInTheDocument();
+    });
+
+    // Find the stop button - need to get the actual button, not the span wrapper
+    const stopButtonSpan = screen.getByLabelText("Stop");
+    const stopButton = stopButtonSpan.querySelector("button");
+
+    // Ensure the button exists and is not disabled
+    expect(stopButton).toBeTruthy();
+    expect(stopButton).not.toBeDisabled();
+
     await act(async () => {
-      fireEvent.click(stopButton);
+      fireEvent.click(stopButton!);
     });
 
     // Check if the API was called correctly
@@ -144,8 +184,10 @@ describe("ContainerDetail Component", () => {
       );
     });
 
-    // Check if the container data was refreshed
-    expect(mockedAxios.get).toHaveBeenCalledTimes(2); // Initial load + refresh after action
+    // Check if the container data was refreshed (initial load + refresh after action)
+    await waitFor(() => {
+      expect(mockedAxios.get).toHaveBeenCalledTimes(2);
+    });
   });
 
   test("displays error message when container fetch fails", async () => {
@@ -154,7 +196,9 @@ describe("ContainerDetail Component", () => {
       response: { data: { detail: "Container not found" } },
     });
 
-    render(<ContainerDetail containerId="nonexistent-id" />);
+    await act(async () => {
+      render(<ContainerDetail containerId="nonexistent-id" />);
+    });
 
     // Wait for error message
     await waitFor(() => {
@@ -163,7 +207,9 @@ describe("ContainerDetail Component", () => {
   });
 
   test("refreshes logs when refresh button is clicked", async () => {
-    render(<ContainerDetail containerId="test-container-id" />);
+    await act(async () => {
+      render(<ContainerDetail containerId="test-container-id" />);
+    });
 
     // Wait for container data to load
     await waitFor(() => {
@@ -171,7 +217,9 @@ describe("ContainerDetail Component", () => {
     });
 
     // Click on Logs tab
-    fireEvent.click(screen.getByText("Logs"));
+    await act(async () => {
+      fireEvent.click(screen.getByText("Logs"));
+    });
 
     // Wait for logs to load
     await waitFor(() => {
@@ -180,7 +228,9 @@ describe("ContainerDetail Component", () => {
 
     // Find and click the refresh logs button
     const refreshButton = screen.getByText("Refresh Logs");
-    fireEvent.click(refreshButton);
+    await act(async () => {
+      fireEvent.click(refreshButton);
+    });
 
     // Check if the logs API was called again
     await waitFor(() => {

@@ -11,22 +11,25 @@ class LLMClient:
 
     def __init__(
         self,
-        provider: str = "ollama",
+        provider: str = "local",
         api_url: Optional[str] = None,
         api_key: Optional[str] = None,
+        model: str = "llama2",
     ):
         """
-        provider: "ollama", "litellm", or "openrouter"
+        provider: "local", "ollama", "litellm", or "openrouter"
         api_url: URL for the LLM API endpoint
         api_key: API key for LiteLLM, OpenRouter, or remote providers
+        model: Model name to use
         """
         self.provider = provider
+        self.model = model
         # Defaults for each provider
-        if provider == "ollama":
+        if provider in ["local", "ollama"]:
             self.api_url = api_url or os.getenv(
                 "OLLAMA_API_URL", "http://localhost:11434/api/generate"
             )
-            self.api_key = None
+            self.api_key = api_key or ""
         elif provider == "openrouter":
             self.api_url = api_url or os.getenv(
                 "OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions"
@@ -50,7 +53,7 @@ class LLMClient:
         """
         Sends a prompt to the configured LLM provider and returns the response.
         """
-        if self.provider == "ollama":
+        if self.provider in ["local", "ollama"]:
             return await self._send_ollama(prompt, context, params)
         elif self.provider == "litellm":
             return await self._send_litellm(prompt, context, params)
@@ -64,7 +67,7 @@ class LLMClient:
     ) -> str:
         # Ollama expects: model, prompt, and optional parameters
         payload = {
-            "model": (params or {}).get("model", "llama2"),
+            "model": (params or {}).get("model", self.model),
             "prompt": prompt,
         }
         payload.update((params or {}))
@@ -132,11 +135,11 @@ class LLMClient:
     ):
         self.provider = provider
         # Reset API URL and key based on provider
-        if provider == "ollama":
+        if provider in ["local", "ollama"]:
             self.api_url = api_url or os.getenv(
                 "OLLAMA_API_URL", "http://localhost:11434/api/generate"
             )
-            self.api_key = None
+            self.api_key = api_key or ""
         elif provider == "openrouter":
             self.api_url = api_url or os.getenv(
                 "OPENROUTER_API_URL", "https://openrouter.ai/api/v1/chat/completions"

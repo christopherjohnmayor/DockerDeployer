@@ -2,7 +2,6 @@
 Tests for the LLM client module.
 """
 
-import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -206,7 +205,7 @@ class TestLLMClient:
         await client.send_query("List all containers", context=context)
 
         # Check that context was included in the request
-        args, kwargs = mock_client.post.call_args
+        _, kwargs = mock_client.post.call_args
         assert "json" in kwargs
         # For litellm, context should be included as a separate field
         assert kwargs["json"]["context"] == context
@@ -236,7 +235,7 @@ class TestLLMClient:
         await client.send_query("Generate creative text", params=params)
 
         # Check that params were included in the request
-        args, kwargs = mock_client.post.call_args
+        _, kwargs = mock_client.post.call_args
         assert "json" in kwargs
 
         # For ollama/local provider, params are merged into the payload
@@ -268,3 +267,93 @@ class TestLLMClient:
 
         assert "500" in str(excinfo.value)
         assert "Internal Server Error" in str(excinfo.value)
+
+    def test_init_custom_provider_fallback(self):
+        """Test LLMClient initialization with custom provider fallback."""
+        client = LLMClient(
+            provider="custom",
+            api_url="https://custom.api.com",
+            api_key="custom_key",
+        )
+
+        assert client.provider == "custom"
+        assert client.api_url == "https://custom.api.com"
+        assert client.api_key == "custom_key"
+
+    @pytest.mark.asyncio
+    async def test_send_query_unsupported_provider(self):
+        """Test error handling for unsupported provider."""
+        client = LLMClient(provider="unsupported")
+
+        with pytest.raises(ValueError) as excinfo:
+            await client.send_query("Test query")
+
+        assert "Unsupported LLM provider: unsupported" in str(excinfo.value)
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_send_query_openrouter_choices_format(self, mock_async_client_class):
+        """Test OpenRouter response with choices format."""
+        # Create a mock response with OpenAI-style choices
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [
+                {
+                    "message": {
+                        "content": "OpenRouter response content"
+                    }
+                }
+            ]
+        }
+        mock_response.raise_for_status.return_value = None
+
+        # Create a mock client that returns the response
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(
+            provider="openrouter",
+            api_key="test_key"
+        )
+        response = await client.send_query("Test query")
+
+        assert response == "OpenRouter response content"
+
+    def test_set_provider_custom_with_params(self):
+        """Test setting custom provider with explicit parameters."""
+        client = LLMClient()
+
+        client.set_provider(
+            "custom",
+            api_url="https://custom.example.com",
+            api_key="custom_api_key"
+        )
+
+        assert client.provider == "custom"
+        assert client.api_url == "https://custom.example.com"
+        assert client.api_key == "custom_api_key"
+
+    def test_set_provider_environment_fallbacks(self):
+        """Test setting provider with environment variable fallbacks."""
+        client = LLMClient()
+
+        # Test ollama fallback
+        client.set_provider("ollama")
+        assert client.provider == "ollama"
+        assert "localhost:11434" in client.api_url
+        assert client.api_key == ""
+
+        # Test openrouter fallback
+        client.set_provider("openrouter")
+        assert client.provider == "openrouter"
+        assert "openrouter.ai" in client.api_url
+
+        # Test litellm fallback
+        client.set_provider("litellm")
+        assert client.provider == "litellm"
+        assert "localhost:8001" in client.api_url

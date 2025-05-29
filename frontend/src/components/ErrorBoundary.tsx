@@ -109,7 +109,7 @@ class ErrorBoundary extends Component<Props, State> {
           </Alert>
 
           {/* Show error details in development */}
-          {import.meta.env.DEV && this.state.error && (
+          {process.env.NODE_ENV === "development" && this.state.error && (
             <Alert severity="warning" sx={{ mt: 2 }}>
               <AlertTitle>Development Error Details</AlertTitle>
               <Typography
