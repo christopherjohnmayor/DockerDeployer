@@ -16,8 +16,9 @@ from app.auth.dependencies import get_current_admin_user, get_current_user
 from app.auth.router import router as auth_router
 from app.auth.user_management import router as user_management_router
 from app.config.settings_manager import SettingsManager
-from app.db.database import init_db
+from app.db.database import init_db, get_db
 from app.db.models import User
+from app.services.metrics_service import MetricsService
 from llm.client import LLMClient
 
 # from docker.manager import DockerManager
@@ -119,6 +120,12 @@ def get_docker_manager():
         raise HTTPException(
             status_code=503, detail=f"Docker service unavailable: {str(e)}"
         )
+
+
+def get_metrics_service(db_session=Depends(get_db)):
+    """Get metrics service instance with database session."""
+    docker_manager = get_docker_manager()
+    return MetricsService(db_session, docker_manager)
 
 
 intent_parser = IntentParser()
@@ -973,7 +980,7 @@ async def get_container_details(
     "/api/containers/{container_id}/stats",
     tags=["Containers"],
     summary="Get container statistics",
-    description="Returns resource usage statistics for a specific container.",
+    description="Returns real-time resource usage statistics for a specific container.",
     responses={
         200: {"description": "Container statistics"},
         401: {"description": "Unauthorized - Authentication required"},
@@ -983,25 +990,25 @@ async def get_container_details(
     },
 )
 async def get_container_stats(
-    container_id: str, current_user: User = Depends(get_current_user)
+    container_id: str,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
 ):
     """
-    Get resource usage statistics for a specific container.
+    Get real-time resource usage statistics for a specific container.
 
+    Returns current CPU, memory, network, and disk I/O metrics from Docker.
     Requires authentication.
     """
     try:
-        docker_manager = get_docker_manager()
-        # For now, return placeholder stats since the DockerManager might not have stats method
-        # This can be enhanced later with actual Docker stats API
-        stats = {
-            "container_id": container_id,
-            "cpu_usage": "15%",
-            "memory_usage": "128MB",
-            "memory_limit": "512MB",
-            "network_io": {"rx_bytes": 1024, "tx_bytes": 2048},
-            "block_io": {"read_bytes": 4096, "write_bytes": 8192},
-        }
+        stats = metrics_service.get_current_metrics(container_id)
+
+        if "error" in stats:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=stats["error"]
+            )
+
         return stats
     except HTTPException:
         raise
@@ -1009,6 +1016,91 @@ async def get_container_stats(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get container stats: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/containers/{container_id}/metrics/history",
+    tags=["Containers"],
+    summary="Get container metrics history",
+    description="Returns historical metrics data for a specific container.",
+    responses={
+        200: {"description": "Historical container metrics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+async def get_container_metrics_history(
+    container_id: str,
+    hours: int = 24,
+    limit: int = 1000,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Get historical metrics data for a specific container.
+
+    Args:
+        container_id: Container ID or name
+        hours: Number of hours of history to retrieve (default: 24)
+        limit: Maximum number of records to return (default: 1000)
+
+    Requires authentication.
+    """
+    try:
+        metrics = metrics_service.get_historical_metrics(container_id, hours, limit)
+        return {
+            "container_id": container_id,
+            "hours": hours,
+            "limit": limit,
+            "metrics": metrics
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get metrics history: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/system/metrics",
+    tags=["System"],
+    summary="Get system metrics",
+    description="Returns system-wide Docker metrics and statistics.",
+    responses={
+        200: {"description": "System metrics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+        503: {"description": "Docker service unavailable"},
+    },
+)
+async def get_system_metrics(
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service)
+):
+    """
+    Get system-wide Docker metrics and statistics.
+
+    Returns information about all containers, system resources, and Docker daemon status.
+    Requires authentication.
+    """
+    try:
+        metrics = metrics_service.get_system_metrics()
+
+        if "error" in metrics:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=metrics["error"]
+            )
+
+        return metrics
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system metrics: {str(e)}",
         )
 
 

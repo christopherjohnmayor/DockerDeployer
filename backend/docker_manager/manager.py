@@ -9,6 +9,9 @@ except ImportError:
     DockerException = Exception
 
 import logging
+import json
+from datetime import datetime
+from typing import Dict, List, Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +100,202 @@ class DockerManager:
         except NotFound:
             return {"error": f"Container {container_id} not found"}
         except APIError as e:
+            return {"error": str(e)}
+
+    def get_container_stats(self, container_id: str, stream: bool = False) -> Dict[str, Any]:
+        """
+        Get real-time statistics for a container.
+
+        Args:
+            container_id: Container ID or name
+            stream: If True, return streaming stats (for real-time monitoring)
+
+        Returns:
+            Dictionary containing container statistics
+        """
+        try:
+            container = self.client.containers.get(container_id)
+
+            # Get container stats (non-streaming by default)
+            stats_generator = container.stats(stream=stream, decode=True)
+
+            if stream:
+                # Return the generator for streaming
+                return {"stats_stream": stats_generator}
+            else:
+                # Get single stats snapshot
+                stats = next(stats_generator)
+                return self._parse_container_stats(stats, container)
+
+        except NotFound:
+            return {"error": f"Container {container_id} not found"}
+        except APIError as e:
+            logger.error(f"Docker API error getting stats for {container_id}: {e}")
+            return {"error": str(e)}
+        except Exception as e:
+            logger.error(f"Unexpected error getting stats for {container_id}: {e}")
+            return {"error": str(e)}
+
+    def _parse_container_stats(self, stats: Dict[str, Any], container) -> Dict[str, Any]:
+        """
+        Parse raw Docker stats into a standardized format.
+
+        Args:
+            stats: Raw stats from Docker API
+            container: Docker container object
+
+        Returns:
+            Parsed statistics dictionary
+        """
+        try:
+            # Extract basic container info
+            parsed_stats = {
+                "container_id": container.id,
+                "container_name": container.name,
+                "timestamp": datetime.utcnow().isoformat(),
+                "status": container.status,
+            }
+
+            # Parse CPU stats
+            cpu_stats = stats.get("cpu_stats", {})
+            precpu_stats = stats.get("precpu_stats", {})
+
+            if cpu_stats and precpu_stats:
+                cpu_percent = self._calculate_cpu_percent(cpu_stats, precpu_stats)
+                parsed_stats["cpu_percent"] = round(cpu_percent, 2)
+            else:
+                parsed_stats["cpu_percent"] = 0.0
+
+            # Parse memory stats
+            memory_stats = stats.get("memory_stats", {})
+            if memory_stats:
+                memory_usage = memory_stats.get("usage", 0)
+                memory_limit = memory_stats.get("limit", 0)
+
+                parsed_stats["memory_usage"] = memory_usage
+                parsed_stats["memory_limit"] = memory_limit
+
+                if memory_limit > 0:
+                    memory_percent = (memory_usage / memory_limit) * 100
+                    parsed_stats["memory_percent"] = round(memory_percent, 2)
+                else:
+                    parsed_stats["memory_percent"] = 0.0
+            else:
+                parsed_stats.update({
+                    "memory_usage": 0,
+                    "memory_limit": 0,
+                    "memory_percent": 0.0
+                })
+
+            # Parse network stats
+            networks = stats.get("networks", {})
+            total_rx_bytes = 0
+            total_tx_bytes = 0
+
+            for network_data in networks.values():
+                total_rx_bytes += network_data.get("rx_bytes", 0)
+                total_tx_bytes += network_data.get("tx_bytes", 0)
+
+            parsed_stats["network_rx_bytes"] = total_rx_bytes
+            parsed_stats["network_tx_bytes"] = total_tx_bytes
+
+            # Parse block I/O stats
+            blkio_stats = stats.get("blkio_stats", {})
+            io_service_bytes = blkio_stats.get("io_service_bytes_recursive", [])
+
+            total_read_bytes = 0
+            total_write_bytes = 0
+
+            for io_stat in io_service_bytes:
+                if io_stat.get("op") == "Read":
+                    total_read_bytes += io_stat.get("value", 0)
+                elif io_stat.get("op") == "Write":
+                    total_write_bytes += io_stat.get("value", 0)
+
+            parsed_stats["block_read_bytes"] = total_read_bytes
+            parsed_stats["block_write_bytes"] = total_write_bytes
+
+            return parsed_stats
+
+        except Exception as e:
+            logger.error(f"Error parsing container stats: {e}")
+            return {
+                "container_id": container.id if container else "unknown",
+                "container_name": container.name if container else "unknown",
+                "timestamp": datetime.utcnow().isoformat(),
+                "error": f"Failed to parse stats: {str(e)}"
+            }
+
+    def _calculate_cpu_percent(self, cpu_stats: Dict[str, Any], precpu_stats: Dict[str, Any]) -> float:
+        """
+        Calculate CPU usage percentage from Docker stats.
+
+        Args:
+            cpu_stats: Current CPU stats
+            precpu_stats: Previous CPU stats
+
+        Returns:
+            CPU usage percentage
+        """
+        try:
+            cpu_delta = cpu_stats.get("cpu_usage", {}).get("total_usage", 0) - \
+                       precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
+
+            system_delta = cpu_stats.get("system_cpu_usage", 0) - \
+                          precpu_stats.get("system_cpu_usage", 0)
+
+            online_cpus = cpu_stats.get("online_cpus", 1)
+
+            if system_delta > 0 and cpu_delta > 0:
+                cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0
+                return cpu_percent
+            else:
+                return 0.0
+
+        except (KeyError, TypeError, ZeroDivisionError):
+            return 0.0
+
+    def get_system_stats(self) -> Dict[str, Any]:
+        """
+        Get system-wide Docker statistics.
+
+        Returns:
+            Dictionary containing system statistics
+        """
+        try:
+            # Get system info
+            system_info = self.client.info()
+
+            # Get all containers
+            all_containers = self.client.containers.list(all=True)
+            running_containers = self.client.containers.list(all=False)
+
+            # Calculate container counts by status
+            container_counts = {}
+            for container in all_containers:
+                status = container.status
+                container_counts[status] = container_counts.get(status, 0) + 1
+
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "containers_total": len(all_containers),
+                "containers_running": len(running_containers),
+                "containers_by_status": container_counts,
+                "system_info": {
+                    "docker_version": system_info.get("ServerVersion", "unknown"),
+                    "total_memory": system_info.get("MemTotal", 0),
+                    "cpus": system_info.get("NCPU", 0),
+                    "kernel_version": system_info.get("KernelVersion", "unknown"),
+                    "operating_system": system_info.get("OperatingSystem", "unknown"),
+                    "architecture": system_info.get("Architecture", "unknown"),
+                }
+            }
+
+        except DockerException as e:
+            logger.error(f"Docker error getting system stats: {e}")
+            return {"error": str(e)}
+        except Exception as e:
+            logger.error(f"Unexpected error getting system stats: {e}")
             return {"error": str(e)}
 
     def health_check(self):

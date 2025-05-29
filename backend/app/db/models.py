@@ -6,7 +6,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Float, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
@@ -135,3 +135,89 @@ class DeploymentHistory(Base):
     # Relationships
     user = relationship("User", back_populates="deployment_history")
     team = relationship("Team", back_populates="deployments")
+
+
+class MetricType(str, Enum):
+    """Metric type enum for alerts."""
+
+    CPU_PERCENT = "cpu_percent"
+    MEMORY_USAGE = "memory_usage"
+    MEMORY_PERCENT = "memory_percent"
+    NETWORK_RX = "network_rx"
+    NETWORK_TX = "network_tx"
+    BLOCK_READ = "block_read"
+    BLOCK_WRITE = "block_write"
+
+
+class ComparisonOperator(str, Enum):
+    """Comparison operator enum for alerts."""
+
+    GREATER_THAN = ">"
+    LESS_THAN = "<"
+    GREATER_EQUAL = ">="
+    LESS_EQUAL = "<="
+    EQUAL = "=="
+    NOT_EQUAL = "!="
+
+
+class ContainerMetrics(Base):
+    """Container metrics model for storing historical performance data."""
+
+    __tablename__ = "container_metrics"
+
+    id = Column(Integer, primary_key=True, index=True)
+    container_id = Column(String, index=True, nullable=False)
+    container_name = Column(String, index=True, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+
+    # CPU metrics
+    cpu_percent = Column(Float, nullable=True)
+
+    # Memory metrics (in bytes)
+    memory_usage = Column(BigInteger, nullable=True)
+    memory_limit = Column(BigInteger, nullable=True)
+    memory_percent = Column(Float, nullable=True)
+
+    # Network metrics (in bytes)
+    network_rx_bytes = Column(BigInteger, nullable=True)
+    network_tx_bytes = Column(BigInteger, nullable=True)
+
+    # Block I/O metrics (in bytes)
+    block_read_bytes = Column(BigInteger, nullable=True)
+    block_write_bytes = Column(BigInteger, nullable=True)
+
+    # Additional metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class MetricsAlert(Base):
+    """Metrics alert model for threshold-based alerting."""
+
+    __tablename__ = "metrics_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    container_id = Column(String, index=True, nullable=False)
+    container_name = Column(String, nullable=True)
+
+    # Alert configuration
+    metric_type = Column(String, nullable=False)  # MetricType enum
+    threshold_value = Column(Float, nullable=False)
+    comparison_operator = Column(String, nullable=False)  # ComparisonOperator enum
+
+    # Alert state
+    is_active = Column(Boolean, default=True)
+    is_triggered = Column(Boolean, default=False)
+    last_triggered_at = Column(DateTime, nullable=True)
+    trigger_count = Column(Integer, default=0)
+
+    # User association
+    created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    user = relationship("User")
