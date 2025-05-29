@@ -1,6 +1,7 @@
 import React from "react";
-import { Typography, Box, Paper } from "@mui/material";
+import { Typography, Box, Paper, Grid } from "@mui/material";
 import NaturalLanguageInput from "../components/NaturalLanguageInput";
+import SystemOverview from "../components/SystemOverview";
 
 /**
  * Dashboard component - Main landing page for the DockerDeployer application.
@@ -50,13 +51,29 @@ const Dashboard: React.FC = () => (
         Dashboard
       </Typography>
       <Typography variant="body1" color="text.secondary">
-        Welcome to the DockerDeployer dashboard! Here you will see an overview
-        of your containers, resource usage, and quick actions.
-        <br />
-        (This is a placeholder. More features coming soon.)
+        Welcome to the DockerDeployer dashboard! Monitor your containers, view
+        system metrics, and manage your Docker infrastructure with natural
+        language commands.
       </Typography>
     </Paper>
-    <NaturalLanguageInput />
+
+    <Grid container spacing={3}>
+      <Grid item xs={12}>
+        <SystemOverview />
+      </Grid>
+
+      <Grid item xs={12}>
+        <Paper elevation={2} sx={{ p: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Quick Actions
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Use natural language to manage your containers and deployments:
+          </Typography>
+          <NaturalLanguageInput />
+        </Paper>
+      </Grid>
+    </Grid>
   </Box>
 );
 

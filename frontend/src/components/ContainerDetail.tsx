@@ -18,6 +18,8 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StopIcon from "@mui/icons-material/Stop";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import RealTimeMetrics from "./RealTimeMetrics";
+import MetricsHistory from "./MetricsHistory";
 
 /**
  * Props for the ContainerDetail component.
@@ -107,8 +109,6 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
   const [logs, setLogs] = useState<string>("");
   const [logsLoading, setLogsLoading] = useState<boolean>(false);
   const [tabValue, setTabValue] = useState(0);
-  const [metrics, setMetrics] = useState<any>(null);
-  const [metricsLoading, setMetricsLoading] = useState<boolean>(false);
 
   const fetchContainer = async () => {
     setLoading(true);
@@ -143,22 +143,6 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
     }
   };
 
-  const fetchMetrics = async () => {
-    setMetricsLoading(true);
-    try {
-      const resp = await axios.get(`/api/containers/${containerId}/stats`);
-      setMetrics(resp.data);
-    } catch (err: any) {
-      setError(
-        err?.response?.data?.detail ||
-          err.message ||
-          "Failed to fetch container metrics."
-      );
-    } finally {
-      setMetricsLoading(false);
-    }
-  };
-
   useEffect(() => {
     fetchContainer();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,8 +151,6 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
   useEffect(() => {
     if (tabValue === 1) {
       fetchLogs();
-    } else if (tabValue === 2) {
-      fetchMetrics();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue]);
@@ -327,7 +309,8 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
         >
           <Tab label="Overview" />
           <Tab label="Logs" />
-          <Tab label="Metrics" />
+          <Tab label="Real-time Metrics" />
+          <Tab label="Metrics History" />
           <Tab label="Environment" />
         </Tabs>
 
@@ -406,80 +389,14 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={2}>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            mb={2}
-          >
-            <Typography variant="h6">Container Metrics</Typography>
-            <Button
-              startIcon={<RefreshIcon />}
-              onClick={fetchMetrics}
-              disabled={metricsLoading}
-              size="small"
-            >
-              Refresh Metrics
-            </Button>
-          </Box>
-          {metricsLoading ? (
-            <Box
-              display="flex"
-              justifyContent="center"
-              alignItems="center"
-              minHeight={100}
-            >
-              <CircularProgress size={24} />
-            </Box>
-          ) : metrics ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    CPU Usage
-                  </Typography>
-                  <Typography variant="h6">
-                    {metrics.cpu_usage || "N/A"}
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Memory Usage
-                  </Typography>
-                  <Typography variant="h6">
-                    {metrics.memory_usage || "N/A"}
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Network I/O
-                  </Typography>
-                  <Typography variant="h6">
-                    {metrics.network_io || "N/A"}
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Paper variant="outlined" sx={{ p: 2 }}>
-                  <Typography variant="subtitle2" color="text.secondary">
-                    Block I/O
-                  </Typography>
-                  <Typography variant="h6">
-                    {metrics.block_io || "N/A"}
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-          ) : (
-            <Alert severity="info">No metrics available.</Alert>
-          )}
+          <RealTimeMetrics containerId={containerId} />
         </TabPanel>
 
         <TabPanel value={tabValue} index={3}>
+          <MetricsHistory containerId={containerId} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={4}>
           <Typography variant="h6" gutterBottom>
             Environment Variables
           </Typography>
