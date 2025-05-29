@@ -163,8 +163,8 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
-        // Check user data is displayed
-        expect(screen.getByText("admin")).toBeInTheDocument();
+        // Check user data is displayed - use getAllByText for elements that appear multiple times
+        expect(screen.getAllByText("admin")).toHaveLength(2); // username and role
         expect(screen.getByText("admin@example.com")).toBeInTheDocument();
         expect(screen.getByText("Administrator")).toBeInTheDocument();
         expect(screen.getByText("user1")).toBeInTheDocument();
@@ -253,7 +253,7 @@ describe("UserManagement Component", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText("An unexpected error occurred.")
+          screen.getByText("An unexpected error occurred. Please try again.")
         ).toBeInTheDocument();
       });
     });
@@ -272,7 +272,7 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText("admin")).toBeInTheDocument();
+        expect(screen.getAllByText("admin")).toHaveLength(2); // username and role
       });
 
       // Click edit button for first user
@@ -329,7 +329,7 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByText("admin")).toBeInTheDocument();
+        expect(screen.getAllByText("admin")).toHaveLength(2); // username and role
       });
 
       // Find buttons for the admin user (first row)
@@ -549,7 +549,7 @@ describe("UserManagement Component", () => {
 
       // Dialog should close and users should be refetched
       await waitFor(() => {
-        expect(screen.queryByText("Edit User")).not.toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       });
     });
 
@@ -600,7 +600,9 @@ describe("UserManagement Component", () => {
     it("handles save error with validation errors", async () => {
       const user = userEvent.setup();
       mockedAxios.patch.mockRejectedValue({
+        isAxiosError: true,
         response: {
+          status: 422,
           data: {
             detail: [
               { loc: ["email"], msg: "Invalid email format" },
@@ -630,6 +632,7 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
+        // Check that validation errors appear as helper text in form fields
         expect(screen.getByText("Invalid email format")).toBeInTheDocument();
         expect(screen.getByText("Password too short")).toBeInTheDocument();
       });
@@ -694,7 +697,7 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByText("Edit User")).not.toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       });
     });
 
@@ -751,15 +754,15 @@ describe("UserManagement Component", () => {
         expect(screen.getByText("Edit User")).toBeInTheDocument();
       });
 
-      // Click on role select
-      const roleSelect = screen.getByLabelText("Role");
+      // Click on role select - use the select element directly (it doesn't have a name)
+      const roleSelect = screen.getByRole("combobox");
       await act(async () => {
         await user.click(roleSelect);
       });
 
       // Select admin option
       await act(async () => {
-        const adminOption = screen.getByText("admin");
+        const adminOption = screen.getByRole("option", { name: "Admin" });
         await user.click(adminOption);
       });
 
@@ -802,7 +805,7 @@ describe("UserManagement Component", () => {
 
       // Dialog should close and users should be refetched
       await waitFor(() => {
-        expect(screen.queryByText("Delete User")).not.toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       });
     });
 
@@ -865,7 +868,7 @@ describe("UserManagement Component", () => {
       });
 
       await waitFor(() => {
-        expect(screen.queryByText("Delete User")).not.toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
       });
     });
   });

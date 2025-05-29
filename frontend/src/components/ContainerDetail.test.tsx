@@ -241,4 +241,181 @@ describe("ContainerDetail Component", () => {
       expect(mockedAxios.get).toHaveBeenCalledTimes(3);
     });
   });
+
+  // Enhanced tests for branch coverage
+  describe("Branch Coverage Enhancement", () => {
+    test("handles logs fetch error without detailed response - line 136", async () => {
+      // Mock successful container fetch
+      mockedAxios.get.mockImplementation((url) => {
+        if (url.includes("/api/logs/")) {
+          return Promise.reject({
+            message: "Network Error",
+          });
+        }
+        return Promise.resolve({ data: mockContainer });
+      });
+
+      await act(async () => {
+        render(<ContainerDetail containerId="test-container-id" />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("test-container")).toBeInTheDocument();
+      });
+
+      // Switch to logs tab to trigger fetchLogs
+      const logsTab = screen.getByText("Logs");
+      await act(async () => {
+        fireEvent.click(logsTab);
+      });
+
+      // Should show error message - covers line 136
+      await waitFor(() => {
+        expect(
+          screen.getByText(/Error fetching logs: Network Error/)
+        ).toBeInTheDocument();
+      });
+    });
+
+    test("handles metrics fetch error without detailed response - line 152", async () => {
+      // Mock successful container fetch
+      mockedAxios.get.mockImplementation((url) => {
+        if (url.includes("/stats")) {
+          return Promise.reject({
+            message: "Stats unavailable",
+          });
+        }
+        return Promise.resolve({ data: mockContainer });
+      });
+
+      await act(async () => {
+        render(<ContainerDetail containerId="test-container-id" />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("test-container")).toBeInTheDocument();
+      });
+
+      // Switch to metrics tab to trigger fetchMetrics
+      const metricsTab = screen.getByText("Metrics");
+      await act(async () => {
+        fireEvent.click(metricsTab);
+      });
+
+      // Should show error message - covers line 152
+      await waitFor(() => {
+        expect(screen.getByText("Stats unavailable")).toBeInTheDocument();
+      });
+    });
+
+    test("handles action error without detailed response - line 185", async () => {
+      // Mock successful container fetch with stopped status so start button is enabled
+      const stoppedContainer = { ...mockContainer, status: "stopped" };
+      mockedAxios.get.mockResolvedValue({ data: stoppedContainer });
+
+      // Mock action failure without detailed error
+      mockedAxios.post.mockRejectedValue({
+        message: "Action failed",
+      });
+
+      await act(async () => {
+        render(<ContainerDetail containerId="test-container-id" />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("test-container")).toBeInTheDocument();
+      });
+
+      // Click start button to trigger handleAction (start button should be enabled for stopped container)
+      const startButtonSpan = screen.getByLabelText("Start");
+      const startButton = startButtonSpan.querySelector("button");
+
+      // Ensure button is not disabled
+      expect(startButton).not.toBeDisabled();
+
+      await act(async () => {
+        fireEvent.click(startButton!);
+      });
+
+      // Should show error message - covers line 185
+      await waitFor(() => {
+        expect(screen.getByText("Action failed")).toBeInTheDocument();
+      });
+    });
+
+    test("handles container not found scenario - line 211", async () => {
+      // Mock container fetch returning null/undefined
+      mockedAxios.get.mockResolvedValue({ data: null });
+
+      await act(async () => {
+        render(<ContainerDetail containerId="nonexistent-id" />);
+      });
+
+      // Should show container not found message - covers line 211
+      await waitFor(() => {
+        expect(screen.getByText("Container not found.")).toBeInTheDocument();
+      });
+    });
+
+    test("handles action error with generic fallback - line 235", async () => {
+      // Mock successful container fetch
+      mockedAxios.get.mockResolvedValue({ data: mockContainer });
+
+      // Mock action failure with no message
+      mockedAxios.post.mockRejectedValue({});
+
+      await act(async () => {
+        render(<ContainerDetail containerId="test-container-id" />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("test-container")).toBeInTheDocument();
+      });
+
+      // Click stop button to trigger handleAction
+      const stopButtonSpan = screen.getByLabelText("Stop");
+      const stopButton = stopButtonSpan.querySelector("button");
+      await act(async () => {
+        fireEvent.click(stopButton!);
+      });
+
+      // Should show fallback error message - covers line 235
+      await waitFor(() => {
+        expect(
+          screen.getByText("Failed to stop container.")
+        ).toBeInTheDocument();
+      });
+    });
+
+    test("handles restart action error - line 259", async () => {
+      // Mock successful container fetch with running status
+      const runningContainer = { ...mockContainer, status: "running" };
+      mockedAxios.get.mockResolvedValue({ data: runningContainer });
+
+      // Mock restart action failure
+      mockedAxios.post.mockRejectedValue({
+        response: { data: { detail: "Restart failed" } },
+      });
+
+      await act(async () => {
+        render(<ContainerDetail containerId="test-container-id" />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("test-container")).toBeInTheDocument();
+      });
+
+      // Click restart button to trigger handleAction
+      const restartButtonSpan = screen.getByLabelText("Restart");
+      const restartButton = restartButtonSpan.querySelector("button");
+      await act(async () => {
+        fireEvent.click(restartButton!);
+      });
+
+      // Should show error message - covers line 259
+      await waitFor(() => {
+        expect(screen.getByText("Restart failed")).toBeInTheDocument();
+      });
+    });
+  });
 });

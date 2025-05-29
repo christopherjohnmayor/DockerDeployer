@@ -243,25 +243,33 @@ const UserManagement: React.FC = () => {
                   <Tooltip
                     title={userRow.is_active ? "Deactivate" : "Activate"}
                   >
-                    <IconButton
-                      size="small"
-                      onClick={() => handleToggleUserStatus(userRow)}
-                      disabled={userRow.id === user?.id}
-                    >
-                      {userRow.is_active ? <BlockIcon /> : <CheckCircleIcon />}
-                    </IconButton>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => handleToggleUserStatus(userRow)}
+                        disabled={userRow.id === user?.id}
+                      >
+                        {userRow.is_active ? (
+                          <BlockIcon />
+                        ) : (
+                          <CheckCircleIcon />
+                        )}
+                      </IconButton>
+                    </span>
                   </Tooltip>
                   <Tooltip title="Delete User">
-                    <IconButton
-                      size="small"
-                      onClick={() => {
-                        setSelectedUser(userRow);
-                        setDeleteDialogOpen(true);
-                      }}
-                      disabled={userRow.id === user?.id}
-                    >
-                      <DeleteIcon />
-                    </IconButton>
+                    <span>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setSelectedUser(userRow);
+                          setDeleteDialogOpen(true);
+                        }}
+                        disabled={userRow.id === user?.id}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </span>
                   </Tooltip>
                 </TableCell>
               </TableRow>

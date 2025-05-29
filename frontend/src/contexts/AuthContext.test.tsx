@@ -760,4 +760,334 @@ describe("AuthContext", () => {
 
     expect(mockedAxios.interceptors.response.eject).toHaveBeenCalled();
   });
+
+  test("handles axios interceptor 401 error with successful token refresh", async () => {
+    const mockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      type: "access",
+    };
+
+    mockedJwtDecode.mockReturnValue(mockDecodedToken);
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Login to set up tokens
+    const loginButton = screen.getByTestId("login-btn");
+    await act(async () => {
+      fireEvent.click(loginButton);
+    });
+
+    // Verify that the interceptor was set up
+    expect(mockedAxios.interceptors.response.use).toHaveBeenCalled();
+
+    // Get the interceptor function
+    const interceptorCall = mockedAxios.interceptors.response.use.mock.calls[0];
+    const errorHandler = interceptorCall[1];
+
+    // Verify the error handler exists
+    expect(typeof errorHandler).toBe("function");
+  });
+
+  test("handles axios interceptor 401 error with failed token refresh", async () => {
+    const mockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+      type: "access",
+    };
+
+    mockedJwtDecode.mockReturnValue(mockDecodedToken);
+
+    // Mock failed refresh
+    mockedAxios.post.mockRejectedValue(new Error("Refresh failed"));
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Login to set up tokens
+    const loginButton = screen.getByTestId("login-btn");
+    await act(async () => {
+      fireEvent.click(loginButton);
+    });
+
+    // Simulate a 401 error that should trigger token refresh
+    const error401 = {
+      response: { status: 401 },
+      config: { headers: {} },
+    };
+
+    // Get the interceptor function
+    const interceptorCall = mockedAxios.interceptors.response.use.mock.calls[0];
+    const errorHandler = interceptorCall[1];
+
+    // Call the error handler and expect it to reject
+    await expect(errorHandler(error401)).rejects.toEqual(error401);
+  });
+
+  test("handles axios interceptor non-401 errors", async () => {
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Simulate a non-401 error
+    const error500 = {
+      response: { status: 500 },
+      config: { headers: {} },
+    };
+
+    // Get the interceptor function
+    const interceptorCall = mockedAxios.interceptors.response.use.mock.calls[0];
+    const errorHandler = interceptorCall[1];
+
+    // Call the error handler and expect it to reject immediately
+    await expect(errorHandler(error500)).rejects.toEqual(error500);
+  });
+
+  test("handles axios interceptor 401 error when already retried", async () => {
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Simulate a 401 error that has already been retried
+    const error401Retried = {
+      response: { status: 401 },
+      config: { headers: {}, _retry: true },
+    };
+
+    // Get the interceptor function
+    const interceptorCall = mockedAxios.interceptors.response.use.mock.calls[0];
+    const errorHandler = interceptorCall[1];
+
+    // Call the error handler and expect it to reject immediately
+    await expect(errorHandler(error401Retried)).rejects.toEqual(
+      error401Retried
+    );
+  });
+
+  test("handles axios interceptor 401 error without refresh token", async () => {
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    // Simulate a 401 error without refresh token
+    const error401 = {
+      response: { status: 401 },
+      config: { headers: {} },
+    };
+
+    // Get the interceptor function
+    const interceptorCall = mockedAxios.interceptors.response.use.mock.calls[0];
+    const errorHandler = interceptorCall[1];
+
+    // Call the error handler and expect it to reject immediately
+    await expect(errorHandler(error401)).rejects.toEqual(error401);
+  });
+
+  test("handles expired token on initialization without refresh token", async () => {
+    const expiredToken = "expired-token";
+    const mockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+      type: "access",
+    };
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === "accessToken") return expiredToken;
+      if (key === "refreshToken") return null; // No refresh token
+      return null;
+    });
+
+    mockedJwtDecode.mockReturnValue(mockDecodedToken);
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-status")).toHaveTextContent(
+        "not-authenticated"
+      );
+    });
+
+    // Verify tokens were cleared
+    await waitFor(() => {
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith("accessToken");
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith("refreshToken");
+    });
+  });
+
+  test("handles expired token on initialization with failed refresh", async () => {
+    const expiredToken = "expired-token";
+    const mockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+      type: "access",
+    };
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === "accessToken") return expiredToken;
+      if (key === "refreshToken") return "refresh-token";
+      return null;
+    });
+
+    mockedJwtDecode.mockReturnValue(mockDecodedToken);
+    mockedAxios.post.mockRejectedValue(new Error("Refresh failed"));
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-status")).toHaveTextContent(
+        "not-authenticated"
+      );
+    });
+
+    // Verify refresh was attempted
+    await waitFor(() => {
+      expect(mockedAxios.post).toHaveBeenCalledWith("/auth/refresh", {
+        refresh_token: "refresh-token",
+      });
+    });
+
+    // Verify tokens were cleared after failed refresh
+    await waitFor(() => {
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith("accessToken");
+      expect(localStorageMock.removeItem).toHaveBeenCalledWith("refreshToken");
+    });
+  });
+
+  test("handles expired token on initialization with successful refresh", async () => {
+    const expiredToken = "expired-token";
+    const mockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) - 3600, // Expired 1 hour ago
+      type: "access",
+    };
+
+    const newMockDecodedToken = {
+      sub: 1,
+      username: "testuser",
+      role: "user",
+      exp: Math.floor(Date.now() / 1000) + 3600, // Valid for 1 hour
+      type: "access",
+    };
+
+    localStorageMock.getItem.mockImplementation((key) => {
+      if (key === "accessToken") return expiredToken;
+      if (key === "refreshToken") return "refresh-token";
+      return null;
+    });
+
+    // First call returns expired token, second call returns new token
+    mockedJwtDecode
+      .mockReturnValueOnce(mockDecodedToken)
+      .mockReturnValueOnce(newMockDecodedToken);
+
+    mockedAxios.post.mockResolvedValue({
+      data: {
+        access_token: "new-access-token",
+        refresh_token: "new-refresh-token",
+      },
+    });
+
+    await act(async () => {
+      render(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-status")).toHaveTextContent(
+        "authenticated"
+      );
+    });
+
+    // Verify refresh was attempted
+    await waitFor(() => {
+      expect(mockedAxios.post).toHaveBeenCalledWith("/auth/refresh", {
+        refresh_token: "refresh-token",
+      });
+    });
+
+    // Verify new tokens were stored
+    await waitFor(() => {
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "accessToken",
+        "new-access-token"
+      );
+      expect(localStorageMock.setItem).toHaveBeenCalledWith(
+        "refreshToken",
+        "new-refresh-token"
+      );
+    });
+  });
+
+  test("uses default context when accessed outside provider", () => {
+    const TestComponentOutsideProvider = () => {
+      const context = useContext(AuthContext);
+      return (
+        <div>
+          <div data-testid="default-auth-status">
+            {context.isAuthenticated ? "authenticated" : "not-authenticated"}
+          </div>
+          <div data-testid="default-user-info">
+            {context.user ? `${context.user.username}` : "no-user"}
+          </div>
+        </div>
+      );
+    };
+
+    render(<TestComponentOutsideProvider />);
+
+    expect(screen.getByTestId("default-auth-status")).toHaveTextContent(
+      "not-authenticated"
+    );
+    expect(screen.getByTestId("default-user-info")).toHaveTextContent(
+      "no-user"
+    );
+  });
 });

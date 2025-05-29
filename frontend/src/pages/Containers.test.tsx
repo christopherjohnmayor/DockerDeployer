@@ -383,4 +383,75 @@ describe("Containers Component", () => {
       { action: "stop" }
     );
   });
+
+  // Enhanced test for branch coverage - line 84
+  test("handles logs fetch error without detailed response", async () => {
+    // Mock successful containers fetch first
+    mockedAxios.get.mockResolvedValueOnce({ data: mockContainers });
+
+    await act(async () => {
+      render(<Containers />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("test-container")).toBeInTheDocument();
+    });
+
+    // Mock logs fetch failure without detailed error response - covers line 84
+    mockedAxios.get.mockRejectedValueOnce({
+      message: "Network Error",
+    });
+
+    // Click logs button using querySelector to get the actual button
+    const logsTooltips = screen.getAllByLabelText("Logs");
+    const logsButton = logsTooltips[0].querySelector("button");
+
+    await act(async () => {
+      fireEvent.click(logsButton!);
+    });
+
+    // Wait for dialog to open
+    await waitFor(() => {
+      expect(screen.getByText("Logs: test-container")).toBeInTheDocument();
+    });
+
+    // Wait for error message in logs content - this covers the error handling branch on line 84
+    await waitFor(() => {
+      expect(screen.getByText("Network Error")).toBeInTheDocument();
+    });
+  });
+
+  test("handles logs fetch error with generic fallback message", async () => {
+    // Mock successful containers fetch first
+    mockedAxios.get.mockResolvedValueOnce({ data: mockContainers });
+
+    await act(async () => {
+      render(<Containers />);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("test-container")).toBeInTheDocument();
+    });
+
+    // Mock logs fetch failure with no message - covers fallback error handling
+    mockedAxios.get.mockRejectedValueOnce({});
+
+    // Click logs button using querySelector to get the actual button
+    const logsTooltips = screen.getAllByLabelText("Logs");
+    const logsButton = logsTooltips[0].querySelector("button");
+
+    await act(async () => {
+      fireEvent.click(logsButton!);
+    });
+
+    // Wait for dialog to open
+    await waitFor(() => {
+      expect(screen.getByText("Logs: test-container")).toBeInTheDocument();
+    });
+
+    // Wait for fallback error message
+    await waitFor(() => {
+      expect(screen.getByText("Failed to fetch logs.")).toBeInTheDocument();
+    });
+  });
 });
