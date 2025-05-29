@@ -521,6 +521,7 @@ class MetricsService:
                     metric_value = alert_data["metric_value"]
 
                     # Get the user who created the alert
+                    from app.db.models import User
                     user = self.db.query(User).filter(User.id == alert.created_by).first()
                     if user:
                         # Run the async notification in a new event loop

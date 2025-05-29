@@ -13,7 +13,7 @@ import redis.asyncio as redis
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 
-from app.db.models import Alert, User
+from app.db.models import MetricsAlert, User
 from app.email.service import get_email_service
 from app.email.templates import email_templates
 
@@ -31,17 +31,17 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket, user_id: int):
         """Accept a WebSocket connection and register it for a user."""
         await websocket.accept()
-        
+
         if user_id not in self.active_connections:
             self.active_connections[user_id] = set()
-        
+
         self.active_connections[user_id].add(websocket)
         self.connection_metadata[websocket] = {
             "user_id": user_id,
             "connected_at": datetime.utcnow(),
             "connection_id": str(uuid4())
         }
-        
+
         logger.info(f"WebSocket connected for user {user_id}")
 
     async def disconnect(self, websocket: WebSocket):
@@ -53,7 +53,7 @@ class ConnectionManager:
                 self.active_connections[user_id].discard(websocket)
                 if not self.active_connections[user_id]:
                     del self.active_connections[user_id]
-            
+
             del self.connection_metadata[websocket]
             logger.info(f"WebSocket disconnected for user {user_id}")
 
@@ -61,10 +61,10 @@ class ConnectionManager:
         """Send a message to all connections for a specific user."""
         if user_id not in self.active_connections:
             return
-        
+
         message_str = json.dumps(message)
         disconnected_connections = set()
-        
+
         for websocket in self.active_connections[user_id].copy():
             try:
                 await websocket.send_text(message_str)
@@ -73,7 +73,7 @@ class ConnectionManager:
             except Exception as e:
                 logger.error(f"Error sending message to user {user_id}: {e}")
                 disconnected_connections.add(websocket)
-        
+
         # Clean up disconnected connections
         for websocket in disconnected_connections:
             await self.disconnect(websocket)
@@ -82,7 +82,7 @@ class ConnectionManager:
         """Broadcast a message to all connected users."""
         message_str = json.dumps(message)
         disconnected_connections = set()
-        
+
         for user_connections in self.active_connections.values():
             for websocket in user_connections.copy():
                 try:
@@ -92,7 +92,7 @@ class ConnectionManager:
                 except Exception as e:
                     logger.error(f"Error broadcasting message: {e}")
                     disconnected_connections.add(websocket)
-        
+
         # Clean up disconnected connections
         for websocket in disconnected_connections:
             await self.disconnect(websocket)
@@ -117,18 +117,18 @@ class AlertNotificationService:
 
     async def notify_alert_triggered(
         self,
-        alert: Alert,
+        alert: MetricsAlert,
         metric_value: float,
         user: User
     ) -> bool:
         """
         Send real-time notification when an alert is triggered.
-        
+
         Args:
             alert: The triggered alert
             metric_value: Current metric value that triggered the alert
             user: User to notify
-            
+
         Returns:
             True if notification was sent successfully
         """
@@ -173,17 +173,17 @@ class AlertNotificationService:
     async def acknowledge_alert(self, alert_id: int, user_id: int) -> bool:
         """
         Acknowledge an alert and notify connected clients.
-        
+
         Args:
             alert_id: ID of the alert to acknowledge
             user_id: ID of the user acknowledging the alert
-            
+
         Returns:
             True if acknowledgment was successful
         """
         try:
             # Update alert in database
-            alert = self.db.query(Alert).filter(Alert.id == alert_id).first()
+            alert = self.db.query(MetricsAlert).filter(MetricsAlert.id == alert_id).first()
             if not alert:
                 return False
 
@@ -201,7 +201,7 @@ class AlertNotificationService:
             }
 
             await self.connection_manager.send_personal_message(notification, alert.user_id)
-            
+
             logger.info(f"Alert {alert_id} acknowledged by user {user_id}")
             return True
 
@@ -210,10 +210,10 @@ class AlertNotificationService:
             self.db.rollback()
             return False
 
-    def _determine_severity(self, alert: Alert, metric_value: float) -> str:
+    def _determine_severity(self, alert: MetricsAlert, metric_value: float) -> str:
         """Determine alert severity based on how much the threshold is exceeded."""
         threshold = alert.threshold_value
-        
+
         if alert.comparison_operator == ">":
             excess_ratio = (metric_value - threshold) / threshold
         elif alert.comparison_operator == "<":
@@ -228,7 +228,7 @@ class AlertNotificationService:
         else:
             return "info"
 
-    def _generate_alert_message(self, alert: Alert, metric_value: float) -> str:
+    def _generate_alert_message(self, alert: MetricsAlert, metric_value: float) -> str:
         """Generate human-readable alert message."""
         return (
             f"Alert '{alert.name}' triggered: "
@@ -252,11 +252,11 @@ class AlertNotificationService:
         except Exception as e:
             logger.error(f"Error storing notification in Redis: {e}")
 
-    async def _send_email_notification(self, alert: Alert, metric_value: float, user: User):
+    async def _send_email_notification(self, alert: MetricsAlert, metric_value: float, user: User):
         """Send email notification for the alert."""
         try:
             subject = f"DockerDeployer Alert: {alert.name}"
-            
+
             # Generate email content
             html_content, text_content = email_templates.render_template(
                 "alert_notification",
