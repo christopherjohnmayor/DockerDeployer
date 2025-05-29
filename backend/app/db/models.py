@@ -212,6 +212,11 @@ class MetricsAlert(Base):
     last_triggered_at = Column(DateTime, nullable=True)
     trigger_count = Column(Integer, default=0)
 
+    # Alert acknowledgment
+    is_acknowledged = Column(Boolean, default=False)
+    acknowledged_at = Column(DateTime, nullable=True)
+    acknowledged_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     # User association
     created_by = Column(Integer, ForeignKey("users.id"), nullable=False)
 

@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import Body, Depends, FastAPI, HTTPException, status
+from fastapi import Body, Depends, FastAPI, HTTPException, status, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
@@ -18,7 +18,10 @@ from app.auth.user_management import router as user_management_router
 from app.config.settings_manager import SettingsManager
 from app.db.database import init_db, get_db
 from app.db.models import User
+from sqlalchemy.orm import Session
 from app.services.metrics_service import MetricsService
+from app.websocket.notifications import websocket_notifications_endpoint
+from app.middleware.rate_limiting import setup_rate_limiting, rate_limit_api, rate_limit_auth, rate_limit_metrics
 from llm.client import LLMClient
 
 # from docker.manager import DockerManager
@@ -64,6 +67,9 @@ app.add_middleware(
 
 # Initialize database
 init_db()
+
+# Set up rate limiting
+setup_rate_limiting(app)
 
 # Include routers
 app.include_router(
@@ -989,6 +995,7 @@ async def get_container_details(
         503: {"description": "Docker service unavailable"},
     },
 )
+@rate_limit_metrics("60/minute")
 async def get_container_stats(
     container_id: str,
     current_user: User = Depends(get_current_user),
@@ -1646,3 +1653,25 @@ async def deployment_history(current_user: User = Depends(get_current_user)):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"History unavailable: {str(e)}",
         )
+
+
+# --- WebSocket Endpoints ---
+
+@app.websocket("/ws/notifications/{user_id}")
+async def websocket_notifications(
+    websocket: WebSocket,
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    WebSocket endpoint for real-time notifications.
+
+    Connect to this endpoint to receive real-time notifications including:
+    - Alert notifications when thresholds are breached
+    - System notifications
+    - Container status updates
+
+    Authentication is required via token in query parameters:
+    ws://localhost:8000/ws/notifications/{user_id}?token=your_jwt_token
+    """
+    await websocket_notifications_endpoint(websocket, user_id, db)

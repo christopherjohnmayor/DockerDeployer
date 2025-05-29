@@ -5,7 +5,7 @@ Authentication dependencies for FastAPI.
 from datetime import datetime
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, WebSocket, WebSocketException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
@@ -140,3 +140,65 @@ def get_current_admin_user(current_user: User = Depends(get_current_user)) -> Us
         )
 
     return current_user
+
+
+async def get_current_user_websocket(
+    websocket: WebSocket,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """
+    Get the current authenticated user for WebSocket connections.
+
+    Args:
+        websocket: WebSocket connection
+        token: JWT token (from query params or headers)
+        db: Database session
+
+    Returns:
+        User object if authenticated, None otherwise
+
+    Raises:
+        WebSocketException: If authentication fails
+    """
+    if not token:
+        # Try to get token from query parameters
+        token = websocket.query_params.get("token")
+
+    if not token:
+        # Try to get token from headers
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+
+    if not token:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing authentication token")
+
+    try:
+        # Decode token
+        payload = decode_token(token)
+
+        # Check token type
+        if payload.get("type") != "access":
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token type")
+
+        # Extract user ID from token
+        user_id: Optional[int] = payload.get("sub")
+        if user_id is None:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+
+        # Get user from database
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
+
+        # Check if user is active
+        if not user.is_active:
+            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Inactive user")
+
+        return user
+
+    except WebSocketException:
+        raise
+    except Exception as e:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication failed")

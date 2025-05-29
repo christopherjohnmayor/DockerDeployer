@@ -20,3 +20,5 @@ email-validator
 aiosmtplib
 jinja2
 sendgrid
+slowapi
+websockets

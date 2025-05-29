@@ -425,6 +425,7 @@ class MetricsService:
                     alert.trigger_count += 1
 
                     triggered_alerts.append({
+                        "alert": alert,
                         "alert_id": alert.id,
                         "alert_name": alert.name,
                         "container_id": alert.container_id,
@@ -442,6 +443,9 @@ class MetricsService:
             if triggered_alerts:
                 self.db.commit()
                 logger.info(f"Triggered {len(triggered_alerts)} alerts for container {container_id}")
+
+                # Send notifications for triggered alerts
+                self._send_alert_notifications(triggered_alerts)
 
             return triggered_alerts
 
@@ -486,3 +490,46 @@ class MetricsService:
         except Exception as e:
             logger.error(f"Error evaluating alert condition: {e}")
             return False
+
+    def _send_alert_notifications(self, triggered_alerts: List[Dict[str, Any]]):
+        """
+        Send notifications for triggered alerts.
+
+        Args:
+            triggered_alerts: List of triggered alert data
+        """
+        try:
+            # Import here to avoid circular imports
+            from app.services.alert_notification_service import AlertNotificationService
+            import redis.asyncio as redis
+            import asyncio
+
+            # Initialize Redis client
+            redis_client = None
+            try:
+                redis_client = redis.from_url("redis://localhost:6379", decode_responses=True)
+            except Exception as e:
+                logger.warning(f"Redis not available for notifications: {e}")
+
+            # Initialize notification service
+            notification_service = AlertNotificationService(self.db, redis_client)
+
+            # Send notifications for each triggered alert
+            for alert_data in triggered_alerts:
+                try:
+                    alert = alert_data["alert"]
+                    metric_value = alert_data["metric_value"]
+
+                    # Get the user who created the alert
+                    user = self.db.query(User).filter(User.id == alert.created_by).first()
+                    if user:
+                        # Run the async notification in a new event loop
+                        asyncio.create_task(
+                            notification_service.notify_alert_triggered(alert, metric_value, user)
+                        )
+
+                except Exception as e:
+                    logger.error(f"Error sending notification for alert {alert_data.get('alert_id')}: {e}")
+
+        except Exception as e:
+            logger.error(f"Error in alert notification system: {e}")

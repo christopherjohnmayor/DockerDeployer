@@ -32,6 +32,8 @@ class EmailTemplates:
             return self._render_password_reset(**kwargs)
         elif template_name == "welcome":
             return self._render_welcome(**kwargs)
+        elif template_name == "alert_notification":
+            return self._render_alert_notification(**kwargs)
         else:
             raise ValueError(f"Unknown template: {template_name}")
 
@@ -222,7 +224,7 @@ SECURITY NOTICE:
         <div class="content">
             <h2>Hello {{ username }},</h2>
             <p>Your email has been verified and your account is now active! Welcome to {{ app_name }}, your powerful Docker container management platform.</p>
-            
+
             <div class="features">
                 <h3>🚀 What you can do with {{ app_name }}:</h3>
                 <ul>
@@ -236,7 +238,7 @@ SECURITY NOTICE:
             <p style="text-align: center;">
                 <a href="{{ login_url }}" class="button">Start Using {{ app_name }}</a>
             </p>
-            
+
             <p>If you have any questions or need help getting started, don't hesitate to reach out to our support team.</p>
         </div>
         <div class="footer">
@@ -274,6 +276,112 @@ If you have any questions or need help getting started, don't hesitate to reach 
             "username": username,
             "app_name": app_name,
             "login_url": login_url,
+        }
+
+        return html_tmpl.render(**context), text_tmpl.render(**context)
+
+    def _render_alert_notification(self, **kwargs) -> tuple[str, str]:
+        """Render alert notification email template."""
+        username = kwargs.get("username", "")
+        alert_name = kwargs.get("alert_name", "")
+        alert_description = kwargs.get("alert_description", "")
+        container_name = kwargs.get("container_name", "")
+        metric_type = kwargs.get("metric_type", "")
+        current_value = kwargs.get("current_value", 0)
+        threshold_value = kwargs.get("threshold_value", 0)
+        comparison_operator = kwargs.get("comparison_operator", "")
+        app_name = kwargs.get("app_name", "DockerDeployer")
+
+        html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }} Alert Notification</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #f44336; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background: #f9f9f9; padding: 20px; border-radius: 0 0 5px 5px; }
+        .alert-details { background: white; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .metric-value { font-size: 1.2em; font-weight: bold; color: #f44336; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 0.9em; }
+        .button { display: inline-block; padding: 10px 20px; background: #2196F3; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Alert Triggered</h1>
+            <p>{{ alert_name }}</p>
+        </div>
+        <div class="content">
+            <p>Hello {{ username }},</p>
+
+            <p>An alert has been triggered in your {{ app_name }} environment:</p>
+
+            <div class="alert-details">
+                <h3>Alert Details</h3>
+                <p><strong>Alert Name:</strong> {{ alert_name }}</p>
+                <p><strong>Description:</strong> {{ alert_description }}</p>
+                <p><strong>Container:</strong> {{ container_name }}</p>
+                <p><strong>Metric:</strong> {{ metric_type }}</p>
+                <p><strong>Current Value:</strong> <span class="metric-value">{{ current_value }}</span></p>
+                <p><strong>Threshold:</strong> {{ comparison_operator }} {{ threshold_value }}</p>
+                <p><strong>Time:</strong> {{ timestamp }}</p>
+            </div>
+
+            <p>Please check your containers and take appropriate action if necessary.</p>
+
+            <a href="{{ dashboard_url }}" class="button">View Dashboard</a>
+        </div>
+        <div class="footer">
+            <p>© 2024 {{ app_name }}. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+        """
+
+        text_template = """
+🚨 {{ app_name }} Alert Triggered
+
+Hello {{ username }},
+
+An alert has been triggered in your {{ app_name }} environment:
+
+Alert Details:
+- Alert Name: {{ alert_name }}
+- Description: {{ alert_description }}
+- Container: {{ container_name }}
+- Metric: {{ metric_type }}
+- Current Value: {{ current_value }}
+- Threshold: {{ comparison_operator }} {{ threshold_value }}
+- Time: {{ timestamp }}
+
+Please check your containers and take appropriate action if necessary.
+
+View Dashboard: {{ dashboard_url }}
+
+© 2024 {{ app_name }}. All rights reserved.
+        """
+
+        html_tmpl = Template(html_template)
+        text_tmpl = Template(text_template)
+
+        context = {
+            "username": username,
+            "alert_name": alert_name,
+            "alert_description": alert_description,
+            "container_name": container_name,
+            "metric_type": metric_type,
+            "current_value": current_value,
+            "threshold_value": threshold_value,
+            "comparison_operator": comparison_operator,
+            "app_name": app_name,
+            "timestamp": kwargs.get("timestamp", ""),
+            "dashboard_url": kwargs.get("dashboard_url", ""),
         }
 
         return html_tmpl.render(**context), text_tmpl.render(**context)
