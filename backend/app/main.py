@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import Body, Depends, FastAPI, HTTPException, status, WebSocket
+from fastapi import Body, Depends, FastAPI, HTTPException, status, WebSocket, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
@@ -997,6 +997,7 @@ async def get_container_details(
 )
 @rate_limit_metrics("60/minute")
 async def get_container_stats(
+    request: Request,
     container_id: str,
     current_user: User = Depends(get_current_user),
     metrics_service: MetricsService = Depends(get_metrics_service)
