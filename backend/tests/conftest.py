@@ -24,6 +24,8 @@ os.environ["CONFIG_REPO_PATH"] = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = "sqlite:///test.db"
 os.environ["JWT_SECRET_KEY"] = "test-secret-key-for-testing-only"
 os.environ["EMAIL_PROVIDER"] = "test"
+os.environ["TESTING"] = "true"
+os.environ["DISABLE_RATE_LIMITING"] = "true"
 
 # Import after path setup and environment configuration
 from backend.app.main import app
@@ -84,7 +86,113 @@ def test_client():
 @pytest.fixture
 def authenticated_client():
     """
-    Create an authenticated test client with mocked authentication.
+    Create an authenticated test client with mocked authentication and services.
+    """
+    from app.auth.dependencies import get_current_user
+    from app.db.models import UserRole
+    from app.main import get_metrics_service, get_docker_manager
+
+    # Create a mock user that behaves like a real User model
+    class MockUser:
+        def __init__(self):
+            self.id = 1
+            self.username = "testuser"
+            self.email = "test@example.com"
+            self.full_name = "Test User"
+            self.role = UserRole.USER
+            self.is_active = True
+            self.is_email_verified = True
+
+    mock_user = MockUser()
+
+    # Override the dependency to return our mock user
+    def override_get_current_user():
+        return mock_user
+
+    # Override service dependencies with mocks
+    def override_get_docker_manager():
+        mock_manager = MagicMock()
+        mock_manager.get_container_stats.return_value = {
+            "container_id": "test_container",
+            "name": "test_container_name",
+            "cpu_percent": 25.0,
+            "memory_usage": 134217728,
+            "memory_limit": 536870912,
+            "memory_percent": 25.0,
+            "network_rx": 1024,
+            "network_tx": 2048,
+            "block_read": 4096,
+            "block_write": 8192,
+            "timestamp": "2024-01-01T12:00:00"
+        }
+        return mock_manager
+
+    def override_get_metrics_service():
+        mock_service = MagicMock()
+        # Set up default return values for common methods
+        mock_service.create_alert.return_value = {
+            "id": 1,
+            "name": "High CPU Alert",
+            "description": "Alert when CPU usage exceeds 80%",
+            "container_id": "test-container",
+            "container_name": "test-container-name",
+            "metric_type": "cpu_percent",
+            "threshold_value": 80.0,
+            "comparison_operator": ">",
+            "is_active": True,
+            "created_at": "2024-01-01T12:00:00",
+        }
+        mock_service.get_user_alerts.return_value = []
+        mock_service.get_current_metrics.return_value = {
+            "container_id": "test_container",
+            "name": "test_container_name",
+            "cpu_percent": 25.0,
+            "memory_usage": 134217728,
+            "memory_limit": 536870912,
+            "memory_percent": 25.0,
+            "network_rx": 1024,
+            "network_tx": 2048,
+            "block_read": 4096,
+            "block_write": 8192,
+            "timestamp": "2024-01-01T12:00:00"
+        }
+        mock_service.get_historical_metrics.return_value = []
+        mock_service.get_system_metrics.return_value = {
+            "timestamp": "2024-01-01T12:00:00",
+            "containers_total": 3,
+            "containers_running": 2,
+            "containers_by_status": {
+                "running": 2,
+                "stopped": 1
+            },
+            "system_info": {
+                "docker_version": "20.10.17",
+                "total_memory": 8589934592,
+                "cpus": 4,
+                "kernel_version": "5.4.0-74-generic",
+                "operating_system": "Ubuntu 20.04.2 LTS",
+                "architecture": "x86_64"
+            }
+        }
+        return mock_service
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    app.dependency_overrides[get_docker_manager] = override_get_docker_manager
+    app.dependency_overrides[get_metrics_service] = override_get_metrics_service
+
+    # Create client
+    client = TestClient(app)
+
+    yield client
+
+    # Clean up dependency override
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def authenticated_client_with_custom_service():
+    """
+    Create an authenticated test client that allows custom service overrides.
     """
     from app.auth.dependencies import get_current_user
     from app.db.models import UserRole

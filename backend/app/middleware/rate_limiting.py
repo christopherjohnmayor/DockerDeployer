@@ -63,17 +63,25 @@ def get_api_key_or_ip(request: Request) -> str:
     return get_remote_address(request)
 
 
-# Create limiter instance with Redis backend
+# Create limiter instance with Redis backend or memory for testing
+import os
+
+# Use memory storage for testing to avoid Redis dependency
+if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+    storage_uri = "memory://"
+else:
+    storage_uri = "redis://localhost:6379"
+
 limiter = Limiter(
     key_func=get_user_id_or_ip,
-    storage_uri="redis://localhost:6379",
+    storage_uri=storage_uri,
     default_limits=["1000/hour"]  # Default rate limit
 )
 
 # Create API-specific limiter
 api_limiter = Limiter(
     key_func=get_api_key_or_ip,
-    storage_uri="redis://localhost:6379",
+    storage_uri=storage_uri,
     default_limits=["500/hour"]  # More restrictive for API keys
 )
 
@@ -172,7 +180,7 @@ class RateLimitingMiddleware:
         ]
         self.enable_logging = enable_logging
 
-    async def __call__(self, scope, receive, send):
+    async def __call__(self, request: Request, call_next):
         """
         Process request with rate limiting.
 
@@ -183,6 +191,10 @@ class RateLimitingMiddleware:
         Returns:
             HTTP response
         """
+        # Skip rate limiting in test environment
+        if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+            return await call_next(request)
+
         # Skip rate limiting for exempt paths
         if request.url.path in self.exempt_paths:
             return await call_next(request)
