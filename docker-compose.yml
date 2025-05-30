@@ -1,27 +1,45 @@
-version: "3.8"
-
 services:
+  # Redis service for caching
+  redis:
+    image: redis:7-alpine
+    container_name: dockerdeployer-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
   # Backend service
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: dockerdeployer-backend
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - db_data:/app/data
+      - config_data:/app/config_repo
+    env_file:
+      - .env.dev
     environment:
-      - ENVIRONMENT=development
-      - DATABASE_URL=sqlite:///./data/dockerdeployer.db
-      - SECRET_KEY=dev_secret_key_change_in_production
-      - CONFIG_REPO_PATH=/app/config_repo
+      - REDIS_URL=redis://redis:6379
       - CORS_ORIGINS=http://localhost:3000,http://frontend:3000
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
     restart: unless-stopped
+    networks:
+      - dockerdeployer-network
     # Running as root for Docker socket access - this is intentional for Docker management
-    # Use Python-based health check instead of curl
     healthcheck:
       test:
         [
@@ -33,37 +51,50 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   # Frontend service
   frontend:
-    image: node:18-alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
     container_name: dockerdeployer-frontend
-    working_dir: /app
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    env_file:
+      - .env.dev
     environment:
       - NODE_ENV=development
       - VITE_API_URL=http://localhost:8000
+      - DOCKER_ENV=true
     ports:
       - "3000:3000"
-    command: sh -c "apk add --no-cache wget && npm install && npm run dev"
     depends_on:
       - backend
     restart: unless-stopped
+    networks:
+      - dockerdeployer-network
     healthcheck:
       test:
         [
           "CMD",
-          "sh",
-          "-c",
-          "wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000",
         ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 20s
 
 volumes:
   db_data:
+  redis_data:
+  config_data:
+
+networks:
+  dockerdeployer-network:
+    driver: bridge

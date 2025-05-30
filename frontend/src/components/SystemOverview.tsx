@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -15,17 +15,18 @@ import {
   ListItem,
   ListItemText,
   ListItemIcon,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Refresh as RefreshIcon,
   Computer as ComputerIcon,
   Memory as MemoryIcon,
   Storage as StorageIcon,
   Speed as SpeedIcon,
-  Container as ContainerIcon,
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { useApiCall } from '../hooks/useApiCall';
+  Inventory as ContainerIcon,
+} from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { useApiCall } from "../hooks/useApiCall";
+import axios from "axios";
 
 interface SystemMetrics {
   timestamp: string;
@@ -50,16 +51,28 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
   refreshInterval = 30000, // 30 seconds
 }) => {
   const theme = useTheme();
-  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(
+    null
+  );
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  const { execute: fetchSystemMetrics, loading, error } = useApiCall();
+  // API function for fetching system metrics
+  const fetchSystemMetricsApi = useCallback(async () => {
+    const response = await axios.get("/api/system/metrics");
+    return response.data;
+  }, []);
+
+  const {
+    execute: fetchSystemMetrics,
+    loading,
+    error,
+  } = useApiCall(fetchSystemMetricsApi);
 
   // Format bytes to human readable format
   const formatBytes = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   }, []);
@@ -67,13 +80,13 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
   // Fetch system metrics
   const fetchMetrics = useCallback(async () => {
     try {
-      const response = await fetchSystemMetrics('/api/system/metrics');
+      const response = await fetchSystemMetrics();
       if (response && !response.error) {
         setSystemMetrics(response);
         setLastUpdated(new Date());
       }
     } catch (err) {
-      console.error('Error fetching system metrics:', err);
+      console.error("Error fetching system metrics:", err);
     }
   }, [fetchSystemMetrics]);
 
@@ -92,17 +105,17 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
   // Get status color for containers
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'running':
-        return 'success';
-      case 'stopped':
-      case 'exited':
-        return 'error';
-      case 'paused':
-        return 'warning';
-      case 'restarting':
-        return 'info';
+      case "running":
+        return "success";
+      case "stopped":
+      case "exited":
+        return "error";
+      case "paused":
+        return "warning";
+      case "restarting":
+        return "info";
       default:
-        return 'default';
+        return "default";
     }
   };
 
@@ -110,7 +123,9 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
   const getContainerHealthPercentage = () => {
     if (!systemMetrics) return 0;
     const { containers_total, containers_running } = systemMetrics;
-    return containers_total > 0 ? (containers_running / containers_total) * 100 : 0;
+    return containers_total > 0
+      ? (containers_running / containers_total) * 100
+      : 0;
   };
 
   if (error) {
@@ -120,7 +135,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
           System Overview
         </Typography>
         <Typography color="error">
-          Failed to load system metrics: {error}
+          Failed to load system metrics: {error.message}
         </Typography>
       </Paper>
     );
@@ -129,7 +144,12 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="h5">System Overview</Typography>
         <Box display="flex" alignItems="center" gap={1}>
           {lastUpdated && (
@@ -159,7 +179,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                   <ContainerIcon sx={{ mr: 1 }} />
                   <Typography variant="h6">Container Status</Typography>
                 </Box>
-                
+
                 <Box mb={2}>
                   <Typography variant="h3" color="primary">
                     {systemMetrics.containers_running}
@@ -176,22 +196,29 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                   <LinearProgress
                     variant="determinate"
                     value={getContainerHealthPercentage()}
-                    color={getContainerHealthPercentage() > 80 ? 'success' : 
-                           getContainerHealthPercentage() > 50 ? 'warning' : 'error'}
+                    color={
+                      getContainerHealthPercentage() > 80
+                        ? "success"
+                        : getContainerHealthPercentage() > 50
+                          ? "warning"
+                          : "error"
+                    }
                     sx={{ height: 8, borderRadius: 4 }}
                   />
                 </Box>
 
                 <Box display="flex" flexWrap="wrap" gap={1}>
-                  {Object.entries(systemMetrics.containers_by_status).map(([status, count]) => (
-                    <Chip
-                      key={status}
-                      label={`${status}: ${count}`}
-                      color={getStatusColor(status)}
-                      size="small"
-                      variant="outlined"
-                    />
-                  ))}
+                  {Object.entries(systemMetrics.containers_by_status).map(
+                    ([status, count]) => (
+                      <Chip
+                        key={status}
+                        label={`${status}: ${count}`}
+                        color={getStatusColor(status)}
+                        size="small"
+                        variant="outlined"
+                      />
+                    )
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -205,7 +232,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                   <ComputerIcon sx={{ mr: 1 }} />
                   <Typography variant="h6">System Resources</Typography>
                 </Box>
-                
+
                 <List dense>
                   <ListItem>
                     <ListItemIcon>
@@ -216,17 +243,19 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                       secondary={`${systemMetrics.system_info.cpus} cores`}
                     />
                   </ListItem>
-                  
+
                   <ListItem>
                     <ListItemIcon>
                       <MemoryIcon />
                     </ListItemIcon>
                     <ListItemText
                       primary="Total Memory"
-                      secondary={formatBytes(systemMetrics.system_info.total_memory)}
+                      secondary={formatBytes(
+                        systemMetrics.system_info.total_memory
+                      )}
                     />
                   </ListItem>
-                  
+
                   <ListItem>
                     <ListItemIcon>
                       <StorageIcon />
@@ -248,7 +277,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                 <Typography variant="h6" gutterBottom>
                   System Information
                 </Typography>
-                
+
                 <Grid container spacing={2}>
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="body2" color="textSecondary">
@@ -258,7 +287,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                       {systemMetrics.system_info.docker_version}
                     </Typography>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="body2" color="textSecondary">
                       Operating System
@@ -267,7 +296,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                       {systemMetrics.system_info.operating_system}
                     </Typography>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="body2" color="textSecondary">
                       Kernel Version
@@ -276,7 +305,7 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
                       {systemMetrics.system_info.kernel_version}
                     </Typography>
                   </Grid>
-                  
+
                   <Grid item xs={12} sm={6} md={3}>
                     <Typography variant="body2" color="textSecondary">
                       Last Updated

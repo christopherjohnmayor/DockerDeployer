@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -11,14 +11,14 @@ import {
   Button,
   CircularProgress,
   Alert,
-} from '@mui/material';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { useTheme } from '@mui/material/styles';
-import { subHours, subDays, subWeeks } from 'date-fns';
-import MetricsChart, { MetricDataPoint } from './MetricsChart';
-import { useApiCall } from '../hooks/useApiCall';
+} from "@mui/material";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { useTheme } from "@mui/material/styles";
+import { subHours, subDays, subWeeks } from "date-fns";
+import MetricsChart, { MetricDataPoint } from "./MetricsChart";
+import { useApiCall } from "../hooks/useApiCall";
 
 interface HistoricalMetric {
   id: number;
@@ -41,7 +41,7 @@ interface MetricsHistoryProps {
 
 const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
   const theme = useTheme();
-  const [timeRange, setTimeRange] = useState('24h');
+  const [timeRange, setTimeRange] = useState("24h");
   const [customStartDate, setCustomStartDate] = useState<Date | null>(null);
   const [customEndDate, setCustomEndDate] = useState<Date | null>(null);
   const [historicalData, setHistoricalData] = useState<HistoricalMetric[]>([]);
@@ -65,19 +65,19 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
 
   // Time range options
   const timeRangeOptions = [
-    { value: '1h', label: 'Last Hour', hours: 1 },
-    { value: '6h', label: 'Last 6 Hours', hours: 6 },
-    { value: '24h', label: 'Last 24 Hours', hours: 24 },
-    { value: '7d', label: 'Last 7 Days', hours: 168 },
-    { value: '30d', label: 'Last 30 Days', hours: 720 },
-    { value: 'custom', label: 'Custom Range', hours: 0 },
+    { value: "1h", label: "Last Hour", hours: 1 },
+    { value: "6h", label: "Last 6 Hours", hours: 6 },
+    { value: "24h", label: "Last 24 Hours", hours: 24 },
+    { value: "7d", label: "Last 7 Days", hours: 168 },
+    { value: "30d", label: "Last 30 Days", hours: 720 },
+    { value: "custom", label: "Custom Range", hours: 0 },
   ];
 
   // Format bytes to human readable format
   const formatBytes = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   }, []);
@@ -96,7 +96,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
     const diskRead: MetricDataPoint[] = [];
     const diskWrite: MetricDataPoint[] = [];
 
-    data.forEach(metric => {
+    data.forEach((metric) => {
       const timestamp = metric.timestamp;
 
       cpu.push({
@@ -144,15 +144,17 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
   const fetchMetrics = useCallback(async () => {
     try {
       let hours = 24; // default
-      
-      if (timeRange === 'custom') {
+
+      if (timeRange === "custom") {
         if (!customStartDate || !customEndDate) {
           return;
         }
         const diffMs = customEndDate.getTime() - customStartDate.getTime();
         hours = Math.ceil(diffMs / (1000 * 60 * 60));
       } else {
-        const selectedRange = timeRangeOptions.find(option => option.value === timeRange);
+        const selectedRange = timeRangeOptions.find(
+          (option) => option.value === timeRange
+        );
         hours = selectedRange?.hours || 24;
       }
 
@@ -165,9 +167,17 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
         convertToChartData(response.metrics);
       }
     } catch (err) {
-      console.error('Error fetching historical metrics:', err);
+      console.error("Error fetching historical metrics:", err);
     }
-  }, [containerId, timeRange, customStartDate, customEndDate, fetchHistoricalMetrics, timeRangeOptions, convertToChartData]);
+  }, [
+    containerId,
+    timeRange,
+    customStartDate,
+    customEndDate,
+    fetchHistoricalMetrics,
+    timeRangeOptions,
+    convertToChartData,
+  ]);
 
   // Effect to fetch data when parameters change
   useEffect(() => {
@@ -177,7 +187,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
   // Handle time range change
   const handleTimeRangeChange = (value: string) => {
     setTimeRange(value);
-    if (value !== 'custom') {
+    if (value !== "custom") {
       setCustomStartDate(null);
       setCustomEndDate(null);
     }
@@ -196,7 +206,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
           <Typography variant="h6" gutterBottom>
             Historical Metrics
           </Typography>
-          
+
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={6} md={3}>
               <FormControl fullWidth size="small">
@@ -206,7 +216,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
                   label="Time Range"
                   onChange={(e) => handleTimeRangeChange(e.target.value)}
                 >
-                  {timeRangeOptions.map(option => (
+                  {timeRangeOptions.map((option) => (
                     <MenuItem key={option.value} value={option.value}>
                       {option.label}
                     </MenuItem>
@@ -215,14 +225,16 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
               </FormControl>
             </Grid>
 
-            {timeRange === 'custom' && (
+            {timeRange === "custom" && (
               <>
                 <Grid item xs={12} sm={6} md={3}>
                   <DateTimePicker
                     label="Start Date"
                     value={customStartDate}
                     onChange={setCustomStartDate}
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} md={3}>
@@ -230,7 +242,9 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
                     label="End Date"
                     value={customEndDate}
                     onChange={setCustomEndDate}
-                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                    slotProps={{
+                      textField: { size: "small", fullWidth: true },
+                    }}
                   />
                 </Grid>
               </>
@@ -243,7 +257,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
                 disabled={loading}
                 fullWidth
               >
-                {loading ? <CircularProgress size={20} /> : 'Refresh'}
+                {loading ? <CircularProgress size={20} /> : "Refresh"}
               </Button>
             </Grid>
           </Grid>

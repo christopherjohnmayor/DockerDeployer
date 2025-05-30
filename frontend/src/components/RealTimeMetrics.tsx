@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -11,15 +11,15 @@ import {
   Tooltip,
   Switch,
   FormControlLabel,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Refresh as RefreshIcon,
   PlayArrow as PlayIcon,
   Pause as PauseIcon,
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import MetricsChart, { MetricDataPoint } from './MetricsChart';
-import { useApiCall } from '../hooks/useApiCall';
+} from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import MetricsChart, { MetricDataPoint } from "./MetricsChart";
+import { useApiCall } from "../hooks/useApiCall";
 
 interface ContainerStats {
   container_id: string;
@@ -65,9 +65,9 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
 
   // Format bytes to human readable format
   const formatBytes = useCallback((bytes: number): string => {
-    if (bytes === 0) return '0 B';
+    if (bytes === 0) return "0 B";
     const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const sizes = ["B", "KB", "MB", "GB", "TB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
   }, []);
@@ -86,7 +86,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
         const timestamp = new Date().toISOString();
 
         // Add new data points
-        setMetricsHistory(prev => {
+        setMetricsHistory((prev) => {
           const newCpuPoint: MetricDataPoint = {
             timestamp,
             value: stats.cpu_percent || 0,
@@ -99,24 +99,29 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
 
           const newNetworkPoint: MetricDataPoint = {
             timestamp,
-            value: (stats.network_rx_bytes + stats.network_tx_bytes) / 1024 / 1024, // MB
+            value:
+              (stats.network_rx_bytes + stats.network_tx_bytes) / 1024 / 1024, // MB
           };
 
           const newDiskPoint: MetricDataPoint = {
             timestamp,
-            value: (stats.block_read_bytes + stats.block_write_bytes) / 1024 / 1024, // MB
+            value:
+              (stats.block_read_bytes + stats.block_write_bytes) / 1024 / 1024, // MB
           };
 
           return {
             cpu: [...prev.cpu.slice(-maxDataPoints + 1), newCpuPoint],
             memory: [...prev.memory.slice(-maxDataPoints + 1), newMemoryPoint],
-            network: [...prev.network.slice(-maxDataPoints + 1), newNetworkPoint],
+            network: [
+              ...prev.network.slice(-maxDataPoints + 1),
+              newNetworkPoint,
+            ],
             disk: [...prev.disk.slice(-maxDataPoints + 1), newDiskPoint],
           };
         });
       }
     } catch (err) {
-      console.error('Error fetching container stats:', err);
+      console.error("Error fetching container stats:", err);
     }
   }, [containerId, fetchStats, maxDataPoints]);
 
@@ -125,7 +130,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
     if (!isAutoRefresh) return;
 
     const interval = setInterval(fetchCurrentStats, refreshInterval);
-    
+
     // Initial fetch
     fetchCurrentStats();
 
@@ -145,29 +150,40 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
   // Get status color
   const getStatusColor = (status: string) => {
     switch (status?.toLowerCase()) {
-      case 'running':
-        return 'success';
-      case 'stopped':
-        return 'error';
-      case 'paused':
-        return 'warning';
+      case "running":
+        return "success";
+      case "stopped":
+        return "error";
+      case "paused":
+        return "warning";
       default:
-        return 'default';
+        return "default";
     }
   };
 
   // Get current stats for display
-  const currentStats = metricsHistory.cpu.length > 0 ? {
-    cpu: metricsHistory.cpu[metricsHistory.cpu.length - 1]?.value || 0,
-    memory: metricsHistory.memory[metricsHistory.memory.length - 1]?.value || 0,
-    network: metricsHistory.network[metricsHistory.network.length - 1]?.value || 0,
-    disk: metricsHistory.disk[metricsHistory.disk.length - 1]?.value || 0,
-  } : null;
+  const currentStats =
+    metricsHistory.cpu.length > 0
+      ? {
+          cpu: metricsHistory.cpu[metricsHistory.cpu.length - 1]?.value || 0,
+          memory:
+            metricsHistory.memory[metricsHistory.memory.length - 1]?.value || 0,
+          network:
+            metricsHistory.network[metricsHistory.network.length - 1]?.value ||
+            0,
+          disk: metricsHistory.disk[metricsHistory.disk.length - 1]?.value || 0,
+        }
+      : null;
 
   return (
     <Box>
       {/* Controls */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
         <Typography variant="h6">Real-time Metrics</Typography>
         <Box display="flex" alignItems="center" gap={1}>
           <FormControlLabel
@@ -211,14 +227,26 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
                   {formatPercentage(currentStats.cpu)}
                 </Typography>
                 <Chip
-                  label={currentStats.cpu > 80 ? 'High' : currentStats.cpu > 50 ? 'Medium' : 'Low'}
-                  color={currentStats.cpu > 80 ? 'error' : currentStats.cpu > 50 ? 'warning' : 'success'}
+                  label={
+                    currentStats.cpu > 80
+                      ? "High"
+                      : currentStats.cpu > 50
+                        ? "Medium"
+                        : "Low"
+                  }
+                  color={
+                    currentStats.cpu > 80
+                      ? "error"
+                      : currentStats.cpu > 50
+                        ? "warning"
+                        : "success"
+                  }
                   size="small"
                 />
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -229,14 +257,26 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
                   {formatPercentage(currentStats.memory)}
                 </Typography>
                 <Chip
-                  label={currentStats.memory > 80 ? 'High' : currentStats.memory > 50 ? 'Medium' : 'Low'}
-                  color={currentStats.memory > 80 ? 'error' : currentStats.memory > 50 ? 'warning' : 'success'}
+                  label={
+                    currentStats.memory > 80
+                      ? "High"
+                      : currentStats.memory > 50
+                        ? "Medium"
+                        : "Low"
+                  }
+                  color={
+                    currentStats.memory > 80
+                      ? "error"
+                      : currentStats.memory > 50
+                        ? "warning"
+                        : "success"
+                  }
                   size="small"
                 />
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -252,7 +292,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
               </CardContent>
             </Card>
           </Grid>
-          
+
           <Grid item xs={12} sm={6} md={3}>
             <Card>
               <CardContent>
@@ -285,7 +325,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
             error={error}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <MetricsChart
             title="Memory Usage"
@@ -298,7 +338,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
             error={error}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <MetricsChart
             title="Network I/O"
@@ -311,7 +351,7 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
             error={error}
           />
         </Grid>
-        
+
         <Grid item xs={12} md={6}>
           <MetricsChart
             title="Disk I/O"

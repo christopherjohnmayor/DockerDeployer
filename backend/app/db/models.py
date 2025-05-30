@@ -225,4 +225,5 @@ class MetricsAlert(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    user = relationship("User")
+    creator = relationship("User", foreign_keys=[created_by])
+    acknowledger = relationship("User", foreign_keys=[acknowledged_by])

@@ -1,0 +1,45 @@
+# Development Dockerfile for DockerDeployer Backend
+# Optimized for hot reloading and development workflow
+
+FROM python:3.10-slim
+
+# Set environment variables for development
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    ENVIRONMENT=development
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies including Docker CLI
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    git \
+    docker.io \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt requirements-dev.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# Create necessary directories
+RUN mkdir -p /app/data /app/config_repo
+
+# Copy application code (will be overridden by volume mount in development)
+COPY . .
+
+# Running as root for Docker socket access - this is intentional for Docker management tools
+# In development, this allows the container to manage Docker on the host
+
+# Expose port
+EXPOSE 8000
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
+
+# Development command with auto-reload
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

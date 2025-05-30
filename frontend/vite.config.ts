@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
+import path from "node:path";
 
 export default defineConfig({
   plugins: [react()],
@@ -16,18 +16,37 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 3000,
     open: false, // Disable auto-open in Docker
+    watch: {
+      usePolling: true, // Enable polling for Docker volume mounts
+    },
     proxy: {
       "/api": {
-        target: "http://backend:8000",
+        target: process.env.DOCKER_ENV
+          ? "http://backend:8000"
+          : "http://localhost:8000",
         changeOrigin: true,
+        secure: false,
         // rewrite: (path) => path.replace(/^\/api/, ''),
       },
       "/auth": {
-        target: "http://backend:8000",
+        target: process.env.DOCKER_ENV
+          ? "http://backend:8000"
+          : "http://localhost:8000",
         changeOrigin: true,
+        secure: false,
       },
       "/nlp": {
-        target: "http://backend:8000",
+        target: process.env.DOCKER_ENV
+          ? "http://backend:8000"
+          : "http://localhost:8000",
+        changeOrigin: true,
+        secure: false,
+      },
+      "/ws": {
+        target: process.env.DOCKER_ENV
+          ? "ws://backend:8000"
+          : "ws://localhost:8000",
+        ws: true,
         changeOrigin: true,
       },
     },

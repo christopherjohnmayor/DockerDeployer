@@ -200,7 +200,7 @@ class AlertNotificationService:
                 "acknowledged_by": user_id
             }
 
-            await self.connection_manager.send_personal_message(notification, alert.user_id)
+            await self.connection_manager.send_personal_message(notification, alert.created_by)
 
             logger.info(f"Alert {alert_id} acknowledged by user {user_id}")
             return True

@@ -125,11 +125,53 @@ DockerDeployer/
 
 3. Access the application at http://localhost:5173
 
-### Using Docker Compose (Recommended)
+### 🐳 Docker Deployment (Recommended)
+
+For the best development experience with hot reloading and isolated environments:
+
+#### Quick Start (One Command)
 
 ```bash
-docker-compose up -d
+./scripts/deploy-dev.sh
 ```
+
+This script will:
+
+- Build optimized development containers
+- Start all services (Frontend, Backend, Redis)
+- Configure hot reloading for both frontend and backend
+- Set up proper networking and volumes
+- Display service URLs and status
+
+#### Manual Docker Deployment
+
+```bash
+# Build and start all services
+docker-compose build
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+#### Service URLs
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/redoc
+- **Redis**: localhost:6379 (internal)
+
+#### Features
+
+- ✅ **Hot Reloading**: Both frontend and backend auto-reload on file changes
+- ✅ **Isolated Environment**: Complete containerization with proper networking
+- ✅ **Persistent Data**: Database and Redis data persist between restarts
+- ✅ **Development Optimized**: Fast builds and efficient development workflow
+
+For detailed Docker deployment instructions, see [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md).
 
 **Note**: The backend container runs with root privileges to access the Docker socket. This is a standard practice for Docker management applications. See [DOCKER_SECURITY.md](DOCKER_SECURITY.md) for detailed security information.
 
@@ -153,6 +195,7 @@ docker-compose up -d
 
 ### Additional Resources
 
+- [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) - **Complete containerized development setup**
 - [User Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/User-Guide)
 - [Developer Guide](https://github.com/christopherjohnmayor/DockerDeployer/wiki/Developer-Guide)
 - [Template System](TEMPLATES.md)
