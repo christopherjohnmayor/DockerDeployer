@@ -158,9 +158,11 @@ const SystemOverview: React.FC<SystemOverviewProps> = ({
             </Typography>
           )}
           <Tooltip title="Refresh">
-            <IconButton onClick={handleRefresh} disabled={loading}>
-              {loading ? <CircularProgress size={20} /> : <RefreshIcon />}
-            </IconButton>
+            <span>
+              <IconButton onClick={handleRefresh} disabled={loading}>
+                {loading ? <CircularProgress size={20} /> : <RefreshIcon />}
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </Box>

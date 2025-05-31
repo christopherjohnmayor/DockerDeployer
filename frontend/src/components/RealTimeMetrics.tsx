@@ -182,19 +182,21 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
             label="Auto-refresh"
           />
           <Tooltip title="Refresh now">
-            <IconButton
-              onClick={handleManualRefresh}
-              disabled={loading}
-              size="small"
-            >
-              {loading ? (
-                <CircularProgress size={20} />
-              ) : isAutoRefresh ? (
-                <PauseIcon />
-              ) : (
-                <RefreshIcon />
-              )}
-            </IconButton>
+            <span>
+              <IconButton
+                onClick={handleManualRefresh}
+                disabled={loading}
+                size="small"
+              >
+                {loading ? (
+                  <CircularProgress size={20} />
+                ) : isAutoRefresh ? (
+                  <PauseIcon />
+                ) : (
+                  <RefreshIcon />
+                )}
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </Box>

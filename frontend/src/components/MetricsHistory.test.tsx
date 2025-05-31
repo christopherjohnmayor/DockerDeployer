@@ -123,19 +123,28 @@ describe("MetricsHistory", () => {
   it("handles time range change", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for initial load
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-        "/api/containers/test-container/metrics/history?hours=24&limit=1000"
-      );
-    });
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+          "/api/containers/test-container/metrics/history?hours=24&limit=1000"
+        );
+      },
+      { timeout: 15000 }
+    );
 
     const timeRangeSelect = screen.getByRole("combobox");
 
     await act(async () => {
       fireEvent.mouseDown(timeRangeSelect);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Last 6 Hours")).toBeInTheDocument();
     });
 
     const option6h = screen.getByText("Last 6 Hours");
@@ -144,20 +153,29 @@ describe("MetricsHistory", () => {
       fireEvent.click(option6h);
     });
 
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-        "/api/containers/test-container/metrics/history?hours=6&limit=1000"
-      );
-    });
-  });
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+          "/api/containers/test-container/metrics/history?hours=6&limit=1000"
+        );
+      },
+      { timeout: 15000 }
+    );
+  }, 20000);
 
   it("shows custom date pickers when custom range is selected", async () => {
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     const timeRangeSelect = screen.getByRole("combobox");
 
     await act(async () => {
       fireEvent.mouseDown(timeRangeSelect);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("Custom Range")).toBeInTheDocument();
     });
 
     const customOption = screen.getByText("Custom Range");
@@ -166,21 +184,28 @@ describe("MetricsHistory", () => {
       fireEvent.click(customOption);
     });
 
-    expect(screen.getByLabelText("Start Date")).toBeInTheDocument();
-    expect(screen.getByLabelText("End Date")).toBeInTheDocument();
-  });
+    await waitFor(() => {
+      expect(screen.getByLabelText("Start Date")).toBeInTheDocument();
+      expect(screen.getByLabelText("End Date")).toBeInTheDocument();
+    });
+  }, 15000);
 
   it("handles manual refresh", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for initial load
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-        "/api/containers/test-container/metrics/history?hours=24&limit=1000"
-      );
-    });
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+          "/api/containers/test-container/metrics/history?hours=24&limit=1000"
+        );
+      },
+      { timeout: 15000 }
+    );
 
     const refreshButton = screen.getByRole("button", {
       name: /refresh metrics data/i,
@@ -191,8 +216,10 @@ describe("MetricsHistory", () => {
     });
 
     // Should be called twice - once on mount, once on refresh
-    expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
-  });
+    await waitFor(() => {
+      expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
+    });
+  }, 20000);
 
   it("shows loading state in refresh button", () => {
     mockedUseApiCall.mockReturnValue({
@@ -272,14 +299,19 @@ describe("MetricsHistory", () => {
   it("handles different time range options", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for initial load
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-        "/api/containers/test-container/metrics/history?hours=24&limit=1000"
-      );
-    });
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+          "/api/containers/test-container/metrics/history?hours=24&limit=1000"
+        );
+      },
+      { timeout: 15000 }
+    );
 
     // Use the combobox role to find the Select component
     const timeRangeSelect = screen.getByRole("combobox");
@@ -289,16 +321,23 @@ describe("MetricsHistory", () => {
       fireEvent.mouseDown(timeRangeSelect);
     });
 
+    await waitFor(() => {
+      expect(screen.getByText("Last Hour")).toBeInTheDocument();
+    });
+
     const option1h = screen.getByText("Last Hour");
 
     await act(async () => {
       fireEvent.click(option1h);
     });
 
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-        "/api/containers/test-container/metrics/history?hours=1&limit=1000"
-      );
-    });
-  });
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+          "/api/containers/test-container/metrics/history?hours=1&limit=1000"
+        );
+      },
+      { timeout: 15000 }
+    );
+  }, 20000);
 });

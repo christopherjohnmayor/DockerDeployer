@@ -43,10 +43,12 @@ class TestCacheService:
     @pytest.mark.asyncio
     async def test_connect_failure(self, cache_service):
         """Test Redis connection failure."""
+        from redis.exceptions import RedisError
+
         with patch("redis.asyncio.from_url") as mock_from_url:
             mock_client = AsyncMock()
             mock_from_url.return_value = mock_client
-            mock_client.ping.side_effect = Exception("Connection failed")
+            mock_client.ping.side_effect = RedisError("Connection failed")
 
             result = await cache_service.connect()
 
