@@ -10,9 +10,10 @@ This service handles:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
+
+from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_
 
 from app.db.models import ContainerMetrics, MetricsAlert, User
 from docker_manager.manager import DockerManager
@@ -84,10 +85,7 @@ class MetricsService:
         return self.docker_manager.get_container_stats(container_id)
 
     def get_historical_metrics(
-        self,
-        container_id: str,
-        hours: int = 24,
-        limit: int = 1000
+        self, container_id: str, hours: int = 24, limit: int = 1000
     ) -> List[Dict[str, Any]]:
         """
         Get historical metrics for a container.
@@ -106,33 +104,40 @@ class MetricsService:
             start_time = end_time - timedelta(hours=hours)
 
             # Query historical metrics
-            metrics_query = self.db.query(ContainerMetrics).filter(
-                and_(
-                    ContainerMetrics.container_id == container_id,
-                    ContainerMetrics.timestamp >= start_time,
-                    ContainerMetrics.timestamp <= end_time
+            metrics_query = (
+                self.db.query(ContainerMetrics)
+                .filter(
+                    and_(
+                        ContainerMetrics.container_id == container_id,
+                        ContainerMetrics.timestamp >= start_time,
+                        ContainerMetrics.timestamp <= end_time,
+                    )
                 )
-            ).order_by(desc(ContainerMetrics.timestamp)).limit(limit)
+                .order_by(desc(ContainerMetrics.timestamp))
+                .limit(limit)
+            )
 
             metrics = metrics_query.all()
 
             # Convert to dictionaries
             result = []
             for metric in metrics:
-                result.append({
-                    "id": metric.id,
-                    "container_id": metric.container_id,
-                    "container_name": metric.container_name,
-                    "timestamp": metric.timestamp.isoformat(),
-                    "cpu_percent": metric.cpu_percent,
-                    "memory_usage": metric.memory_usage,
-                    "memory_limit": metric.memory_limit,
-                    "memory_percent": metric.memory_percent,
-                    "network_rx_bytes": metric.network_rx_bytes,
-                    "network_tx_bytes": metric.network_tx_bytes,
-                    "block_read_bytes": metric.block_read_bytes,
-                    "block_write_bytes": metric.block_write_bytes,
-                })
+                result.append(
+                    {
+                        "id": metric.id,
+                        "container_id": metric.container_id,
+                        "container_name": metric.container_name,
+                        "timestamp": metric.timestamp.isoformat(),
+                        "cpu_percent": metric.cpu_percent,
+                        "memory_usage": metric.memory_usage,
+                        "memory_limit": metric.memory_limit,
+                        "memory_percent": metric.memory_percent,
+                        "network_rx_bytes": metric.network_rx_bytes,
+                        "network_tx_bytes": metric.network_tx_bytes,
+                        "block_read_bytes": metric.block_read_bytes,
+                        "block_write_bytes": metric.block_write_bytes,
+                    }
+                )
 
             return result
 
@@ -162,9 +167,11 @@ class MetricsService:
         try:
             cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-            deleted_count = self.db.query(ContainerMetrics).filter(
-                ContainerMetrics.timestamp < cutoff_date
-            ).delete()
+            deleted_count = (
+                self.db.query(ContainerMetrics)
+                .filter(ContainerMetrics.timestamp < cutoff_date)
+                .delete()
+            )
 
             self.db.commit()
 
@@ -184,7 +191,7 @@ class MetricsService:
         metric_type: str,
         threshold_value: float,
         comparison_operator: str,
-        description: Optional[str] = None
+        description: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new metrics alert.
@@ -251,28 +258,35 @@ class MetricsService:
             List of user alerts
         """
         try:
-            alerts = self.db.query(MetricsAlert).filter(
-                MetricsAlert.created_by == user_id
-            ).order_by(desc(MetricsAlert.created_at)).all()
+            alerts = (
+                self.db.query(MetricsAlert)
+                .filter(MetricsAlert.created_by == user_id)
+                .order_by(desc(MetricsAlert.created_at))
+                .all()
+            )
 
             result = []
             for alert in alerts:
-                result.append({
-                    "id": alert.id,
-                    "name": alert.name,
-                    "description": alert.description,
-                    "container_id": alert.container_id,
-                    "container_name": alert.container_name,
-                    "metric_type": alert.metric_type,
-                    "threshold_value": alert.threshold_value,
-                    "comparison_operator": alert.comparison_operator,
-                    "is_active": alert.is_active,
-                    "is_triggered": alert.is_triggered,
-                    "last_triggered_at": alert.last_triggered_at.isoformat() if alert.last_triggered_at else None,
-                    "trigger_count": alert.trigger_count,
-                    "created_at": alert.created_at.isoformat(),
-                    "updated_at": alert.updated_at.isoformat(),
-                })
+                result.append(
+                    {
+                        "id": alert.id,
+                        "name": alert.name,
+                        "description": alert.description,
+                        "container_id": alert.container_id,
+                        "container_name": alert.container_name,
+                        "metric_type": alert.metric_type,
+                        "threshold_value": alert.threshold_value,
+                        "comparison_operator": alert.comparison_operator,
+                        "is_active": alert.is_active,
+                        "is_triggered": alert.is_triggered,
+                        "last_triggered_at": alert.last_triggered_at.isoformat()
+                        if alert.last_triggered_at
+                        else None,
+                        "trigger_count": alert.trigger_count,
+                        "created_at": alert.created_at.isoformat(),
+                        "updated_at": alert.updated_at.isoformat(),
+                    }
+                )
 
             return result
 
@@ -281,10 +295,7 @@ class MetricsService:
             return []
 
     def update_alert(
-        self,
-        alert_id: int,
-        user_id: int,
-        update_data: Dict[str, Any]
+        self, alert_id: int, user_id: int, update_data: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Update an existing metrics alert.
@@ -299,20 +310,27 @@ class MetricsService:
         """
         try:
             # Get the existing alert and verify ownership
-            alert = self.db.query(MetricsAlert).filter(
-                and_(
-                    MetricsAlert.id == alert_id,
-                    MetricsAlert.created_by == user_id
+            alert = (
+                self.db.query(MetricsAlert)
+                .filter(
+                    and_(
+                        MetricsAlert.id == alert_id, MetricsAlert.created_by == user_id
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if not alert:
                 return {"error": f"Alert {alert_id} not found or access denied"}
 
             # Update allowed fields
             allowed_fields = [
-                'name', 'description', 'metric_type', 'threshold_value',
-                'comparison_operator', 'is_active'
+                "name",
+                "description",
+                "metric_type",
+                "threshold_value",
+                "comparison_operator",
+                "is_active",
             ]
 
             for field, value in update_data.items():
@@ -337,7 +355,9 @@ class MetricsService:
                 "comparison_operator": alert.comparison_operator,
                 "is_active": alert.is_active,
                 "is_triggered": alert.is_triggered,
-                "last_triggered_at": alert.last_triggered_at.isoformat() if alert.last_triggered_at else None,
+                "last_triggered_at": alert.last_triggered_at.isoformat()
+                if alert.last_triggered_at
+                else None,
                 "trigger_count": alert.trigger_count,
                 "created_at": alert.created_at.isoformat(),
                 "updated_at": alert.updated_at.isoformat(),
@@ -361,12 +381,15 @@ class MetricsService:
         """
         try:
             # Get the existing alert and verify ownership
-            alert = self.db.query(MetricsAlert).filter(
-                and_(
-                    MetricsAlert.id == alert_id,
-                    MetricsAlert.created_by == user_id
+            alert = (
+                self.db.query(MetricsAlert)
+                .filter(
+                    and_(
+                        MetricsAlert.id == alert_id, MetricsAlert.created_by == user_id
+                    )
                 )
-            ).first()
+                .first()
+            )
 
             if not alert:
                 return {"error": f"Alert {alert_id} not found or access denied"}
@@ -383,7 +406,9 @@ class MetricsService:
             self.db.rollback()
             return {"error": f"Failed to delete alert: {str(e)}"}
 
-    def check_alerts(self, container_id: str, current_metrics: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def check_alerts(
+        self, container_id: str, current_metrics: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Check if any alerts should be triggered based on current metrics.
 
@@ -396,12 +421,16 @@ class MetricsService:
         """
         try:
             # Get active alerts for this container
-            alerts = self.db.query(MetricsAlert).filter(
-                and_(
-                    MetricsAlert.container_id == container_id,
-                    MetricsAlert.is_active == True
+            alerts = (
+                self.db.query(MetricsAlert)
+                .filter(
+                    and_(
+                        MetricsAlert.container_id == container_id,
+                        MetricsAlert.is_active == True,
+                    )
                 )
-            ).all()
+                .all()
+            )
 
             triggered_alerts = []
 
@@ -413,9 +442,7 @@ class MetricsService:
 
                 # Check if alert condition is met
                 should_trigger = self._evaluate_alert_condition(
-                    metric_value,
-                    alert.threshold_value,
-                    alert.comparison_operator
+                    metric_value, alert.threshold_value, alert.comparison_operator
                 )
 
                 if should_trigger and not alert.is_triggered:
@@ -424,17 +451,19 @@ class MetricsService:
                     alert.last_triggered_at = datetime.utcnow()
                     alert.trigger_count += 1
 
-                    triggered_alerts.append({
-                        "alert": alert,
-                        "alert_id": alert.id,
-                        "alert_name": alert.name,
-                        "container_id": alert.container_id,
-                        "container_name": alert.container_name,
-                        "metric_type": alert.metric_type,
-                        "metric_value": metric_value,
-                        "threshold_value": alert.threshold_value,
-                        "comparison_operator": alert.comparison_operator,
-                    })
+                    triggered_alerts.append(
+                        {
+                            "alert": alert,
+                            "alert_id": alert.id,
+                            "alert_name": alert.name,
+                            "container_id": alert.container_id,
+                            "container_name": alert.container_name,
+                            "metric_type": alert.metric_type,
+                            "metric_value": metric_value,
+                            "threshold_value": alert.threshold_value,
+                            "comparison_operator": alert.comparison_operator,
+                        }
+                    )
 
                 elif not should_trigger and alert.is_triggered:
                     # Reset the alert
@@ -442,7 +471,9 @@ class MetricsService:
 
             if triggered_alerts:
                 self.db.commit()
-                logger.info(f"Triggered {len(triggered_alerts)} alerts for container {container_id}")
+                logger.info(
+                    f"Triggered {len(triggered_alerts)} alerts for container {container_id}"
+                )
 
                 # Send notifications for triggered alerts
                 self._send_alert_notifications(triggered_alerts)
@@ -455,10 +486,7 @@ class MetricsService:
             return []
 
     def _evaluate_alert_condition(
-        self,
-        metric_value: float,
-        threshold_value: float,
-        comparison_operator: str
+        self, metric_value: float, threshold_value: float, comparison_operator: str
     ) -> bool:
         """
         Evaluate if an alert condition is met.
@@ -500,14 +528,18 @@ class MetricsService:
         """
         try:
             # Import here to avoid circular imports
-            from app.services.alert_notification_service import AlertNotificationService
-            import redis.asyncio as redis
             import asyncio
+
+            import redis.asyncio as redis
+
+            from app.services.alert_notification_service import AlertNotificationService
 
             # Initialize Redis client
             redis_client = None
             try:
-                redis_client = redis.from_url("redis://localhost:6379", decode_responses=True)
+                redis_client = redis.from_url(
+                    "redis://localhost:6379", decode_responses=True
+                )
             except Exception as e:
                 logger.warning(f"Redis not available for notifications: {e}")
 
@@ -522,15 +554,22 @@ class MetricsService:
 
                     # Get the user who created the alert
                     from app.db.models import User
-                    user = self.db.query(User).filter(User.id == alert.created_by).first()
+
+                    user = (
+                        self.db.query(User).filter(User.id == alert.created_by).first()
+                    )
                     if user:
                         # Run the async notification in a new event loop
                         asyncio.create_task(
-                            notification_service.notify_alert_triggered(alert, metric_value, user)
+                            notification_service.notify_alert_triggered(
+                                alert, metric_value, user
+                            )
                         )
 
                 except Exception as e:
-                    logger.error(f"Error sending notification for alert {alert_data.get('alert_id')}: {e}")
+                    logger.error(
+                        f"Error sending notification for alert {alert_data.get('alert_id')}: {e}"
+                    )
 
         except Exception as e:
             logger.error(f"Error in alert notification system: {e}")

@@ -3,30 +3,31 @@ Comprehensive tests for the rate limiting middleware.
 """
 
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
 from fastapi import Request, Response, status
 from fastapi.testclient import TestClient
 from slowapi.errors import RateLimitExceeded
 
-from app.middleware.rate_limiting import (
-    get_user_id_or_ip,
-    get_api_key_or_ip,
-    custom_rate_limit_exceeded_handler,
-    RateLimitingMiddleware,
-    setup_rate_limiting,
-    get_user_rate_limit_info,
-    reset_user_rate_limit,
-    limiter,
-    api_limiter,
-    rate_limit_auth,
-    rate_limit_api,
-    rate_limit_metrics,
-    rate_limit_websocket,
-    rate_limit_admin,
-    rate_limit_upload
-)
 from app.main import app
+from app.middleware.rate_limiting import (
+    RateLimitingMiddleware,
+    api_limiter,
+    custom_rate_limit_exceeded_handler,
+    get_api_key_or_ip,
+    get_user_id_or_ip,
+    get_user_rate_limit_info,
+    limiter,
+    rate_limit_admin,
+    rate_limit_api,
+    rate_limit_auth,
+    rate_limit_metrics,
+    rate_limit_upload,
+    rate_limit_websocket,
+    reset_user_rate_limit,
+    setup_rate_limiting,
+)
 
 
 class TestRateLimitingFunctions:
@@ -38,7 +39,7 @@ class TestRateLimitingFunctions:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "Bearer valid_token"
 
-        with patch('app.auth.jwt.decode_token') as mock_decode:
+        with patch("app.auth.jwt.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 123, "type": "access"}
 
             result = get_user_id_or_ip(mock_request)
@@ -50,10 +51,12 @@ class TestRateLimitingFunctions:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "Bearer invalid_token"
 
-        with patch('app.auth.jwt.decode_token') as mock_decode:
+        with patch("app.auth.jwt.decode_token") as mock_decode:
             mock_decode.side_effect = Exception("Invalid token")
 
-            with patch('app.middleware.rate_limiting.get_remote_address') as mock_get_ip:
+            with patch(
+                "app.middleware.rate_limiting.get_remote_address"
+            ) as mock_get_ip:
                 mock_get_ip.return_value = "192.168.1.1"
 
                 result = get_user_id_or_ip(mock_request)
@@ -65,7 +68,7 @@ class TestRateLimitingFunctions:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
 
-        with patch('app.middleware.rate_limiting.get_remote_address') as mock_get_ip:
+        with patch("app.middleware.rate_limiting.get_remote_address") as mock_get_ip:
             mock_get_ip.return_value = "192.168.1.1"
 
             result = get_user_id_or_ip(mock_request)
@@ -77,7 +80,7 @@ class TestRateLimitingFunctions:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = "InvalidHeader"
 
-        with patch('app.middleware.rate_limiting.get_remote_address') as mock_get_ip:
+        with patch("app.middleware.rate_limiting.get_remote_address") as mock_get_ip:
             mock_get_ip.return_value = "192.168.1.1"
 
             result = get_user_id_or_ip(mock_request)
@@ -97,7 +100,7 @@ class TestRateLimitingFunctions:
         mock_request = MagicMock()
         mock_request.headers.get.return_value = None
 
-        with patch('app.middleware.rate_limiting.get_remote_address') as mock_get_ip:
+        with patch("app.middleware.rate_limiting.get_remote_address") as mock_get_ip:
             mock_get_ip.return_value = "192.168.1.1"
 
             result = get_api_key_or_ip(mock_request)
@@ -120,7 +123,7 @@ class TestRateLimitExceededHandler:
         mock_exc.remaining = 0
         mock_exc.reset_time = 1640995200
 
-        with patch('app.middleware.rate_limiting.get_user_id_or_ip') as mock_get_id:
+        with patch("app.middleware.rate_limiting.get_user_id_or_ip") as mock_get_id:
             mock_get_id.return_value = "user:123"
 
             response = custom_rate_limit_exceeded_handler(mock_request, mock_exc)
@@ -145,7 +148,7 @@ class TestRateLimitExceededHandler:
         mock_exc.remaining = 0
         mock_exc.reset_time = None
 
-        with patch('app.middleware.rate_limiting.get_user_id_or_ip') as mock_get_id:
+        with patch("app.middleware.rate_limiting.get_user_id_or_ip") as mock_get_id:
             mock_get_id.return_value = "192.168.1.1"
 
             response = custom_rate_limit_exceeded_handler(mock_request, mock_exc)
@@ -201,7 +204,7 @@ class TestRateLimitingMiddleware:
             app=mock_app,
             limiter_instance=mock_limiter,
             exempt_paths=["/custom"],
-            enable_logging=False
+            enable_logging=False,
         )
 
         assert middleware.app == mock_app
@@ -214,10 +217,7 @@ class TestRateLimitingMiddleware:
         mock_app = MagicMock()
         mock_limiter = MagicMock()
 
-        middleware = RateLimitingMiddleware(
-            app=mock_app,
-            limiter_instance=mock_limiter
-        )
+        middleware = RateLimitingMiddleware(app=mock_app, limiter_instance=mock_limiter)
 
         expected_paths = ["/health", "/docs", "/redoc", "/openapi.json", "/favicon.ico"]
         for path in expected_paths:
@@ -299,8 +299,12 @@ class TestRateLimitingMiddleware:
         middleware = RateLimitingMiddleware(mock_app, mock_limiter)
 
         # Ensure we're not in testing mode and not on exempt path
-        with patch.dict(os.environ, {"TESTING": "false", "DISABLE_RATE_LIMITING": "false"}):
-            with patch('app.middleware.rate_limiting.custom_rate_limit_exceeded_handler') as mock_handler:
+        with patch.dict(
+            os.environ, {"TESTING": "false", "DISABLE_RATE_LIMITING": "false"}
+        ):
+            with patch(
+                "app.middleware.rate_limiting.custom_rate_limit_exceeded_handler"
+            ) as mock_handler:
                 mock_response = MagicMock()
                 mock_handler.return_value = mock_response
 
@@ -349,7 +353,7 @@ class TestRateLimitingMiddleware:
         mock_state.rate_limit_info = {
             "limit": 100,
             "remaining": 95,
-            "reset_time": 1640995200
+            "reset_time": 1640995200,
         }
         mock_request.state = mock_state
 
@@ -361,14 +365,17 @@ class TestRateLimitingMiddleware:
         middleware = RateLimitingMiddleware(mock_app, mock_limiter)
 
         # Ensure we're not in testing mode and not on exempt path
-        with patch.dict(os.environ, {"TESTING": "false", "DISABLE_RATE_LIMITING": "false"}):
+        with patch.dict(
+            os.environ, {"TESTING": "false", "DISABLE_RATE_LIMITING": "false"}
+        ):
             # Mock hasattr to return True for rate_limit_info
-            with patch('builtins.hasattr') as mock_hasattr:
+            with patch("builtins.hasattr") as mock_hasattr:
                 # Return True only for the rate_limit_info check
                 def hasattr_side_effect(obj, attr):
                     if attr == "rate_limit_info":
                         return True
                     return hasattr(obj, attr)
+
                 mock_hasattr.side_effect = hasattr_side_effect
 
                 result = await middleware(mock_request, mock_call_next)
@@ -405,16 +412,19 @@ class TestUtilityFunctions:
             "user_id": "user123",
             "current_usage": 0,
             "limit": 1000,
-            "reset_time": None
+            "reset_time": None,
         }
         assert result == expected
 
     @pytest.mark.asyncio
     async def test_get_user_rate_limit_info_exception(self):
         """Test getting user rate limit info with exception."""
-        with patch('app.middleware.rate_limiting.logger') as mock_logger:
+        with patch("app.middleware.rate_limiting.logger") as mock_logger:
             # Patch the function to raise an exception
-            with patch('app.middleware.rate_limiting.get_user_rate_limit_info', side_effect=Exception("Test error")):
+            with patch(
+                "app.middleware.rate_limiting.get_user_rate_limit_info",
+                side_effect=Exception("Test error"),
+            ):
                 try:
                     result = await get_user_rate_limit_info("user123")
                     # If no exception, this test should fail
@@ -438,7 +448,7 @@ class TestUtilityFunctions:
     @pytest.mark.asyncio
     async def test_reset_user_rate_limit_exception(self):
         """Test resetting user rate limit with exception."""
-        with patch('app.middleware.rate_limiting.logger') as mock_logger:
+        with patch("app.middleware.rate_limiting.logger") as mock_logger:
             # Mock an exception by patching the logger.info call
             mock_logger.info.side_effect = Exception("Test error")
 
@@ -455,12 +465,12 @@ class TestLimiterInstances:
         """Test main limiter configuration."""
         assert limiter is not None
         # Check that limiter has the expected attributes
-        assert hasattr(limiter, '_storage')
-        assert hasattr(limiter, '_default_limits')
+        assert hasattr(limiter, "_storage")
+        assert hasattr(limiter, "_default_limits")
 
     def test_api_limiter_configuration(self):
         """Test API limiter configuration."""
         assert api_limiter is not None
         # Check that api_limiter has the expected attributes
-        assert hasattr(api_limiter, '_storage')
-        assert hasattr(api_limiter, '_default_limits')
+        assert hasattr(api_limiter, "_storage")
+        assert hasattr(api_limiter, "_default_limits")

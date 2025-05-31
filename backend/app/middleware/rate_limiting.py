@@ -5,11 +5,11 @@ Rate limiting middleware for API endpoints.
 import logging
 from typing import Callable, Optional
 
-from fastapi import Request, Response, HTTPException, status
+from fastapi import HTTPException, Request, Response, status
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +75,20 @@ else:
 limiter = Limiter(
     key_func=get_user_id_or_ip,
     storage_uri=storage_uri,
-    default_limits=["1000/hour"]  # Default rate limit
+    default_limits=["1000/hour"],  # Default rate limit
 )
 
 # Create API-specific limiter
 api_limiter = Limiter(
     key_func=get_api_key_or_ip,
     storage_uri=storage_uri,
-    default_limits=["500/hour"]  # More restrictive for API keys
+    default_limits=["500/hour"],  # More restrictive for API keys
 )
 
 
-def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> Response:
+def custom_rate_limit_exceeded_handler(
+    request: Request, exc: RateLimitExceeded
+) -> Response:
     """
     Custom handler for rate limit exceeded errors.
 
@@ -111,7 +113,7 @@ def custom_rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded)
             "X-RateLimit-Limit": str(exc.limit),
             "X-RateLimit-Remaining": str(exc.remaining),
             "X-RateLimit-Reset": str(exc.reset_time) if exc.reset_time else "",
-        }
+        },
     )
 
     return response
@@ -158,7 +160,7 @@ class RateLimitingMiddleware:
         app,
         limiter_instance: Limiter,
         exempt_paths: Optional[list] = None,
-        enable_logging: bool = True
+        enable_logging: bool = True,
     ):
         """
         Initialize rate limiting middleware.
@@ -176,7 +178,7 @@ class RateLimitingMiddleware:
             "/docs",
             "/redoc",
             "/openapi.json",
-            "/favicon.ico"
+            "/favicon.ico",
         ]
         self.enable_logging = enable_logging
 
@@ -192,7 +194,10 @@ class RateLimitingMiddleware:
             HTTP response
         """
         # Skip rate limiting in test environment
-        if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        if (
+            os.getenv("TESTING") == "true"
+            or os.getenv("DISABLE_RATE_LIMITING") == "true"
+        ):
             return await call_next(request)
 
         # Skip rate limiting for exempt paths
@@ -211,7 +216,9 @@ class RateLimitingMiddleware:
             if hasattr(request.state, "rate_limit_info"):
                 info = request.state.rate_limit_info
                 response.headers["X-RateLimit-Limit"] = str(info.get("limit", ""))
-                response.headers["X-RateLimit-Remaining"] = str(info.get("remaining", ""))
+                response.headers["X-RateLimit-Remaining"] = str(
+                    info.get("remaining", "")
+                )
                 response.headers["X-RateLimit-Reset"] = str(info.get("reset_time", ""))
 
             return response
@@ -257,7 +264,7 @@ async def get_user_rate_limit_info(user_id: str) -> dict:
             "user_id": user_id,
             "current_usage": 0,
             "limit": 1000,
-            "reset_time": None
+            "reset_time": None,
         }
     except Exception as e:
         logger.error(f"Error getting rate limit info for user {user_id}: {e}")

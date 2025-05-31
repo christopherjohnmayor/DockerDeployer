@@ -2,8 +2,9 @@
 Tests for alerts API endpoints using proper dependency override system.
 """
 
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
@@ -27,14 +28,12 @@ class TestAlertsEndpoints:
     def unauthenticated_client(self):
         """Create an unauthenticated test client."""
         from app.main import app
+
         return TestClient(app)
 
     def test_create_alert_success(self, authenticated_client, sample_alert_data):
         """Test successful alert creation."""
-        response = authenticated_client.post(
-            "/api/alerts",
-            json=sample_alert_data
-        )
+        response = authenticated_client.post("/api/alerts", json=sample_alert_data)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -51,10 +50,7 @@ class TestAlertsEndpoints:
             "comparison_operator": ">",
         }
 
-        response = authenticated_client.post(
-            "/api/alerts",
-            json=incomplete_data
-        )
+        response = authenticated_client.post("/api/alerts", json=incomplete_data)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -62,19 +58,18 @@ class TestAlertsEndpoints:
         """Test alert creation with service error."""
         # Override the service to return an error
         from app.main import app, get_metrics_service
-        
+
         def override_get_metrics_service_error():
             mock_service = MagicMock()
             mock_service.create_alert.return_value = {"error": "Container not found"}
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_error
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_error
 
         try:
-            response = authenticated_client.post(
-                "/api/alerts",
-                json=sample_alert_data
-            )
+            response = authenticated_client.post("/api/alerts", json=sample_alert_data)
 
             assert response.status_code == status.HTTP_400_BAD_REQUEST
             assert "Container not found" in response.json()["detail"]
@@ -92,7 +87,7 @@ class TestAlertsEndpoints:
         """Test successful retrieval of user alerts."""
         # Override the service to return sample alerts
         from app.main import app, get_metrics_service
-        
+
         sample_alerts = [
             {
                 "id": 1,
@@ -117,7 +112,9 @@ class TestAlertsEndpoints:
             mock_service.get_user_alerts.return_value = sample_alerts
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_alerts
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_alerts
 
         try:
             response = authenticated_client.get("/api/alerts")
@@ -147,7 +144,7 @@ class TestAlertsEndpoints:
 
         # Override the service to return updated alert
         from app.main import app, get_metrics_service
-        
+
         def override_get_metrics_service_update():
             mock_service = MagicMock()
             mock_service.update_alert.return_value = {
@@ -164,13 +161,12 @@ class TestAlertsEndpoints:
             }
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_update
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_update
 
         try:
-            response = authenticated_client.put(
-                "/api/alerts/1",
-                json=update_data
-            )
+            response = authenticated_client.put("/api/alerts/1", json=update_data)
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
@@ -188,19 +184,20 @@ class TestAlertsEndpoints:
 
         # Override the service to return not found error
         from app.main import app, get_metrics_service
-        
+
         def override_get_metrics_service_not_found():
             mock_service = MagicMock()
-            mock_service.update_alert.return_value = {"error": "Alert 999 not found or access denied"}
+            mock_service.update_alert.return_value = {
+                "error": "Alert 999 not found or access denied"
+            }
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_not_found
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_not_found
 
         try:
-            response = authenticated_client.put(
-                "/api/alerts/999",
-                json=update_data
-            )
+            response = authenticated_client.put("/api/alerts/999", json=update_data)
 
             assert response.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in response.json()["detail"]
@@ -218,13 +215,17 @@ class TestAlertsEndpoints:
         """Test successful alert deletion."""
         # Override the service to return success message
         from app.main import app, get_metrics_service
-        
+
         def override_get_metrics_service_delete():
             mock_service = MagicMock()
-            mock_service.delete_alert.return_value = {"message": "Alert 1 deleted successfully"}
+            mock_service.delete_alert.return_value = {
+                "message": "Alert 1 deleted successfully"
+            }
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_delete
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_delete
 
         try:
             response = authenticated_client.delete("/api/alerts/1")
@@ -241,13 +242,17 @@ class TestAlertsEndpoints:
         """Test alert deletion when alert not found."""
         # Override the service to return not found error
         from app.main import app, get_metrics_service
-        
+
         def override_get_metrics_service_delete_not_found():
             mock_service = MagicMock()
-            mock_service.delete_alert.return_value = {"error": "Alert 999 not found or access denied"}
+            mock_service.delete_alert.return_value = {
+                "error": "Alert 999 not found or access denied"
+            }
             return mock_service
 
-        app.dependency_overrides[get_metrics_service] = override_get_metrics_service_delete_not_found
+        app.dependency_overrides[
+            get_metrics_service
+        ] = override_get_metrics_service_delete_not_found
 
         try:
             response = authenticated_client.delete("/api/alerts/999")

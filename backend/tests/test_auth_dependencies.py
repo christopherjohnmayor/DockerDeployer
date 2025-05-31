@@ -2,18 +2,19 @@
 Comprehensive tests for authentication dependencies.
 """
 
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from fastapi import HTTPException, status, WebSocket, WebSocketException
+from fastapi import HTTPException, WebSocket, WebSocketException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import (
-    get_current_user,
-    require_admin,
     get_current_active_user,
     get_current_admin_user,
+    get_current_user,
     get_current_user_websocket,
-    oauth2_scheme
+    oauth2_scheme,
+    require_admin,
 )
 from app.db.models import User, UserRole
 from tests.conftest import TestingSessionLocal, override_get_db
@@ -39,7 +40,7 @@ class TestGetCurrentUser:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             result = get_current_user(token=mock_token, db=mock_db)
@@ -53,7 +54,7 @@ class TestGetCurrentUser:
         mock_token = "invalid_token"
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "refresh"}  # Wrong type
 
             with pytest.raises(HTTPException) as exc_info:
@@ -67,7 +68,7 @@ class TestGetCurrentUser:
         mock_token = "token_without_user_id"
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"type": "access"}  # No 'sub' field
 
             with pytest.raises(HTTPException) as exc_info:
@@ -81,7 +82,7 @@ class TestGetCurrentUser:
         mock_token = "malformed_token"
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.side_effect = Exception("Token decode error")
 
             with pytest.raises(HTTPException) as exc_info:
@@ -100,7 +101,7 @@ class TestGetCurrentUser:
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 999, "type": "access"}
 
             with pytest.raises(HTTPException) as exc_info:
@@ -123,7 +124,7 @@ class TestGetCurrentUser:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             with pytest.raises(HTTPException) as exc_info:
@@ -235,13 +236,11 @@ class TestGetCurrentUserWebSocket:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             result = await get_current_user_websocket(
-                websocket=mock_websocket,
-                token=None,
-                db=mock_db
+                websocket=mock_websocket, token=None, db=mock_db
             )
 
             assert result == mock_user
@@ -263,13 +262,11 @@ class TestGetCurrentUserWebSocket:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             result = await get_current_user_websocket(
-                websocket=mock_websocket,
-                token=None,
-                db=mock_db
+                websocket=mock_websocket, token=None, db=mock_db
             )
 
             assert result == mock_user
@@ -288,13 +285,11 @@ class TestGetCurrentUserWebSocket:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             result = await get_current_user_websocket(
-                websocket=mock_websocket,
-                token="direct_token",
-                db=mock_db
+                websocket=mock_websocket, token="direct_token", db=mock_db
             )
 
             assert result == mock_user
@@ -311,9 +306,7 @@ class TestGetCurrentUserWebSocket:
 
         with pytest.raises(WebSocketException) as exc_info:
             await get_current_user_websocket(
-                websocket=mock_websocket,
-                token=None,
-                db=mock_db
+                websocket=mock_websocket, token=None, db=mock_db
             )
 
         assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -328,14 +321,12 @@ class TestGetCurrentUserWebSocket:
 
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "refresh"}  # Wrong type
 
             with pytest.raises(WebSocketException) as exc_info:
                 await get_current_user_websocket(
-                    websocket=mock_websocket,
-                    token=None,
-                    db=mock_db
+                    websocket=mock_websocket, token=None, db=mock_db
                 )
 
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -350,14 +341,12 @@ class TestGetCurrentUserWebSocket:
 
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"type": "access"}  # No 'sub' field
 
             with pytest.raises(WebSocketException) as exc_info:
                 await get_current_user_websocket(
-                    websocket=mock_websocket,
-                    token=None,
-                    db=mock_db
+                    websocket=mock_websocket, token=None, db=mock_db
                 )
 
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -377,14 +366,12 @@ class TestGetCurrentUserWebSocket:
         mock_query.filter.return_value.first.return_value = None
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 999, "type": "access"}
 
             with pytest.raises(WebSocketException) as exc_info:
                 await get_current_user_websocket(
-                    websocket=mock_websocket,
-                    token=None,
-                    db=mock_db
+                    websocket=mock_websocket, token=None, db=mock_db
                 )
 
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -406,14 +393,12 @@ class TestGetCurrentUserWebSocket:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             with pytest.raises(WebSocketException) as exc_info:
                 await get_current_user_websocket(
-                    websocket=mock_websocket,
-                    token=None,
-                    db=mock_db
+                    websocket=mock_websocket, token=None, db=mock_db
                 )
 
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -428,14 +413,12 @@ class TestGetCurrentUserWebSocket:
 
         mock_db = MagicMock(spec=Session)
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.side_effect = Exception("Token decode error")
 
             with pytest.raises(WebSocketException) as exc_info:
                 await get_current_user_websocket(
-                    websocket=mock_websocket,
-                    token=None,
-                    db=mock_db
+                    websocket=mock_websocket, token=None, db=mock_db
                 )
 
             assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -452,9 +435,7 @@ class TestGetCurrentUserWebSocket:
 
         with pytest.raises(WebSocketException) as exc_info:
             await get_current_user_websocket(
-                websocket=mock_websocket,
-                token=None,
-                db=mock_db
+                websocket=mock_websocket, token=None, db=mock_db
             )
 
         assert exc_info.value.code == status.WS_1008_POLICY_VIOLATION
@@ -468,9 +449,9 @@ class TestOAuth2Scheme:
         """Test OAuth2 scheme is properly configured."""
         assert oauth2_scheme is not None
         # Check the correct path for FastAPI OAuth2PasswordBearer
-        assert hasattr(oauth2_scheme, 'model')
-        assert hasattr(oauth2_scheme.model, 'flows')
-        assert hasattr(oauth2_scheme.model.flows, 'password')
+        assert hasattr(oauth2_scheme, "model")
+        assert hasattr(oauth2_scheme.model, "flows")
+        assert hasattr(oauth2_scheme.model.flows, "password")
         assert oauth2_scheme.model.flows.password.tokenUrl == "/auth/login"
 
 
@@ -493,7 +474,7 @@ class TestIntegrationScenarios:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 1, "type": "access"}
 
             # Test the complete flow: get_current_user -> require_admin
@@ -519,7 +500,7 @@ class TestIntegrationScenarios:
         mock_query.filter.return_value.first.return_value = mock_user
         mock_db.query.return_value = mock_query
 
-        with patch('app.auth.dependencies.decode_token') as mock_decode:
+        with patch("app.auth.dependencies.decode_token") as mock_decode:
             mock_decode.return_value = {"sub": 2, "type": "access"}
 
             # Test the complete flow: get_current_user -> get_current_active_user

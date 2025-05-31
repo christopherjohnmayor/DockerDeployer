@@ -2,9 +2,10 @@
 Tests for DockerManager metrics functionality.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 from docker_manager.manager import DockerManager
 
@@ -15,7 +16,7 @@ class TestDockerManagerMetrics:
     @pytest.fixture
     def mock_docker_client(self):
         """Create a mock Docker client."""
-        with patch('docker.from_env') as mock_docker:
+        with patch("docker.from_env") as mock_docker:
             mock_client = MagicMock()
             mock_docker.return_value = mock_client
             mock_client.ping.return_value = True
@@ -33,31 +34,25 @@ class TestDockerManagerMetrics:
             "cpu_stats": {
                 "cpu_usage": {"total_usage": 1000000000},
                 "system_cpu_usage": 2000000000,
-                "online_cpus": 2
+                "online_cpus": 2,
             },
             "precpu_stats": {
                 "cpu_usage": {"total_usage": 900000000},
-                "system_cpu_usage": 1900000000
+                "system_cpu_usage": 1900000000,
             },
-            "memory_stats": {
-                "usage": 134217728,  # 128MB
-                "limit": 536870912   # 512MB
-            },
-            "networks": {
-                "eth0": {
-                    "rx_bytes": 1024,
-                    "tx_bytes": 2048
-                }
-            },
+            "memory_stats": {"usage": 134217728, "limit": 536870912},  # 128MB  # 512MB
+            "networks": {"eth0": {"rx_bytes": 1024, "tx_bytes": 2048}},
             "blkio_stats": {
                 "io_service_bytes_recursive": [
                     {"op": "Read", "value": 4096},
-                    {"op": "Write", "value": 8192}
+                    {"op": "Write", "value": 8192},
                 ]
-            }
+            },
         }
 
-    def test_get_container_stats_success(self, docker_manager, mock_docker_client, mock_container_stats):
+    def test_get_container_stats_success(
+        self, docker_manager, mock_docker_client, mock_container_stats
+    ):
         """Test successful container stats retrieval."""
         # Setup mock container
         mock_container = MagicMock()
@@ -124,11 +119,11 @@ class TestDockerManagerMetrics:
         cpu_stats = {
             "cpu_usage": {"total_usage": 1000000000},
             "system_cpu_usage": 2000000000,
-            "online_cpus": 2
+            "online_cpus": 2,
         }
         precpu_stats = {
             "cpu_usage": {"total_usage": 900000000},
-            "system_cpu_usage": 1900000000
+            "system_cpu_usage": 1900000000,
         }
 
         cpu_percent = docker_manager._calculate_cpu_percent(cpu_stats, precpu_stats)
@@ -141,11 +136,11 @@ class TestDockerManagerMetrics:
         cpu_stats = {
             "cpu_usage": {"total_usage": 1000000000},
             "system_cpu_usage": 2000000000,
-            "online_cpus": 2
+            "online_cpus": 2,
         }
         precpu_stats = {
             "cpu_usage": {"total_usage": 1000000000},
-            "system_cpu_usage": 2000000000
+            "system_cpu_usage": 2000000000,
         }
 
         cpu_percent = docker_manager._calculate_cpu_percent(cpu_stats, precpu_stats)
@@ -170,7 +165,7 @@ class TestDockerManagerMetrics:
             "NCPU": 4,
             "KernelVersion": "5.4.0-74-generic",
             "OperatingSystem": "Ubuntu 20.04.2 LTS",
-            "Architecture": "x86_64"
+            "Architecture": "x86_64",
         }
         mock_docker_client.info.return_value = mock_system_info
 
@@ -183,7 +178,7 @@ class TestDockerManagerMetrics:
 
         mock_docker_client.containers.list.side_effect = [
             mock_containers_all,  # all=True
-            mock_containers_running  # all=False
+            mock_containers_running,  # all=False
         ]
 
         result = docker_manager.get_system_stats()

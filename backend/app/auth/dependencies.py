@@ -2,15 +2,13 @@
 Authentication dependencies for FastAPI.
 """
 
-from datetime import datetime
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status, WebSocket, WebSocketException
+from fastapi import Depends, HTTPException, WebSocket, WebSocketException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app.auth.jwt import decode_token
-from app.auth.models import TokenData
 from app.db.database import get_db
 from app.db.models import User, UserRole
 
@@ -143,9 +141,7 @@ def get_current_admin_user(current_user: User = Depends(get_current_user)) -> Us
 
 
 async def get_current_user_websocket(
-    websocket: WebSocket,
-    token: Optional[str] = None,
-    db: Session = Depends(get_db)
+    websocket: WebSocket, token: Optional[str] = None, db: Session = Depends(get_db)
 ) -> Optional[User]:
     """
     Get the current authenticated user for WebSocket connections.
@@ -172,7 +168,9 @@ async def get_current_user_websocket(
             token = auth_header[7:]
 
     if not token:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Missing authentication token")
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Missing authentication token"
+        )
 
     try:
         # Decode token
@@ -180,25 +178,35 @@ async def get_current_user_websocket(
 
         # Check token type
         if payload.get("type") != "access":
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token type")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token type"
+            )
 
         # Extract user ID from token
         user_id: Optional[int] = payload.get("sub")
         if user_id is None:
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token payload"
+            )
 
         # Get user from database
         user = db.query(User).filter(User.id == user_id).first()
         if user is None:
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="User not found")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION, reason="User not found"
+            )
 
         # Check if user is active
         if not user.is_active:
-            raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Inactive user")
+            raise WebSocketException(
+                code=status.WS_1008_POLICY_VIOLATION, reason="Inactive user"
+            )
 
         return user
 
     except WebSocketException:
         raise
-    except Exception as e:
-        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION, reason="Authentication failed")
+    except Exception:
+        raise WebSocketException(
+            code=status.WS_1008_POLICY_VIOLATION, reason="Authentication failed"
+        )

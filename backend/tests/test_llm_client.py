@@ -250,7 +250,9 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
-        mock_response.raise_for_status.side_effect = Exception("500 Internal Server Error")
+        mock_response.raise_for_status.side_effect = Exception(
+            "500 Internal Server Error"
+        )
 
         # Create a mock client that returns the error response
         mock_client = AsyncMock()
@@ -298,13 +300,7 @@ class TestLLMClient:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "choices": [
-                {
-                    "message": {
-                        "content": "OpenRouter response content"
-                    }
-                }
-            ]
+            "choices": [{"message": {"content": "OpenRouter response content"}}]
         }
         mock_response.raise_for_status.return_value = None
 
@@ -316,10 +312,7 @@ class TestLLMClient:
 
         mock_async_client_class.return_value = mock_client
 
-        client = LLMClient(
-            provider="openrouter",
-            api_key="test_key"
-        )
+        client = LLMClient(provider="openrouter", api_key="test_key")
         response = await client.send_query("Test query")
 
         assert response == "OpenRouter response content"
@@ -329,9 +322,7 @@ class TestLLMClient:
         client = LLMClient()
 
         client.set_provider(
-            "custom",
-            api_url="https://custom.example.com",
-            api_key="custom_api_key"
+            "custom", api_url="https://custom.example.com", api_key="custom_api_key"
         )
 
         assert client.provider == "custom"
@@ -491,12 +482,15 @@ class TestLLMClient:
 
     def test_init_with_environment_variables(self):
         """Test initialization with environment variables."""
-        with patch.dict('os.environ', {
-            'OLLAMA_API_URL': 'http://custom-ollama:11434/api/generate',
-            'OPENROUTER_API_KEY': 'env-openrouter-key',
-            'LLM_API_URL': 'http://custom-litellm:8001/generate',
-            'LLM_API_KEY': 'env-litellm-key'
-        }):
+        with patch.dict(
+            "os.environ",
+            {
+                "OLLAMA_API_URL": "http://custom-ollama:11434/api/generate",
+                "OPENROUTER_API_KEY": "env-openrouter-key",
+                "LLM_API_URL": "http://custom-litellm:8001/generate",
+                "LLM_API_KEY": "env-litellm-key",
+            },
+        ):
             # Test Ollama with env URL
             ollama_client = LLMClient(provider="ollama")
             assert ollama_client.api_url == "http://custom-ollama:11434/api/generate"

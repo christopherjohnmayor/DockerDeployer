@@ -2,8 +2,9 @@
 Tests for alerts API endpoints using proper authentication.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
@@ -43,14 +44,12 @@ class TestAlertsEndpoints:
     def unauthenticated_client(self):
         """Create an unauthenticated test client."""
         from app.main import app
+
         return TestClient(app)
 
     def test_create_alert_success(self, authenticated_client, sample_alert_data):
         """Test successful alert creation."""
-        response = authenticated_client.post(
-            "/api/alerts",
-            json=sample_alert_data
-        )
+        response = authenticated_client.post("/api/alerts", json=sample_alert_data)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -67,24 +66,18 @@ class TestAlertsEndpoints:
             "comparison_operator": ">",
         }
 
-        response = authenticated_client.post(
-            "/api/alerts",
-            json=incomplete_data
-        )
+        response = authenticated_client.post("/api/alerts", json=incomplete_data)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_create_alert_service_error(self, authenticated_client, sample_alert_data):
         """Test alert creation with service error."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.create_alert.return_value = {"error": "Container not found"}
             mock_get_service.return_value = mock_service
 
-            response = authenticated_client.post(
-                "/api/alerts",
-                json=sample_alert_data
-            )
+            response = authenticated_client.post("/api/alerts", json=sample_alert_data)
 
             assert response.status_code == status.HTTP_400_BAD_REQUEST
             assert "Container not found" in response.json()["detail"]
@@ -115,7 +108,7 @@ class TestAlertsEndpoints:
             },
         ]
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_user_alerts.return_value = sample_alerts
             mock_get_service.return_value = mock_service
@@ -141,15 +134,15 @@ class TestAlertsEndpoints:
             "is_active": False,
         }
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.update_alert.return_value = {**sample_alert_response, **update_data}
+            mock_service.update_alert.return_value = {
+                **sample_alert_response,
+                **update_data,
+            }
             mock_get_service.return_value = mock_service
 
-            response = authenticated_client.put(
-                "/api/alerts/1",
-                json=update_data
-            )
+            response = authenticated_client.put("/api/alerts/1", json=update_data)
 
             assert response.status_code == status.HTTP_200_OK
             data = response.json()
@@ -161,15 +154,14 @@ class TestAlertsEndpoints:
         """Test alert update when alert not found."""
         update_data = {"name": "Updated Name"}
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.update_alert.return_value = {"error": "Alert 999 not found or access denied"}
+            mock_service.update_alert.return_value = {
+                "error": "Alert 999 not found or access denied"
+            }
             mock_get_service.return_value = mock_service
 
-            response = authenticated_client.put(
-                "/api/alerts/999",
-                json=update_data
-            )
+            response = authenticated_client.put("/api/alerts/999", json=update_data)
 
             assert response.status_code == status.HTTP_404_NOT_FOUND
             assert "not found" in response.json()["detail"]
@@ -181,9 +173,11 @@ class TestAlertsEndpoints:
 
     def test_delete_alert_success(self, authenticated_client):
         """Test successful alert deletion."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.delete_alert.return_value = {"message": "Alert 1 deleted successfully"}
+            mock_service.delete_alert.return_value = {
+                "message": "Alert 1 deleted successfully"
+            }
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.delete("/api/alerts/1")
@@ -194,9 +188,11 @@ class TestAlertsEndpoints:
 
     def test_delete_alert_not_found(self, authenticated_client):
         """Test alert deletion when alert not found."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.delete_alert.return_value = {"error": "Alert 999 not found or access denied"}
+            mock_service.delete_alert.return_value = {
+                "error": "Alert 999 not found or access denied"
+            }
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.delete("/api/alerts/999")
@@ -209,24 +205,23 @@ class TestAlertsEndpoints:
         response = unauthenticated_client.delete("/api/alerts/1")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
-    def test_create_alert_exception_handling(self, authenticated_client, sample_alert_data):
+    def test_create_alert_exception_handling(
+        self, authenticated_client, sample_alert_data
+    ):
         """Test alert creation with unexpected exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.create_alert.side_effect = Exception("Database error")
             mock_get_service.return_value = mock_service
 
-            response = authenticated_client.post(
-                "/api/alerts",
-                json=sample_alert_data
-            )
+            response = authenticated_client.post("/api/alerts", json=sample_alert_data)
 
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
             assert "Failed to create alert" in response.json()["detail"]
 
     def test_get_alerts_exception_handling(self, authenticated_client):
         """Test alerts retrieval with unexpected exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_user_alerts.side_effect = Exception("Database error")
             mock_get_service.return_value = mock_service
@@ -238,14 +233,13 @@ class TestAlertsEndpoints:
 
     def test_update_alert_exception_handling(self, authenticated_client):
         """Test alert update with unexpected exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.update_alert.side_effect = Exception("Database error")
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.put(
-                "/api/alerts/1",
-                json={"name": "Updated"}
+                "/api/alerts/1", json={"name": "Updated"}
             )
 
             assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -253,7 +247,7 @@ class TestAlertsEndpoints:
 
     def test_delete_alert_exception_handling(self, authenticated_client):
         """Test alert deletion with unexpected exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.delete_alert.side_effect = Exception("Database error")
             mock_get_service.return_value = mock_service

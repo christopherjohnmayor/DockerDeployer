@@ -2,16 +2,19 @@
 Comprehensive tests for the authentication router.
 """
 
-import pytest
 from datetime import datetime, timedelta
-from unittest.mock import patch, AsyncMock
+from unittest.mock import AsyncMock, patch
+
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.main import app
+from app.auth.jwt import create_access_token, create_refresh_token, get_password_hash
 from app.db.database import get_db
-from app.db.models import User as UserModel, Token as TokenModel, PasswordResetToken, EmailVerificationToken
-from app.auth.jwt import get_password_hash, create_access_token, create_refresh_token
+from app.db.models import EmailVerificationToken, PasswordResetToken
+from app.db.models import Token as TokenModel
+from app.db.models import User as UserModel
+from app.main import app
 from tests.conftest import TestingSessionLocal, override_get_db
 
 # Override the get_db dependency
@@ -191,10 +194,14 @@ class TestAuthRouter:
         tokens = login_response.json()
 
         # Verify the refresh token exists in database
-        db_token = self.db.query(TokenModel).filter(
-            TokenModel.token == tokens["refresh_token"],
-            TokenModel.user_id == self.test_user.id
-        ).first()
+        db_token = (
+            self.db.query(TokenModel)
+            .filter(
+                TokenModel.token == tokens["refresh_token"],
+                TokenModel.user_id == self.test_user.id,
+            )
+            .first()
+        )
         assert db_token is not None, "Refresh token should be stored in database"
 
         # Use refresh token
@@ -221,13 +228,20 @@ class TestAuthRouter:
 
         assert response.status_code == 401
         # The actual error message may vary, just check it's an auth error
-        assert "Invalid token" in response.json()["detail"] or "Could not validate credentials" in response.json()["detail"]
+        assert (
+            "Invalid token" in response.json()["detail"]
+            or "Could not validate credentials" in response.json()["detail"]
+        )
 
     def test_refresh_token_wrong_type(self):
         """Test refresh with access token instead of refresh token."""
         # Create access token
         access_token = create_access_token(
-            data={"sub": str(self.test_user.id), "username": self.test_user.username, "role": self.test_user.role}
+            data={
+                "sub": str(self.test_user.id),
+                "username": self.test_user.username,
+                "role": self.test_user.role,
+            }
         )
 
         response = client.post(
@@ -242,7 +256,11 @@ class TestAuthRouter:
         """Test refresh with revoked token."""
         # Create and store refresh token
         refresh_token = create_refresh_token(
-            data={"sub": str(self.test_user.id), "username": self.test_user.username, "role": self.test_user.role}
+            data={
+                "sub": str(self.test_user.id),
+                "username": self.test_user.username,
+                "role": self.test_user.role,
+            }
         )
 
         db_token = TokenModel(

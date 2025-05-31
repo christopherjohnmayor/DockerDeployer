@@ -39,7 +39,9 @@ class TestTemplateLoader:
     @patch("os.path.isdir")
     @patch("os.path.exists")
     @patch("backend.templates.loader.load_template_metadata")
-    def test_list_templates(self, mock_load_metadata, mock_exists, mock_isdir, mock_listdir):
+    def test_list_templates(
+        self, mock_load_metadata, mock_exists, mock_isdir, mock_listdir
+    ):
         """Test listing templates."""
         mock_listdir.return_value = ["lemp", "mean", "wordpress"]
         mock_isdir.return_value = True
@@ -84,7 +86,9 @@ class TestTemplateLoader:
 
         # The function adds name and path to the template
         expected_template = {**mock_yaml_data, "name": "lemp"}
-        expected_template["path"] = "/Volumes/2TB/Projects/DockerDeployer/templates/lemp"
+        expected_template[
+            "path"
+        ] = "/Volumes/2TB/Projects/DockerDeployer/templates/lemp"
 
         assert template["name"] == "lemp"
         assert template["description"] == "LEMP Stack"

@@ -2,12 +2,12 @@
 Tests for the Docker manager module.
 """
 
-from unittest.mock import MagicMock, patch, Mock
 from datetime import datetime
+from unittest.mock import MagicMock, Mock, patch
 
 import docker
 import pytest
-from docker.errors import APIError, NotFound, DockerException
+from docker.errors import APIError, DockerException, NotFound
 
 from docker_manager.manager import DockerManager
 
@@ -59,7 +59,7 @@ class TestDockerManager:
         mock_from_env.assert_called_once()
         mock_docker_client.ping.assert_called_once()
 
-    @patch('docker_manager.manager.docker', None)
+    @patch("docker_manager.manager.docker", None)
     def test_init_docker_not_available(self):
         """Test initialization when Docker SDK is not available."""
         with pytest.raises(ImportError, match="Docker SDK is not available"):
@@ -70,7 +70,9 @@ class TestDockerManager:
         """Test initialization with permission denied error."""
         mock_from_env.side_effect = DockerException("Permission denied")
 
-        with pytest.raises(ConnectionError, match="Permission denied accessing Docker socket"):
+        with pytest.raises(
+            ConnectionError, match="Permission denied accessing Docker socket"
+        ):
             DockerManager()
 
     @patch("docker.from_env")
@@ -217,28 +219,20 @@ class TestDockerManager:
             "cpu_stats": {
                 "cpu_usage": {"total_usage": 1000000000},
                 "system_cpu_usage": 2000000000,
-                "online_cpus": 2
+                "online_cpus": 2,
             },
             "precpu_stats": {
                 "cpu_usage": {"total_usage": 900000000},
-                "system_cpu_usage": 1900000000
+                "system_cpu_usage": 1900000000,
             },
-            "memory_stats": {
-                "usage": 536870912,  # 512MB
-                "limit": 1073741824  # 1GB
-            },
-            "networks": {
-                "eth0": {
-                    "rx_bytes": 1024,
-                    "tx_bytes": 2048
-                }
-            },
+            "memory_stats": {"usage": 536870912, "limit": 1073741824},  # 512MB  # 1GB
+            "networks": {"eth0": {"rx_bytes": 1024, "tx_bytes": 2048}},
             "blkio_stats": {
                 "io_service_bytes_recursive": [
                     {"op": "Read", "value": 4096},
-                    {"op": "Write", "value": 8192}
+                    {"op": "Write", "value": 8192},
                 ]
-            }
+            },
         }
 
         # Mock stats generator
@@ -317,7 +311,7 @@ class TestDockerManager:
             "NCPU": 4,
             "KernelVersion": "5.4.0-74-generic",
             "OperatingSystem": "Ubuntu 20.04.2 LTS",
-            "Architecture": "x86_64"
+            "Architecture": "x86_64",
         }
         mock_docker_client.info.return_value = mock_system_info
 
@@ -329,7 +323,7 @@ class TestDockerManager:
 
         mock_docker_client.containers.list.side_effect = [
             [mock_running_container, mock_stopped_container],  # all=True
-            [mock_running_container]  # all=False (running only)
+            [mock_running_container],  # all=False (running only)
         ]
 
         manager = DockerManager()
@@ -348,7 +342,9 @@ class TestDockerManager:
     def test_get_system_stats_docker_error(self, mock_from_env, mock_docker_client):
         """Test getting system stats with Docker error."""
         mock_from_env.return_value = mock_docker_client
-        mock_docker_client.info.side_effect = DockerException("Docker daemon unavailable")
+        mock_docker_client.info.side_effect = DockerException(
+            "Docker daemon unavailable"
+        )
 
         manager = DockerManager()
         result = manager.get_system_stats()
@@ -375,7 +371,7 @@ class TestDockerManager:
         mock_docker_client.ping.return_value = True
         mock_docker_client.version.return_value = {
             "Version": "20.10.17",
-            "ApiVersion": "1.41"
+            "ApiVersion": "1.41",
         }
 
         manager = DockerManager()
@@ -391,7 +387,10 @@ class TestDockerManager:
         """Test health check with Docker error."""
         mock_from_env.return_value = mock_docker_client
         # First ping succeeds for initialization, second fails for health check
-        mock_docker_client.ping.side_effect = [True, DockerException("Connection failed")]
+        mock_docker_client.ping.side_effect = [
+            True,
+            DockerException("Connection failed"),
+        ]
 
         manager = DockerManager()
         result = manager.health_check()
@@ -422,7 +421,11 @@ class TestDockerManager:
         manager = DockerManager()
 
         # Test with zero system delta
-        cpu_stats = {"cpu_usage": {"total_usage": 1000}, "system_cpu_usage": 2000, "online_cpus": 2}
+        cpu_stats = {
+            "cpu_usage": {"total_usage": 1000},
+            "system_cpu_usage": 2000,
+            "online_cpus": 2,
+        }
         precpu_stats = {"cpu_usage": {"total_usage": 900}, "system_cpu_usage": 2000}
 
         result = manager._calculate_cpu_percent(cpu_stats, precpu_stats)
@@ -451,6 +454,8 @@ class TestDockerManager:
         assert result["network_tx_bytes"] == 0
 
         # Test with None container that causes exception during parsing
-        result = manager._parse_container_stats({"cpu_stats": {}, "precpu_stats": {}}, None)
+        result = manager._parse_container_stats(
+            {"cpu_stats": {}, "precpu_stats": {}}, None
+        )
         assert "error" in result
         assert "Failed to parse stats" in result["error"]

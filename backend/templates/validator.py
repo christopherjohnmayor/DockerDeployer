@@ -152,12 +152,16 @@ def validate_services(template_data: Dict[str, Any]) -> Tuple[bool, Optional[str
                         )
             elif isinstance(obj, dict):
                 for key, value in obj.items():
-                    result = check_variable_refs(value, f"{path}.{key}" if path else key)
+                    result = check_variable_refs(
+                        value, f"{path}.{key}" if path else key
+                    )
                     if result and not result[0]:
                         return result
             elif isinstance(obj, list):
                 for i, item in enumerate(obj):
-                    result = check_variable_refs(item, f"{path}[{i}]" if path else f"[{i}]")
+                    result = check_variable_refs(
+                        item, f"{path}[{i}]" if path else f"[{i}]"
+                    )
                     if result and not result[0]:
                         return result
             return True, None

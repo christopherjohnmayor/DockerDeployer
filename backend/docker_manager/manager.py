@@ -8,10 +8,10 @@ except ImportError:
     APIError = Exception
     DockerException = Exception
 
-import logging
 import json
+import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,9 @@ class DockerManager:
         except APIError as e:
             return {"error": str(e)}
 
-    def get_container_stats(self, container_id: str, stream: bool = False) -> Dict[str, Any]:
+    def get_container_stats(
+        self, container_id: str, stream: bool = False
+    ) -> Dict[str, Any]:
         """
         Get real-time statistics for a container.
 
@@ -136,7 +138,9 @@ class DockerManager:
             logger.error(f"Unexpected error getting stats for {container_id}: {e}")
             return {"error": str(e)}
 
-    def _parse_container_stats(self, stats: Dict[str, Any], container) -> Dict[str, Any]:
+    def _parse_container_stats(
+        self, stats: Dict[str, Any], container
+    ) -> Dict[str, Any]:
         """
         Parse raw Docker stats into a standardized format.
 
@@ -181,11 +185,9 @@ class DockerManager:
                 else:
                     parsed_stats["memory_percent"] = 0.0
             else:
-                parsed_stats.update({
-                    "memory_usage": 0,
-                    "memory_limit": 0,
-                    "memory_percent": 0.0
-                })
+                parsed_stats.update(
+                    {"memory_usage": 0, "memory_limit": 0, "memory_percent": 0.0}
+                )
 
             # Parse network stats
             networks = stats.get("networks", {})
@@ -223,10 +225,12 @@ class DockerManager:
                 "container_id": container.id if container else "unknown",
                 "container_name": container.name if container else "unknown",
                 "timestamp": datetime.utcnow().isoformat(),
-                "error": f"Failed to parse stats: {str(e)}"
+                "error": f"Failed to parse stats: {str(e)}",
             }
 
-    def _calculate_cpu_percent(self, cpu_stats: Dict[str, Any], precpu_stats: Dict[str, Any]) -> float:
+    def _calculate_cpu_percent(
+        self, cpu_stats: Dict[str, Any], precpu_stats: Dict[str, Any]
+    ) -> float:
         """
         Calculate CPU usage percentage from Docker stats.
 
@@ -238,11 +242,13 @@ class DockerManager:
             CPU usage percentage
         """
         try:
-            cpu_delta = cpu_stats.get("cpu_usage", {}).get("total_usage", 0) - \
-                       precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
+            cpu_delta = cpu_stats.get("cpu_usage", {}).get(
+                "total_usage", 0
+            ) - precpu_stats.get("cpu_usage", {}).get("total_usage", 0)
 
-            system_delta = cpu_stats.get("system_cpu_usage", 0) - \
-                          precpu_stats.get("system_cpu_usage", 0)
+            system_delta = cpu_stats.get("system_cpu_usage", 0) - precpu_stats.get(
+                "system_cpu_usage", 0
+            )
 
             online_cpus = cpu_stats.get("online_cpus", 1)
 
@@ -288,7 +294,7 @@ class DockerManager:
                     "kernel_version": system_info.get("KernelVersion", "unknown"),
                     "operating_system": system_info.get("OperatingSystem", "unknown"),
                     "architecture": system_info.get("Architecture", "unknown"),
-                }
+                },
             }
 
         except DockerException as e:

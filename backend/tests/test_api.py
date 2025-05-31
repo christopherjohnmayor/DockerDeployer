@@ -12,11 +12,7 @@ from fastapi.testclient import TestClient
 
 # Import app and fixtures
 from backend.app.main import app
-from backend.tests.conftest import (
-    docker_available,
-    docker_required,
-    llm_available,
-)
+from backend.tests.conftest import docker_available, docker_required, llm_available
 
 # For backward compatibility with existing tests
 client = TestClient(app)
@@ -24,7 +20,9 @@ client = TestClient(app)
 
 def test_nlp_parse(authenticated_client):
     """Test NLP parsing endpoint with mocked authentication."""
-    resp = authenticated_client.post("/nlp/parse", json={"command": "Deploy a WordPress stack"})
+    resp = authenticated_client.post(
+        "/nlp/parse", json={"command": "Deploy a WordPress stack"}
+    )
     assert resp.status_code == 200
     data = resp.json()
     assert "action_plan" in data
@@ -100,7 +98,9 @@ def test_list_containers(authenticated_client):
 
 @docker_required
 def test_container_action_invalid(authenticated_client):
-    resp = authenticated_client.post("/api/containers/invalid_id/action", json={"action": "restart"})
+    resp = authenticated_client.post(
+        "/api/containers/invalid_id/action", json={"action": "restart"}
+    )
     assert resp.status_code in (200, 404, 503, 500)
     if resp.status_code == 200:
         data = resp.json()
@@ -121,7 +121,9 @@ def test_list_templates(authenticated_client):
 
 
 def test_deploy_template_not_found(authenticated_client):
-    resp = authenticated_client.post("/api/templates/deploy", json={"template_name": "nonexistent"})
+    resp = authenticated_client.post(
+        "/api/templates/deploy", json={"template_name": "nonexistent"}
+    )
     assert resp.status_code in (404, 503, 500)
     if resp.status_code == 404:
         data = resp.json()
@@ -255,7 +257,9 @@ class TestTemplateEndpointsMocked:
         assert "mean" in [t["name"] for t in response.json()]
         assert "wordpress" in [t["name"] for t in response.json()]
 
-    def test_deploy_template(self, authenticated_client, mock_template_loader, mock_git_manager):
+    def test_deploy_template(
+        self, authenticated_client, mock_template_loader, mock_git_manager
+    ):
         """Test deploying a template endpoint."""
         # Use mock_template_loader to avoid linting warning
         _ = mock_template_loader

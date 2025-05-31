@@ -9,12 +9,13 @@ Created: 2024-01-XX
 """
 
 from sqlalchemy import text
+
 from app.db.database import engine
 
 
 def upgrade():
     """Apply the migration."""
-    
+
     # Create container_metrics table
     container_metrics_sql = """
     CREATE TABLE IF NOT EXISTS container_metrics (
@@ -33,14 +34,14 @@ def upgrade():
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     """
-    
+
     # Create indexes for container_metrics
     container_metrics_indexes = [
         "CREATE INDEX IF NOT EXISTS ix_container_metrics_container_id ON container_metrics (container_id);",
         "CREATE INDEX IF NOT EXISTS ix_container_metrics_container_name ON container_metrics (container_name);",
         "CREATE INDEX IF NOT EXISTS ix_container_metrics_timestamp ON container_metrics (timestamp);",
     ]
-    
+
     # Create metrics_alerts table
     metrics_alerts_sql = """
     CREATE TABLE IF NOT EXISTS metrics_alerts (
@@ -62,47 +63,47 @@ def upgrade():
         FOREIGN KEY (created_by) REFERENCES users (id)
     );
     """
-    
+
     # Create indexes for metrics_alerts
     metrics_alerts_indexes = [
         "CREATE INDEX IF NOT EXISTS ix_metrics_alerts_container_id ON metrics_alerts (container_id);",
         "CREATE INDEX IF NOT EXISTS ix_metrics_alerts_created_by ON metrics_alerts (created_by);",
     ]
-    
+
     # Execute all SQL statements
     with engine.connect() as connection:
         # Create tables
         connection.execute(text(container_metrics_sql))
         connection.execute(text(metrics_alerts_sql))
-        
+
         # Create indexes
         for index_sql in container_metrics_indexes + metrics_alerts_indexes:
             connection.execute(text(index_sql))
-        
+
         connection.commit()
-    
+
     print("✅ Migration 001_add_metrics_tables applied successfully")
 
 
 def downgrade():
     """Rollback the migration."""
-    
+
     downgrade_sql = [
         "DROP TABLE IF EXISTS metrics_alerts;",
         "DROP TABLE IF EXISTS container_metrics;",
     ]
-    
+
     with engine.connect() as connection:
         for sql in downgrade_sql:
             connection.execute(text(sql))
         connection.commit()
-    
+
     print("✅ Migration 001_add_metrics_tables rolled back successfully")
 
 
 if __name__ == "__main__":
     import sys
-    
+
     if len(sys.argv) > 1 and sys.argv[1] == "downgrade":
         downgrade()
     else:

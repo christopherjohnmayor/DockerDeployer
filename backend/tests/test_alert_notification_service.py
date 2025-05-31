@@ -3,16 +3,17 @@ Tests for the alert notification service.
 """
 
 import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
 from datetime import datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+
+from app.db.models import MetricsAlert, User
 from app.services.alert_notification_service import (
     AlertNotificationService,
     ConnectionManager,
-    connection_manager
+    connection_manager,
 )
-from app.db.models import MetricsAlert, User
 
 
 class TestConnectionManager:
@@ -148,10 +149,14 @@ class TestAlertNotificationService:
         """Test alert notification sending."""
         metric_value = 85.0
 
-        with patch.object(service.connection_manager, 'send_personal_message') as mock_send:
-            with patch.object(service, '_store_notification_in_redis') as mock_store:
-                with patch.object(service, '_send_email_notification') as mock_email:
-                    result = await service.notify_alert_triggered(sample_alert, metric_value, sample_user)
+        with patch.object(
+            service.connection_manager, "send_personal_message"
+        ) as mock_send:
+            with patch.object(service, "_store_notification_in_redis") as mock_store:
+                with patch.object(service, "_send_email_notification") as mock_email:
+                    result = await service.notify_alert_triggered(
+                        sample_alert, metric_value, sample_user
+                    )
 
                     assert result is True
                     mock_send.assert_called_once()
@@ -179,7 +184,9 @@ class TestAlertNotificationService:
         mock_alert.user_id = user_id
         mock_db.query.return_value.filter.return_value.first.return_value = mock_alert
 
-        with patch.object(service.connection_manager, 'send_personal_message') as mock_send:
+        with patch.object(
+            service.connection_manager, "send_personal_message"
+        ) as mock_send:
             result = await service.acknowledge_alert(alert_id, user_id)
 
             assert result is True
@@ -230,15 +237,17 @@ class TestAlertNotificationService:
         """Test email notification sending."""
         metric_value = 85.0
 
-        with patch.object(service.email_service, 'send_email') as mock_send_email:
+        with patch.object(service.email_service, "send_email") as mock_send_email:
             mock_send_email.return_value = True
 
-            await service._send_email_notification(sample_alert, metric_value, sample_user)
+            await service._send_email_notification(
+                sample_alert, metric_value, sample_user
+            )
 
             mock_send_email.assert_called_once()
             call_args = mock_send_email.call_args
-            assert call_args[1]['to_emails'] == [sample_user.email]
-            assert "DockerDeployer Alert" in call_args[1]['subject']
+            assert call_args[1]["to_emails"] == [sample_user.email]
+            assert "DockerDeployer Alert" in call_args[1]["subject"]
 
 
 class TestGlobalConnectionManager:

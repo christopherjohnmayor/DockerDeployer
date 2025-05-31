@@ -39,7 +39,7 @@ class ConnectionManager:
         self.connection_metadata[websocket] = {
             "user_id": user_id,
             "connected_at": datetime.utcnow(),
-            "connection_id": str(uuid4())
+            "connection_id": str(uuid4()),
         }
 
         logger.info(f"WebSocket connected for user {user_id}")
@@ -116,10 +116,7 @@ class AlertNotificationService:
         self.email_service = get_email_service()
 
     async def notify_alert_triggered(
-        self,
-        alert: MetricsAlert,
-        metric_value: float,
-        user: User
+        self, alert: MetricsAlert, metric_value: float, user: User
     ) -> bool:
         """
         Send real-time notification when an alert is triggered.
@@ -149,7 +146,7 @@ class AlertNotificationService:
                     "current_value": metric_value,
                 },
                 "severity": self._determine_severity(alert, metric_value),
-                "message": self._generate_alert_message(alert, metric_value)
+                "message": self._generate_alert_message(alert, metric_value),
             }
 
             # Send WebSocket notification
@@ -163,7 +160,9 @@ class AlertNotificationService:
             if self.email_service.is_configured():
                 await self._send_email_notification(alert, metric_value, user)
 
-            logger.info(f"Alert notification sent for alert {alert.id} to user {user.id}")
+            logger.info(
+                f"Alert notification sent for alert {alert.id} to user {user.id}"
+            )
             return True
 
         except Exception as e:
@@ -183,7 +182,9 @@ class AlertNotificationService:
         """
         try:
             # Update alert in database
-            alert = self.db.query(MetricsAlert).filter(MetricsAlert.id == alert_id).first()
+            alert = (
+                self.db.query(MetricsAlert).filter(MetricsAlert.id == alert_id).first()
+            )
             if not alert:
                 return False
 
@@ -197,10 +198,12 @@ class AlertNotificationService:
                 "type": "alert_acknowledged",
                 "timestamp": datetime.utcnow().isoformat(),
                 "alert_id": alert_id,
-                "acknowledged_by": user_id
+                "acknowledged_by": user_id,
             }
 
-            await self.connection_manager.send_personal_message(notification, alert.created_by)
+            await self.connection_manager.send_personal_message(
+                notification, alert.created_by
+            )
 
             logger.info(f"Alert {alert_id} acknowledged by user {user_id}")
             return True
@@ -237,7 +240,9 @@ class AlertNotificationService:
             f"for container {alert.container_name or alert.container_id}"
         )
 
-    async def _store_notification_in_redis(self, user_id: int, notification: Dict[str, Any]):
+    async def _store_notification_in_redis(
+        self, user_id: int, notification: Dict[str, Any]
+    ):
         """Store notification in Redis for persistence and history."""
         if not self.redis_client:
             return
@@ -252,7 +257,9 @@ class AlertNotificationService:
         except Exception as e:
             logger.error(f"Error storing notification in Redis: {e}")
 
-    async def _send_email_notification(self, alert: MetricsAlert, metric_value: float, user: User):
+    async def _send_email_notification(
+        self, alert: MetricsAlert, metric_value: float, user: User
+    ):
         """Send email notification for the alert."""
         try:
             subject = f"DockerDeployer Alert: {alert.name}"
@@ -268,14 +275,14 @@ class AlertNotificationService:
                 current_value=metric_value,
                 threshold_value=alert.threshold_value,
                 comparison_operator=alert.comparison_operator,
-                app_name="DockerDeployer"
+                app_name="DockerDeployer",
             )
 
             await self.email_service.send_email(
                 to_emails=[user.email],
                 subject=subject,
                 html_content=html_content,
-                text_content=text_content
+                text_content=text_content,
             )
 
         except Exception as e:

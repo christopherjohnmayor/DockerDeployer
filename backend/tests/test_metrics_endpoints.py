@@ -2,8 +2,9 @@
 Tests for metrics API endpoints using proper authentication.
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
+
+import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
@@ -15,6 +16,7 @@ class TestMetricsEndpoints:
     def unauthenticated_client(self):
         """Create an unauthenticated test client."""
         from app.main import app
+
         return TestClient(app)
 
     def test_get_container_stats_success(self, authenticated_client):
@@ -30,10 +32,10 @@ class TestMetricsEndpoints:
             "network_tx": 2048,
             "block_read": 4096,
             "block_write": 8192,
-            "timestamp": "2024-01-01T12:00:00"
+            "timestamp": "2024-01-01T12:00:00",
         }
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_current_metrics.return_value = sample_stats
             mock_get_service.return_value = mock_service
@@ -48,9 +50,11 @@ class TestMetricsEndpoints:
 
     def test_get_container_stats_not_found(self, authenticated_client):
         """Test container stats for non-existent container."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.get_current_metrics.return_value = {"error": "Container not found"}
+            mock_service.get_current_metrics.return_value = {
+                "error": "Container not found"
+            }
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.get("/api/containers/nonexistent/stats")
@@ -71,18 +75,18 @@ class TestMetricsEndpoints:
                 "container_id": "test_container",
                 "timestamp": "2024-01-01T12:00:00",
                 "cpu_percent": 25.0,
-                "memory_usage": 134217728
+                "memory_usage": 134217728,
             },
             {
                 "id": 2,
                 "container_id": "test_container",
                 "timestamp": "2024-01-01T11:00:00",
                 "cpu_percent": 30.0,
-                "memory_usage": 150000000
-            }
+                "memory_usage": 150000000,
+            },
         ]
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_historical_metrics.return_value = sample_metrics
             mock_get_service.return_value = mock_service
@@ -99,7 +103,7 @@ class TestMetricsEndpoints:
 
     def test_get_container_metrics_history_default_params(self, authenticated_client):
         """Test historical metrics with default parameters."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_historical_metrics.return_value = []
             mock_get_service.return_value = mock_service
@@ -118,21 +122,18 @@ class TestMetricsEndpoints:
             "timestamp": "2024-01-01T12:00:00",
             "containers_total": 5,
             "containers_running": 3,
-            "containers_by_status": {
-                "running": 3,
-                "stopped": 2
-            },
+            "containers_by_status": {"running": 3, "stopped": 2},
             "system_info": {
                 "docker_version": "20.10.17",
                 "total_memory": 8589934592,
                 "cpus": 4,
                 "kernel_version": "5.4.0-74-generic",
                 "operating_system": "Ubuntu 20.04.2 LTS",
-                "architecture": "x86_64"
-            }
+                "architecture": "x86_64",
+            },
         }
 
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_system_metrics.return_value = sample_system_metrics
             mock_get_service.return_value = mock_service
@@ -147,9 +148,11 @@ class TestMetricsEndpoints:
 
     def test_get_system_metrics_docker_error(self, authenticated_client):
         """Test system metrics with Docker error."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.get_system_metrics.return_value = {"error": "Docker daemon unavailable"}
+            mock_service.get_system_metrics.return_value = {
+                "error": "Docker daemon unavailable"
+            }
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.get("/api/system/metrics")
@@ -164,7 +167,7 @@ class TestMetricsEndpoints:
 
     def test_metrics_service_dependency_error(self, authenticated_client):
         """Test metrics endpoints when service dependency fails."""
-        with patch('app.main.get_docker_manager') as mock_get_docker:
+        with patch("app.main.get_docker_manager") as mock_get_docker:
             # Simulate Docker service unavailable
             mock_get_docker.side_effect = Exception("Docker service unavailable")
 
@@ -175,7 +178,7 @@ class TestMetricsEndpoints:
 
     def test_container_stats_service_exception(self, authenticated_client):
         """Test container stats endpoint with service exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_current_metrics.side_effect = Exception("Service error")
             mock_get_service.return_value = mock_service
@@ -187,9 +190,11 @@ class TestMetricsEndpoints:
 
     def test_metrics_history_service_exception(self, authenticated_client):
         """Test metrics history endpoint with service exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
-            mock_service.get_historical_metrics.side_effect = Exception("Database error")
+            mock_service.get_historical_metrics.side_effect = Exception(
+                "Database error"
+            )
             mock_get_service.return_value = mock_service
 
             response = authenticated_client.get(
@@ -201,7 +206,7 @@ class TestMetricsEndpoints:
 
     def test_system_metrics_service_exception(self, authenticated_client):
         """Test system metrics endpoint with service exception."""
-        with patch('app.main.get_metrics_service') as mock_get_service:
+        with patch("app.main.get_metrics_service") as mock_get_service:
             mock_service = MagicMock()
             mock_service.get_system_metrics.side_effect = Exception("System error")
             mock_get_service.return_value = mock_service

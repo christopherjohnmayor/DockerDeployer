@@ -16,10 +16,12 @@ logger = logging.getLogger(__name__)
 class CacheService:
     """Redis-based caching service with TTL support."""
 
-    def __init__(self, redis_url: str = "redis://localhost:6379", decode_responses: bool = True):
+    def __init__(
+        self, redis_url: str = "redis://localhost:6379", decode_responses: bool = True
+    ):
         """
         Initialize cache service.
-        
+
         Args:
             redis_url: Redis connection URL
             decode_responses: Whether to decode responses as strings
@@ -32,14 +34,13 @@ class CacheService:
     async def connect(self) -> bool:
         """
         Connect to Redis server.
-        
+
         Returns:
             True if connection successful, False otherwise
         """
         try:
             self._redis_client = redis.from_url(
-                self.redis_url,
-                decode_responses=self.decode_responses
+                self.redis_url, decode_responses=self.decode_responses
             )
             await self._redis_client.ping()
             self._is_connected = True
@@ -60,13 +61,13 @@ class CacheService:
     async def is_connected(self) -> bool:
         """
         Check if Redis connection is active.
-        
+
         Returns:
             True if connected, False otherwise
         """
         if not self._redis_client:
             return False
-        
+
         try:
             await self._redis_client.ping()
             return True
@@ -79,17 +80,17 @@ class CacheService:
         key: str,
         value: Any,
         ttl: Optional[int] = None,
-        namespace: Optional[str] = None
+        namespace: Optional[str] = None,
     ) -> bool:
         """
         Set a value in cache with optional TTL.
-        
+
         Args:
             key: Cache key
             value: Value to cache (will be JSON serialized)
             ttl: Time to live in seconds
             namespace: Optional namespace prefix
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -99,12 +100,12 @@ class CacheService:
         try:
             cache_key = self._build_key(key, namespace)
             serialized_value = json.dumps(value, default=str)
-            
+
             if ttl:
                 await self._redis_client.setex(cache_key, ttl, serialized_value)
             else:
                 await self._redis_client.set(cache_key, serialized_value)
-            
+
             logger.debug(f"Cached value for key: {cache_key}")
             return True
         except (RedisError, json.JSONEncodeError) as e:
@@ -112,19 +113,16 @@ class CacheService:
             return False
 
     async def get(
-        self,
-        key: str,
-        namespace: Optional[str] = None,
-        default: Any = None
+        self, key: str, namespace: Optional[str] = None, default: Any = None
     ) -> Any:
         """
         Get a value from cache.
-        
+
         Args:
             key: Cache key
             namespace: Optional namespace prefix
             default: Default value if key not found
-            
+
         Returns:
             Cached value or default
         """
@@ -134,10 +132,10 @@ class CacheService:
         try:
             cache_key = self._build_key(key, namespace)
             value = await self._redis_client.get(cache_key)
-            
+
             if value is None:
                 return default
-            
+
             return json.loads(value)
         except (RedisError, json.JSONDecodeError) as e:
             logger.error(f"Error getting cache key {key}: {e}")
@@ -146,11 +144,11 @@ class CacheService:
     async def delete(self, key: str, namespace: Optional[str] = None) -> bool:
         """
         Delete a key from cache.
-        
+
         Args:
             key: Cache key
             namespace: Optional namespace prefix
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -169,11 +167,11 @@ class CacheService:
     async def exists(self, key: str, namespace: Optional[str] = None) -> bool:
         """
         Check if a key exists in cache.
-        
+
         Args:
             key: Cache key
             namespace: Optional namespace prefix
-            
+
         Returns:
             True if key exists, False otherwise
         """
@@ -190,12 +188,12 @@ class CacheService:
     async def expire(self, key: str, ttl: int, namespace: Optional[str] = None) -> bool:
         """
         Set expiration time for a key.
-        
+
         Args:
             key: Cache key
             ttl: Time to live in seconds
             namespace: Optional namespace prefix
-            
+
         Returns:
             True if successful, False otherwise
         """
@@ -212,10 +210,10 @@ class CacheService:
     async def clear_namespace(self, namespace: str) -> int:
         """
         Clear all keys in a namespace.
-        
+
         Args:
             namespace: Namespace to clear
-            
+
         Returns:
             Number of keys deleted
         """
@@ -225,12 +223,12 @@ class CacheService:
         try:
             pattern = f"{namespace}:*"
             keys = await self._redis_client.keys(pattern)
-            
+
             if keys:
                 deleted = await self._redis_client.delete(*keys)
                 logger.info(f"Cleared {deleted} keys from namespace: {namespace}")
                 return deleted
-            
+
             return 0
         except RedisError as e:
             logger.error(f"Error clearing namespace {namespace}: {e}")
@@ -239,7 +237,7 @@ class CacheService:
     async def get_stats(self) -> Dict[str, Any]:
         """
         Get cache statistics.
-        
+
         Returns:
             Dictionary with cache statistics
         """
@@ -264,11 +262,11 @@ class CacheService:
     def _build_key(self, key: str, namespace: Optional[str] = None) -> str:
         """
         Build cache key with optional namespace.
-        
+
         Args:
             key: Base key
             namespace: Optional namespace prefix
-            
+
         Returns:
             Full cache key
         """
@@ -279,16 +277,16 @@ class CacheService:
     async def _ensure_connection(self) -> bool:
         """
         Ensure Redis connection is active.
-        
+
         Returns:
             True if connected, False otherwise
         """
         if not self._is_connected:
             return await self.connect()
-        
+
         if not await self.is_connected():
             return await self.connect()
-        
+
         return True
 
 

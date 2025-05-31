@@ -31,6 +31,7 @@ os.environ["DISABLE_RATE_LIMITING"] = "true"
 from backend.app.main import app
 from backend.docker_manager.manager import DockerManager
 from backend.llm.client import LLMClient
+
 # Template loader imports are used in mock_template_loader fixture
 from backend.version_control.git_manager import GitManager
 
@@ -57,6 +58,7 @@ def setup_test_database():
     Set up test database tables.
     """
     from backend.app.db.models import Base
+
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
@@ -70,6 +72,7 @@ def cleanup_test_environment():
     yield
     # Clean up temporary directories
     import shutil
+
     test_repo_path = os.environ.get("CONFIG_REPO_PATH")
     if test_repo_path and os.path.exists(test_repo_path):
         shutil.rmtree(test_repo_path, ignore_errors=True)
@@ -90,7 +93,7 @@ def authenticated_client():
     """
     from app.auth.dependencies import get_current_user
     from app.db.models import UserRole
-    from app.main import get_metrics_service, get_docker_manager
+    from app.main import get_docker_manager, get_metrics_service
 
     # Create a mock user that behaves like a real User model
     class MockUser:
@@ -123,7 +126,7 @@ def authenticated_client():
             "network_tx": 2048,
             "block_read": 4096,
             "block_write": 8192,
-            "timestamp": "2024-01-01T12:00:00"
+            "timestamp": "2024-01-01T12:00:00",
         }
         return mock_manager
 
@@ -154,25 +157,22 @@ def authenticated_client():
             "network_tx": 2048,
             "block_read": 4096,
             "block_write": 8192,
-            "timestamp": "2024-01-01T12:00:00"
+            "timestamp": "2024-01-01T12:00:00",
         }
         mock_service.get_historical_metrics.return_value = []
         mock_service.get_system_metrics.return_value = {
             "timestamp": "2024-01-01T12:00:00",
             "containers_total": 3,
             "containers_running": 2,
-            "containers_by_status": {
-                "running": 2,
-                "stopped": 1
-            },
+            "containers_by_status": {"running": 2, "stopped": 1},
             "system_info": {
                 "docker_version": "20.10.17",
                 "total_memory": 8589934592,
                 "cpus": 4,
                 "kernel_version": "5.4.0-74-generic",
                 "operating_system": "Ubuntu 20.04.2 LTS",
-                "architecture": "x86_64"
-            }
+                "architecture": "x86_64",
+            },
         }
         return mock_service
 

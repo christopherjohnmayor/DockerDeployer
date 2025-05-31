@@ -20,7 +20,7 @@ class DatabaseOptimizationService:
     def __init__(self, database_url: str):
         """
         Initialize database optimization service.
-        
+
         Args:
             database_url: Database connection URL
         """
@@ -42,18 +42,18 @@ class DatabaseOptimizationService:
         max_overflow: int = 30,
         pool_timeout: int = 30,
         pool_recycle: int = 3600,
-        echo: bool = False
+        echo: bool = False,
     ) -> Engine:
         """
         Create an optimized database engine with connection pooling.
-        
+
         Args:
             pool_size: Number of connections to maintain in the pool
             max_overflow: Maximum number of connections that can overflow the pool
             pool_timeout: Timeout for getting connection from pool
             pool_recycle: Time in seconds to recycle connections
             echo: Whether to echo SQL statements
-            
+
         Returns:
             Optimized SQLAlchemy engine
         """
@@ -70,55 +70,59 @@ class DatabaseOptimizationService:
 
         # SQLite-specific optimizations
         if "sqlite" in self.database_url:
-            engine_config.update({
-                "connect_args": {
-                    "check_same_thread": False,
-                    "timeout": 20,
-                    # SQLite performance optimizations
-                    "isolation_level": None,  # Enable autocommit mode
-                },
-                # SQLite doesn't support connection pooling in the traditional sense
-                "poolclass": pool.StaticPool,
-                "pool_size": 1,
-                "max_overflow": 0,
-            })
+            engine_config.update(
+                {
+                    "connect_args": {
+                        "check_same_thread": False,
+                        "timeout": 20,
+                        # SQLite performance optimizations
+                        "isolation_level": None,  # Enable autocommit mode
+                    },
+                    # SQLite doesn't support connection pooling in the traditional sense
+                    "poolclass": pool.StaticPool,
+                    "pool_size": 1,
+                    "max_overflow": 0,
+                }
+            )
 
         # PostgreSQL-specific optimizations
         elif "postgresql" in self.database_url:
-            engine_config.update({
-                "connect_args": {
-                    "connect_timeout": 10,
-                    "command_timeout": 60,
-                    "server_settings": {
-                        "application_name": "DockerDeployer",
-                        "jit": "off",  # Disable JIT for faster connection times
+            engine_config.update(
+                {
+                    "connect_args": {
+                        "connect_timeout": 10,
+                        "command_timeout": 60,
+                        "server_settings": {
+                            "application_name": "DockerDeployer",
+                            "jit": "off",  # Disable JIT for faster connection times
+                        },
                     }
                 }
-            })
+            )
 
         # MySQL-specific optimizations
         elif "mysql" in self.database_url:
-            engine_config.update({
-                "connect_args": {
-                    "connect_timeout": 10,
-                    "read_timeout": 60,
-                    "write_timeout": 60,
-                    "charset": "utf8mb4",
+            engine_config.update(
+                {
+                    "connect_args": {
+                        "connect_timeout": 10,
+                        "read_timeout": 60,
+                        "write_timeout": 60,
+                        "charset": "utf8mb4",
+                    }
                 }
-            })
+            )
 
         self.engine = create_engine(self.database_url, **engine_config)
-        
+
         # Set up event listeners for monitoring
         self._setup_event_listeners()
-        
+
         # Create session factory
         self.SessionLocal = sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=self.engine
+            autocommit=False, autoflush=False, bind=self.engine
         )
-        
+
         logger.info(f"Created optimized database engine with pool_size={pool_size}")
         return self.engine
 
@@ -154,33 +158,35 @@ class DatabaseOptimizationService:
     def get_connection_stats(self) -> Dict[str, Any]:
         """
         Get current connection pool statistics.
-        
+
         Returns:
             Dictionary with connection statistics
         """
         stats = self._connection_stats.copy()
-        
-        if self.engine and hasattr(self.engine.pool, 'size'):
-            stats.update({
-                "pool_size": self.engine.pool.size(),
-                "checked_out": self.engine.pool.checkedout(),
-                "overflow": self.engine.pool.overflow(),
-                "checked_in": self.engine.pool.checkedin(),
-            })
-        
+
+        if self.engine and hasattr(self.engine.pool, "size"):
+            stats.update(
+                {
+                    "pool_size": self.engine.pool.size(),
+                    "checked_out": self.engine.pool.checkedout(),
+                    "overflow": self.engine.pool.overflow(),
+                    "checked_in": self.engine.pool.checkedin(),
+                }
+            )
+
         return stats
 
     @asynccontextmanager
     async def get_db_session(self):
         """
         Get a database session with proper cleanup.
-        
+
         Yields:
             Database session
         """
         if not self.SessionLocal:
             raise RuntimeError("Database engine not initialized")
-        
+
         session = self.SessionLocal()
         try:
             yield session
@@ -206,7 +212,7 @@ class DatabaseOptimizationService:
                 "PRAGMA mmap_size=268435456",  # 256MB memory-mapped I/O
                 "PRAGMA optimize",  # Optimize query planner
             ]
-            
+
             for pragma in optimizations:
                 try:
                     connection.execute(pragma)
@@ -217,7 +223,7 @@ class DatabaseOptimizationService:
     def get_query_performance_stats(self) -> Dict[str, Any]:
         """
         Get query performance statistics.
-        
+
         Returns:
             Dictionary with performance statistics
         """
@@ -230,16 +236,17 @@ class DatabaseOptimizationService:
                     # SQLite-specific stats
                     result = connection.execute("PRAGMA compile_options").fetchall()
                     compile_options = [row[0] for row in result]
-                    
+
                     return {
                         "database_type": "sqlite",
                         "compile_options": compile_options,
                         "connection_stats": self.get_connection_stats(),
                     }
-                
+
                 elif "postgresql" in self.database_url:
                     # PostgreSQL-specific stats
-                    result = connection.execute("""
+                    result = connection.execute(
+                        """
                         SELECT 
                             datname,
                             numbackends,
@@ -254,8 +261,9 @@ class DatabaseOptimizationService:
                             tup_deleted
                         FROM pg_stat_database 
                         WHERE datname = current_database()
-                    """).fetchone()
-                    
+                    """
+                    ).fetchone()
+
                     if result:
                         return {
                             "database_type": "postgresql",
@@ -265,7 +273,9 @@ class DatabaseOptimizationService:
                             "transactions_rolled_back": result[3],
                             "blocks_read": result[4],
                             "blocks_hit": result[5],
-                            "cache_hit_ratio": result[5] / (result[4] + result[5]) if (result[4] + result[5]) > 0 else 0,
+                            "cache_hit_ratio": result[5] / (result[4] + result[5])
+                            if (result[4] + result[5]) > 0
+                            else 0,
                             "tuples_returned": result[6],
                             "tuples_fetched": result[7],
                             "tuples_inserted": result[8],
@@ -273,12 +283,12 @@ class DatabaseOptimizationService:
                             "tuples_deleted": result[10],
                             "connection_stats": self.get_connection_stats(),
                         }
-                
+
                 return {
                     "database_type": "unknown",
                     "connection_stats": self.get_connection_stats(),
                 }
-                
+
         except Exception as e:
             logger.error(f"Error getting query performance stats: {e}")
             return {"error": str(e)}

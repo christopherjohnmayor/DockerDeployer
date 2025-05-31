@@ -2,13 +2,14 @@
 Tests for MetricsService functionality.
 """
 
-import pytest
-from unittest.mock import Mock, MagicMock, patch
 from datetime import datetime, timedelta
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 from sqlalchemy.orm import Session
 
-from app.services.metrics_service import MetricsService
 from app.db.models import ContainerMetrics, MetricsAlert, User
+from app.services.metrics_service import MetricsService
 from docker_manager.manager import DockerManager
 
 
@@ -44,10 +45,12 @@ class TestMetricsService:
             "network_rx_bytes": 1024,
             "network_tx_bytes": 2048,
             "block_read_bytes": 4096,
-            "block_write_bytes": 8192
+            "block_write_bytes": 8192,
         }
 
-    def test_collect_and_store_metrics_success(self, metrics_service, mock_db_session, mock_docker_manager, sample_stats):
+    def test_collect_and_store_metrics_success(
+        self, metrics_service, mock_db_session, mock_docker_manager, sample_stats
+    ):
         """Test successful metrics collection and storage."""
         # Setup mock
         mock_docker_manager.get_container_stats.return_value = sample_stats
@@ -57,7 +60,9 @@ class TestMetricsService:
 
         # Assertions
         assert result == sample_stats
-        mock_docker_manager.get_container_stats.assert_called_once_with("test_container_id")
+        mock_docker_manager.get_container_stats.assert_called_once_with(
+            "test_container_id"
+        )
         mock_db_session.add.assert_called_once()
         mock_db_session.commit.assert_called_once()
 
@@ -69,10 +74,14 @@ class TestMetricsService:
         assert added_metrics.cpu_percent == 25.5
         assert added_metrics.memory_usage == 134217728
 
-    def test_collect_and_store_metrics_docker_error(self, metrics_service, mock_db_session, mock_docker_manager):
+    def test_collect_and_store_metrics_docker_error(
+        self, metrics_service, mock_db_session, mock_docker_manager
+    ):
         """Test metrics collection with Docker error."""
         # Setup mock to return error
-        mock_docker_manager.get_container_stats.return_value = {"error": "Container not found"}
+        mock_docker_manager.get_container_stats.return_value = {
+            "error": "Container not found"
+        }
 
         result = metrics_service.collect_and_store_metrics("nonexistent_container")
 
@@ -82,7 +91,9 @@ class TestMetricsService:
         mock_db_session.add.assert_not_called()
         mock_db_session.commit.assert_not_called()
 
-    def test_collect_and_store_metrics_database_error(self, metrics_service, mock_db_session, mock_docker_manager, sample_stats):
+    def test_collect_and_store_metrics_database_error(
+        self, metrics_service, mock_db_session, mock_docker_manager, sample_stats
+    ):
         """Test metrics collection with database error."""
         # Setup mocks
         mock_docker_manager.get_container_stats.return_value = sample_stats
@@ -95,14 +106,18 @@ class TestMetricsService:
         assert "Failed to collect metrics" in result["error"]
         mock_db_session.rollback.assert_called_once()
 
-    def test_get_current_metrics(self, metrics_service, mock_docker_manager, sample_stats):
+    def test_get_current_metrics(
+        self, metrics_service, mock_docker_manager, sample_stats
+    ):
         """Test getting current metrics without storing."""
         mock_docker_manager.get_container_stats.return_value = sample_stats
 
         result = metrics_service.get_current_metrics("test_container_id")
 
         assert result == sample_stats
-        mock_docker_manager.get_container_stats.assert_called_once_with("test_container_id")
+        mock_docker_manager.get_container_stats.assert_called_once_with(
+            "test_container_id"
+        )
 
     def test_get_historical_metrics_success(self, metrics_service, mock_db_session):
         """Test successful historical metrics retrieval."""
@@ -132,7 +147,9 @@ class TestMetricsService:
         mock_query.all.return_value = mock_metrics
         mock_db_session.query.return_value = mock_query
 
-        result = metrics_service.get_historical_metrics("test_container", hours=24, limit=1000)
+        result = metrics_service.get_historical_metrics(
+            "test_container", hours=24, limit=1000
+        )
 
         # Assertions
         assert len(result) == 3
@@ -156,7 +173,7 @@ class TestMetricsService:
             "timestamp": "2024-01-01T12:00:00",
             "containers_total": 5,
             "containers_running": 3,
-            "system_info": {"docker_version": "20.10.17"}
+            "system_info": {"docker_version": "20.10.17"},
         }
         mock_docker_manager.get_system_stats.return_value = system_stats
 
@@ -187,7 +204,9 @@ class TestMetricsService:
         assert result == 0
         mock_db_session.rollback.assert_called_once()
 
-    def test_create_alert_success(self, metrics_service, mock_db_session, mock_docker_manager):
+    def test_create_alert_success(
+        self, metrics_service, mock_db_session, mock_docker_manager
+    ):
         """Test successful alert creation."""
         # Setup mock
         container_stats = {"container_name": "test_container_name"}
@@ -207,7 +226,7 @@ class TestMetricsService:
         mock_alert.created_at = datetime.utcnow()
 
         # Mock the database session to return our mock alert
-        with patch('app.services.metrics_service.MetricsAlert') as mock_alert_class:
+        with patch("app.services.metrics_service.MetricsAlert") as mock_alert_class:
             mock_alert_class.return_value = mock_alert
 
             result = metrics_service.create_alert(
@@ -217,7 +236,7 @@ class TestMetricsService:
                 metric_type="cpu_percent",
                 threshold_value=80.0,
                 comparison_operator=">",
-                description="Alert when CPU > 80%"
+                description="Alert when CPU > 80%",
             )
 
         # Assertions
@@ -229,9 +248,13 @@ class TestMetricsService:
         mock_db_session.add.assert_called_once()
         mock_db_session.commit.assert_called_once()
 
-    def test_create_alert_exception(self, metrics_service, mock_db_session, mock_docker_manager):
+    def test_create_alert_exception(
+        self, metrics_service, mock_db_session, mock_docker_manager
+    ):
         """Test alert creation with exception."""
-        mock_docker_manager.get_container_stats.return_value = {"container_name": "test"}
+        mock_docker_manager.get_container_stats.return_value = {
+            "container_name": "test"
+        }
         mock_db_session.commit.side_effect = Exception("Database error")
 
         result = metrics_service.create_alert(
@@ -240,7 +263,7 @@ class TestMetricsService:
             name="Test Alert",
             metric_type="cpu_percent",
             threshold_value=80.0,
-            comparison_operator=">"
+            comparison_operator=">",
         )
 
         assert "error" in result
@@ -302,7 +325,9 @@ class TestMetricsService:
         mock_alert.threshold_value = 80.0
         mock_alert.is_active = True
 
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_alert
+        mock_db_session.query.return_value.filter.return_value.first.return_value = (
+            mock_alert
+        )
 
         update_data = {
             "name": "New Name",
@@ -311,16 +336,14 @@ class TestMetricsService:
         }
 
         result = metrics_service.update_alert(
-            alert_id=1,
-            user_id=1,
-            update_data=update_data
+            alert_id=1, user_id=1, update_data=update_data
         )
 
         # Verify alert was updated
         assert mock_alert.name == "New Name"
         assert mock_alert.threshold_value == 90.0
         assert mock_alert.is_active == False
-        assert hasattr(mock_alert, 'updated_at')
+        assert hasattr(mock_alert, "updated_at")
 
         # Verify database operations
         mock_db_session.commit.assert_called_once()
@@ -334,9 +357,7 @@ class TestMetricsService:
         mock_db_session.query.return_value.filter.return_value.first.return_value = None
 
         result = metrics_service.update_alert(
-            alert_id=999,
-            user_id=1,
-            update_data={"name": "New Name"}
+            alert_id=999, user_id=1, update_data={"name": "New Name"}
         )
 
         assert "error" in result
@@ -345,13 +366,13 @@ class TestMetricsService:
     def test_update_alert_exception(self, metrics_service, mock_db_session):
         """Test alert update with database exception."""
         mock_alert = MagicMock()
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_alert
+        mock_db_session.query.return_value.filter.return_value.first.return_value = (
+            mock_alert
+        )
         mock_db_session.commit.side_effect = Exception("Database error")
 
         result = metrics_service.update_alert(
-            alert_id=1,
-            user_id=1,
-            update_data={"name": "New Name"}
+            alert_id=1, user_id=1, update_data={"name": "New Name"}
         )
 
         assert "error" in result
@@ -362,7 +383,9 @@ class TestMetricsService:
         """Test successful alert deletion."""
         mock_alert = MagicMock()
         mock_alert.id = 1
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_alert
+        mock_db_session.query.return_value.filter.return_value.first.return_value = (
+            mock_alert
+        )
 
         result = metrics_service.delete_alert(alert_id=1, user_id=1)
 
@@ -386,7 +409,9 @@ class TestMetricsService:
     def test_delete_alert_exception(self, metrics_service, mock_db_session):
         """Test alert deletion with database exception."""
         mock_alert = MagicMock()
-        mock_db_session.query.return_value.filter.return_value.first.return_value = mock_alert
+        mock_db_session.query.return_value.filter.return_value.first.return_value = (
+            mock_alert
+        )
         mock_db_session.delete.side_effect = Exception("Database error")
 
         result = metrics_service.delete_alert(alert_id=1, user_id=1)
@@ -420,7 +445,10 @@ class TestMetricsService:
         mock_alert2.is_triggered = False
         mock_alert2.trigger_count = 0
 
-        mock_db_session.query.return_value.filter.return_value.all.return_value = [mock_alert1, mock_alert2]
+        mock_db_session.query.return_value.filter.return_value.all.return_value = [
+            mock_alert1,
+            mock_alert2,
+        ]
 
         # Test metrics that should trigger first alert but not second
         current_metrics = {
@@ -439,7 +467,7 @@ class TestMetricsService:
         # Verify alert state was updated
         assert mock_alert1.is_triggered == True
         assert mock_alert1.trigger_count == 1
-        assert hasattr(mock_alert1, 'last_triggered_at')
+        assert hasattr(mock_alert1, "last_triggered_at")
 
         # Verify second alert was not triggered
         assert mock_alert2.is_triggered == False
@@ -458,7 +486,9 @@ class TestMetricsService:
         mock_alert.is_triggered = True  # Currently triggered
         mock_alert.trigger_count = 1
 
-        mock_db_session.query.return_value.filter.return_value.all.return_value = [mock_alert]
+        mock_db_session.query.return_value.filter.return_value.all.return_value = [
+            mock_alert
+        ]
 
         # Test metrics that should reset the alert
         current_metrics = {
@@ -512,7 +542,9 @@ class TestMetricsService:
         mock_alert.comparison_operator = ">"
         mock_alert.is_triggered = False
 
-        mock_db_session.query.return_value.filter.return_value.all.return_value = [mock_alert]
+        mock_db_session.query.return_value.filter.return_value.all.return_value = [
+            mock_alert
+        ]
 
         # Test with missing metric
         current_metrics = {

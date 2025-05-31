@@ -6,22 +6,27 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import Body, Depends, FastAPI, HTTPException, status, WebSocket, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_admin_user, get_current_user
 from app.auth.router import router as auth_router
 from app.auth.user_management import router as user_management_router
 from app.config.settings_manager import SettingsManager
-from app.db.database import init_db, get_db
+from app.db.database import get_db, init_db
 from app.db.models import User
-from sqlalchemy.orm import Session
+from app.middleware.rate_limiting import (
+    rate_limit_api,
+    rate_limit_auth,
+    rate_limit_metrics,
+    setup_rate_limiting,
+)
 from app.services.metrics_service import MetricsService
 from app.websocket.notifications import websocket_notifications_endpoint
-from app.middleware.rate_limiting import setup_rate_limiting, rate_limit_api, rate_limit_auth, rate_limit_metrics
 from llm.client import LLMClient
 
 # from docker.manager import DockerManager
@@ -1000,7 +1005,7 @@ async def get_container_stats(
     request: Request,
     container_id: str,
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Get real-time resource usage statistics for a specific container.
@@ -1013,8 +1018,7 @@ async def get_container_stats(
 
         if "error" in stats:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=stats["error"]
+                status_code=status.HTTP_404_NOT_FOUND, detail=stats["error"]
             )
 
         return stats
@@ -1044,7 +1048,7 @@ async def get_container_metrics_history(
     hours: int = 24,
     limit: int = 1000,
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Get historical metrics data for a specific container.
@@ -1062,7 +1066,7 @@ async def get_container_metrics_history(
             "container_id": container_id,
             "hours": hours,
             "limit": limit,
-            "metrics": metrics
+            "metrics": metrics,
         }
     except Exception as e:
         raise HTTPException(
@@ -1085,7 +1089,7 @@ async def get_container_metrics_history(
 )
 async def get_system_metrics(
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Get system-wide Docker metrics and statistics.
@@ -1098,8 +1102,7 @@ async def get_system_metrics(
 
         if "error" in metrics:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=metrics["error"]
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=metrics["error"]
             )
 
         return metrics
@@ -1127,7 +1130,7 @@ async def get_system_metrics(
 async def create_alert(
     alert_data: dict,
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Create a new metrics alert.
@@ -1135,28 +1138,33 @@ async def create_alert(
     Requires authentication.
     """
     try:
-        required_fields = ['name', 'container_id', 'metric_type', 'threshold_value', 'comparison_operator']
+        required_fields = [
+            "name",
+            "container_id",
+            "metric_type",
+            "threshold_value",
+            "comparison_operator",
+        ]
         for field in required_fields:
             if field not in alert_data:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Missing required field: {field}"
+                    detail=f"Missing required field: {field}",
                 )
 
         result = metrics_service.create_alert(
             user_id=current_user.id,
-            container_id=alert_data['container_id'],
-            name=alert_data['name'],
-            metric_type=alert_data['metric_type'],
-            threshold_value=float(alert_data['threshold_value']),
-            comparison_operator=alert_data['comparison_operator'],
-            description=alert_data.get('description')
+            container_id=alert_data["container_id"],
+            name=alert_data["name"],
+            metric_type=alert_data["metric_type"],
+            threshold_value=float(alert_data["threshold_value"]),
+            comparison_operator=alert_data["comparison_operator"],
+            description=alert_data.get("description"),
         )
 
         if "error" in result:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result["error"]
+                status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
             )
 
         return result
@@ -1182,7 +1190,7 @@ async def create_alert(
 )
 async def get_user_alerts(
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Get all alerts for the current user.
@@ -1216,7 +1224,7 @@ async def update_alert(
     alert_id: int,
     alert_data: dict,
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Update an existing metrics alert.
@@ -1225,21 +1233,17 @@ async def update_alert(
     """
     try:
         result = metrics_service.update_alert(
-            alert_id=alert_id,
-            user_id=current_user.id,
-            update_data=alert_data
+            alert_id=alert_id, user_id=current_user.id, update_data=alert_data
         )
 
         if "error" in result:
             if "not found" in result["error"].lower():
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=result["error"]
+                    status_code=status.HTTP_404_NOT_FOUND, detail=result["error"]
                 )
             else:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=result["error"]
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
                 )
 
         return result
@@ -1267,7 +1271,7 @@ async def update_alert(
 async def delete_alert(
     alert_id: int,
     current_user: User = Depends(get_current_user),
-    metrics_service: MetricsService = Depends(get_metrics_service)
+    metrics_service: MetricsService = Depends(get_metrics_service),
 ):
     """
     Delete an existing metrics alert.
@@ -1280,13 +1284,11 @@ async def delete_alert(
         if "error" in result:
             if "not found" in result["error"].lower():
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=result["error"]
+                    status_code=status.HTTP_404_NOT_FOUND, detail=result["error"]
                 )
             else:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=result["error"]
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=result["error"]
                 )
 
         return {"message": "Alert deleted successfully"}
@@ -1658,11 +1660,10 @@ async def deployment_history(current_user: User = Depends(get_current_user)):
 
 # --- WebSocket Endpoints ---
 
+
 @app.websocket("/ws/notifications/{user_id}")
 async def websocket_notifications(
-    websocket: WebSocket,
-    user_id: int,
-    db: Session = Depends(get_db)
+    websocket: WebSocket, user_id: int, db: Session = Depends(get_db)
 ):
     """
     WebSocket endpoint for real-time notifications.
