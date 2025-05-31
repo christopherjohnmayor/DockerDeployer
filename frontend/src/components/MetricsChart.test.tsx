@@ -1,108 +1,73 @@
-import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { ThemeProvider } from '@mui/material/styles';
-import { createTheme } from '@mui/material/styles';
-import MetricsChart, { MetricDataPoint } from './MetricsChart';
-
-const theme = createTheme();
+import React from "react";
+import { screen } from "@testing-library/react";
+import { renderWithTheme } from "../utils/testUtils";
+import MetricsChart, { MetricDataPoint } from "./MetricsChart";
 
 const mockData: MetricDataPoint[] = [
-  { timestamp: '2024-01-01T12:00:00Z', value: 25.5 },
-  { timestamp: '2024-01-01T12:01:00Z', value: 30.2 },
-  { timestamp: '2024-01-01T12:02:00Z', value: 28.7 },
-  { timestamp: '2024-01-01T12:03:00Z', value: 35.1 },
-  { timestamp: '2024-01-01T12:04:00Z', value: 32.8 },
+  { timestamp: "2024-01-01T12:00:00Z", value: 25.5 },
+  { timestamp: "2024-01-01T12:01:00Z", value: 30.2 },
+  { timestamp: "2024-01-01T12:02:00Z", value: 28.7 },
+  { timestamp: "2024-01-01T12:03:00Z", value: 35.1 },
+  { timestamp: "2024-01-01T12:04:00Z", value: 32.8 },
 ];
 
-const renderWithTheme = (component: React.ReactElement) => {
-  return render(
-    <ThemeProvider theme={theme}>
-      {component}
-    </ThemeProvider>
-  );
-};
-
-describe('MetricsChart', () => {
-  it('renders chart with title and data', () => {
+describe("MetricsChart", () => {
+  it("renders chart with title and data", () => {
     renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={mockData}
-        unit="%"
-      />
+      <MetricsChart title="CPU Usage" data={mockData} unit="%" />
     );
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
   });
 
-  it('renders loading state', () => {
+  it("renders loading state", () => {
     renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={[]}
-        loading={true}
-      />
+      <MetricsChart title="CPU Usage" data={[]} loading={true} />
     );
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('Loading metrics...')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
+    expect(screen.getByText("Loading metrics...")).toBeInTheDocument();
   });
 
-  it('renders error state', () => {
-    const errorMessage = 'Failed to load metrics';
+  it("renders error state", () => {
+    const errorMessage = "Failed to load metrics";
     renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={[]}
-        error={errorMessage}
-      />
+      <MetricsChart title="CPU Usage" data={[]} error={errorMessage} />
     );
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
     expect(screen.getByText(errorMessage)).toBeInTheDocument();
   });
 
-  it('renders empty state when no data', () => {
+  it("renders empty state when no data", () => {
+    renderWithTheme(<MetricsChart title="CPU Usage" data={[]} />);
+
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
+    expect(screen.getByText("No data available")).toBeInTheDocument();
+  });
+
+  it("renders line chart by default", () => {
     renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={[]}
-      />
+      <MetricsChart title="CPU Usage" data={mockData} unit="%" />
     );
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    // Check for Recharts LineChart component using data-testid
+    expect(screen.getByTestId("line-chart")).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
   });
 
-  it('renders line chart by default', () => {
-    const { container } = renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={mockData}
-        unit="%"
-      />
+  it("renders area chart when type is area", () => {
+    renderWithTheme(
+      <MetricsChart title="Memory Usage" data={mockData} type="area" unit="%" />
     );
 
-    // Check for Recharts LineChart component
-    expect(container.querySelector('.recharts-line')).toBeInTheDocument();
+    // Check for Recharts AreaChart component using data-testid
+    expect(screen.getByTestId("area-chart")).toBeInTheDocument();
+    expect(screen.getByText("Memory Usage")).toBeInTheDocument();
   });
 
-  it('renders area chart when type is area', () => {
-    const { container } = renderWithTheme(
-      <MetricsChart
-        title="Memory Usage"
-        data={mockData}
-        type="area"
-        unit="%"
-      />
-    );
-
-    // Check for Recharts AreaChart component
-    expect(container.querySelector('.recharts-area')).toBeInTheDocument();
-  });
-
-  it('renders bar chart when type is bar', () => {
-    const { container } = renderWithTheme(
+  it("renders bar chart when type is bar", () => {
+    renderWithTheme(
       <MetricsChart
         title="Network Usage"
         data={mockData}
@@ -111,12 +76,13 @@ describe('MetricsChart', () => {
       />
     );
 
-    // Check for Recharts BarChart component
-    expect(container.querySelector('.recharts-bar')).toBeInTheDocument();
+    // Check for Recharts BarChart component using data-testid
+    expect(screen.getByTestId("bar-chart")).toBeInTheDocument();
+    expect(screen.getByText("Network Usage")).toBeInTheDocument();
   });
 
-  it('applies custom color', () => {
-    const customColor = '#ff0000';
+  it("applies custom color", () => {
+    const customColor = "#ff0000";
     const { container } = renderWithTheme(
       <MetricsChart
         title="CPU Usage"
@@ -126,12 +92,12 @@ describe('MetricsChart', () => {
       />
     );
 
-    // Check that the line has the custom color
-    const line = container.querySelector('.recharts-line .recharts-line-curve');
-    expect(line).toHaveAttribute('stroke', customColor);
+    // Check that the line has the custom color in our mocked component
+    const line = container.querySelector(".recharts-line-curve");
+    expect(line).toHaveAttribute("stroke", customColor);
   });
 
-  it('uses custom formatValue function', () => {
+  it("uses custom formatValue function", () => {
     const formatValue = (value: number) => `${value.toFixed(0)} percent`;
     renderWithTheme(
       <MetricsChart
@@ -142,10 +108,10 @@ describe('MetricsChart', () => {
     );
 
     // The custom format function should be used in tooltips and axis labels
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
   });
 
-  it('applies custom height', () => {
+  it("applies custom height", () => {
     const customHeight = 500;
     const { container } = renderWithTheme(
       <MetricsChart
@@ -157,11 +123,11 @@ describe('MetricsChart', () => {
     );
 
     // Check that the container has the custom height
-    const paper = container.querySelector('.MuiPaper-root');
+    const paper = container.querySelector(".MuiPaper-root");
     expect(paper).toHaveStyle(`height: ${customHeight}px`);
   });
 
-  it('shows grid when showGrid is true', () => {
+  it("shows grid when showGrid is true", () => {
     const { container } = renderWithTheme(
       <MetricsChart
         title="CPU Usage"
@@ -172,10 +138,12 @@ describe('MetricsChart', () => {
     );
 
     // Check for CartesianGrid component
-    expect(container.querySelector('.recharts-cartesian-grid')).toBeInTheDocument();
+    expect(
+      container.querySelector(".recharts-cartesian-grid")
+    ).toBeInTheDocument();
   });
 
-  it('hides grid when showGrid is false', () => {
+  it("hides grid when showGrid is false", () => {
     const { container } = renderWithTheme(
       <MetricsChart
         title="CPU Usage"
@@ -186,10 +154,12 @@ describe('MetricsChart', () => {
     );
 
     // Check that CartesianGrid component is not present
-    expect(container.querySelector('.recharts-cartesian-grid')).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".recharts-cartesian-grid")
+    ).not.toBeInTheDocument();
   });
 
-  it('shows legend when showLegend is true', () => {
+  it("shows legend when showLegend is true", () => {
     const { container } = renderWithTheme(
       <MetricsChart
         title="CPU Usage"
@@ -200,10 +170,12 @@ describe('MetricsChart', () => {
     );
 
     // Check for Legend component
-    expect(container.querySelector('.recharts-legend-wrapper')).toBeInTheDocument();
+    expect(
+      container.querySelector(".recharts-legend-wrapper")
+    ).toBeInTheDocument();
   });
 
-  it('hides legend when showLegend is false', () => {
+  it("hides legend when showLegend is false", () => {
     const { container } = renderWithTheme(
       <MetricsChart
         title="CPU Usage"
@@ -214,43 +186,30 @@ describe('MetricsChart', () => {
     );
 
     // Check that Legend component is not present
-    expect(container.querySelector('.recharts-legend-wrapper')).not.toBeInTheDocument();
+    expect(
+      container.querySelector(".recharts-legend-wrapper")
+    ).not.toBeInTheDocument();
   });
 
-  it('handles empty data gracefully', () => {
-    renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={[]}
-        unit="%"
-      />
-    );
+  it("handles empty data gracefully", () => {
+    renderWithTheme(<MetricsChart title="CPU Usage" data={[]} unit="%" />);
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
+    expect(screen.getByText("No data available")).toBeInTheDocument();
   });
 
-  it('handles null data gracefully', () => {
+  it("handles null data gracefully", () => {
     renderWithTheme(
-      <MetricsChart
-        title="CPU Usage"
-        data={null as any}
-        unit="%"
-      />
+      <MetricsChart title="CPU Usage" data={null as any} unit="%" />
     );
 
-    expect(screen.getByText('CPU Usage')).toBeInTheDocument();
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText("CPU Usage")).toBeInTheDocument();
+    expect(screen.getByText("No data available")).toBeInTheDocument();
   });
 
-  it('renders with minimal props', () => {
-    renderWithTheme(
-      <MetricsChart
-        title="Basic Chart"
-        data={mockData}
-      />
-    );
+  it("renders with minimal props", () => {
+    renderWithTheme(<MetricsChart title="Basic Chart" data={mockData} />);
 
-    expect(screen.getByText('Basic Chart')).toBeInTheDocument();
+    expect(screen.getByText("Basic Chart")).toBeInTheDocument();
   });
 });

@@ -1,11 +1,23 @@
 import React from "react";
-import { render, screen, act } from "@testing-library/react";
+import { screen, act } from "@testing-library/react";
+import { renderWithProviders } from "../utils/testUtils";
 import Dashboard from "./Dashboard";
 
 // Mock the NaturalLanguageInput component
 jest.mock("../components/NaturalLanguageInput", () => {
   return function MockNaturalLanguageInput() {
-    return <div data-testid="natural-language-input">Natural Language Input Component</div>;
+    return (
+      <div data-testid="natural-language-input">
+        Natural Language Input Component
+      </div>
+    );
+  };
+});
+
+// Mock the SystemOverview component
+jest.mock("../components/SystemOverview", () => {
+  return function MockSystemOverview() {
+    return <div data-testid="system-overview">System Overview Component</div>;
   };
 });
 
@@ -31,7 +43,7 @@ afterAll(() => {
 describe("Dashboard Component", () => {
   test("renders dashboard title", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
@@ -39,7 +51,7 @@ describe("Dashboard Component", () => {
 
   test("renders welcome message", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
     expect(
@@ -47,19 +59,18 @@ describe("Dashboard Component", () => {
     ).toBeInTheDocument();
   });
 
-  test("renders placeholder text", async () => {
+  test("renders system overview component", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
-    expect(
-      screen.getByText(/This is a placeholder. More features coming soon./)
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("system-overview")).toBeInTheDocument();
+    expect(screen.getByText("System Overview Component")).toBeInTheDocument();
   });
 
   test("renders natural language input component", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
     expect(screen.getByTestId("natural-language-input")).toBeInTheDocument();
@@ -70,25 +81,27 @@ describe("Dashboard Component", () => {
 
   test("has proper layout structure", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
     // Check that the main container exists
     const dashboardContainer = screen.getByText("Dashboard").closest("div");
     expect(dashboardContainer).toBeInTheDocument();
 
-    // Check that both the paper section and natural language input are present
+    // Check that all main components are present
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
+    expect(screen.getByTestId("system-overview")).toBeInTheDocument();
     expect(screen.getByTestId("natural-language-input")).toBeInTheDocument();
   });
 
-  test("displays overview information", async () => {
+  test("displays quick actions section", async () => {
     await act(async () => {
-      render(<Dashboard />);
+      renderWithProviders(<Dashboard />);
     });
 
+    expect(screen.getByText("Quick Actions")).toBeInTheDocument();
     expect(
-      screen.getByText(/overview of your containers, resource usage/)
+      screen.getByText(/Use natural language to manage your containers/)
     ).toBeInTheDocument();
   });
 });

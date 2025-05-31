@@ -256,6 +256,7 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
                 onClick={handleRefresh}
                 disabled={loading}
                 fullWidth
+                aria-label="Refresh metrics data"
               >
                 {loading ? <CircularProgress size={20} /> : "Refresh"}
               </Button>

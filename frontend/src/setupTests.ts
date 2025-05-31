@@ -55,3 +55,114 @@ Object.defineProperty(window, "matchMedia", {
   unobserve: jest.fn(),
   disconnect: jest.fn(),
 }));
+
+// Mock Recharts components for testing
+jest.mock("recharts", () => {
+  const React = require("react");
+  return {
+    LineChart: ({ children, ...props }: any) =>
+      React.createElement(
+        "div",
+        {
+          className: "recharts-line-chart",
+          "data-testid": "line-chart",
+          ...props,
+        },
+        [
+          React.createElement(
+            "div",
+            {
+              className: "recharts-line",
+              key: "line",
+            },
+            children
+          ),
+        ]
+      ),
+    AreaChart: ({ children, ...props }: any) =>
+      React.createElement(
+        "div",
+        {
+          className: "recharts-area-chart",
+          "data-testid": "area-chart",
+          ...props,
+        },
+        [
+          React.createElement("div", {
+            className: "recharts-area",
+            key: "area",
+          }),
+          children,
+        ]
+      ),
+    BarChart: ({ children, ...props }: any) =>
+      React.createElement(
+        "div",
+        {
+          className: "recharts-bar-chart",
+          "data-testid": "bar-chart",
+          ...props,
+        },
+        [
+          React.createElement("div", {
+            className: "recharts-bar",
+            key: "bar",
+          }),
+          children,
+        ]
+      ),
+    Line: ({ stroke, ...props }: any) =>
+      React.createElement("div", {
+        className: "recharts-line-curve",
+        stroke,
+        ...props,
+      }),
+    Area: ({ stroke, fill, ...props }: any) =>
+      React.createElement("div", {
+        className: "recharts-area",
+        stroke,
+        fill,
+        ...props,
+      }),
+    Bar: ({ fill, ...props }: any) =>
+      React.createElement("div", {
+        className: "recharts-bar",
+        fill,
+        ...props,
+      }),
+    XAxis: (props: any) =>
+      React.createElement("div", {
+        className: "recharts-xaxis",
+        ...props,
+      }),
+    YAxis: (props: any) =>
+      React.createElement("div", {
+        className: "recharts-yaxis",
+        ...props,
+      }),
+    CartesianGrid: (props: any) =>
+      React.createElement("div", {
+        className: "recharts-cartesian-grid",
+        ...props,
+      }),
+    Tooltip: (props: any) =>
+      React.createElement("div", {
+        className: "recharts-tooltip",
+        ...props,
+      }),
+    Legend: (props: any) =>
+      React.createElement("div", {
+        className: "recharts-legend-wrapper",
+        ...props,
+      }),
+    ResponsiveContainer: ({ children, ...props }: any) =>
+      React.createElement(
+        "div",
+        {
+          className: "recharts-responsive-container",
+          ...props,
+        },
+        children
+      ),
+  };
+});

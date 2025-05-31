@@ -333,11 +333,9 @@ describe("Templates Component", () => {
         fireEvent.click(deployButtons[0]);
       });
 
-      // Wait for fallback error message - covers error handling branches
+      // Wait for error message - the error.message takes precedence over fallback
       await waitFor(() => {
-        expect(
-          screen.getByText('Failed to deploy template "lemp".')
-        ).toBeInTheDocument();
+        expect(screen.getByText("Network Error")).toBeInTheDocument();
       });
     });
 
@@ -358,9 +356,10 @@ describe("Templates Component", () => {
         fireEvent.click(detailsButtons[0]);
       });
 
-      // Verify dialog opened by checking for template name in dialog
+      // Verify dialog opened by checking for dialog-specific content
       await waitFor(() => {
-        expect(screen.getByText("lemp")).toBeInTheDocument();
+        // Check for dialog content that's unique to the dialog
+        expect(screen.getByText("Overview")).toBeInTheDocument();
       });
 
       // Close dialog - covers line 334 (handleCloseDetail)

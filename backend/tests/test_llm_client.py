@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from backend.llm.client import LLMClient
+from llm.client import LLMClient
 
 
 class TestLLMClient:
@@ -357,3 +357,182 @@ class TestLLMClient:
         client.set_provider("litellm")
         assert client.provider == "litellm"
         assert "localhost:8001" in client.api_url
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_network_timeout_error(self, mock_async_client_class):
+        """Test handling of network timeout errors."""
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.TimeoutException("Request timeout")
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+
+        with pytest.raises(httpx.TimeoutException):
+            await client.send_query("test prompt")
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_connection_error(self, mock_async_client_class):
+        """Test handling of connection errors."""
+        mock_client = AsyncMock()
+        mock_client.post.side_effect = httpx.ConnectError("Connection failed")
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+
+        with pytest.raises(httpx.ConnectError):
+            await client.send_query("test prompt")
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_openrouter_empty_choices(self, mock_async_client_class):
+        """Test OpenRouter response with empty choices array."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"choices": []}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="openrouter", api_key="test_key")
+        response = await client.send_query("test prompt")
+
+        assert response == ""
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_ollama_alternative_response_fields(self, mock_async_client_class):
+        """Test Ollama response with alternative field names."""
+        # Test with 'message' field
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"message": "Message field response"}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+        response = await client.send_query("test prompt")
+
+        assert response == "Message field response"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_ollama_text_field_response(self, mock_async_client_class):
+        """Test Ollama response with 'text' field."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"text": "Text field response"}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+        response = await client.send_query("test prompt")
+
+        assert response == "Text field response"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_empty_response_handling(self, mock_async_client_class):
+        """Test handling of empty responses."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+        response = await client.send_query("test prompt")
+
+        assert response == ""
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_litellm_text_response_field(self, mock_async_client_class):
+        """Test LiteLLM response with 'text' field instead of 'response'."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"text": "LiteLLM text response"}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="litellm", api_key="test_key")
+        response = await client.send_query("test prompt")
+
+        assert response == "LiteLLM text response"
+
+    def test_init_with_environment_variables(self):
+        """Test initialization with environment variables."""
+        with patch.dict('os.environ', {
+            'OLLAMA_API_URL': 'http://custom-ollama:11434/api/generate',
+            'OPENROUTER_API_KEY': 'env-openrouter-key',
+            'LLM_API_URL': 'http://custom-litellm:8001/generate',
+            'LLM_API_KEY': 'env-litellm-key'
+        }):
+            # Test Ollama with env URL
+            ollama_client = LLMClient(provider="ollama")
+            assert ollama_client.api_url == "http://custom-ollama:11434/api/generate"
+
+            # Test OpenRouter with env key
+            openrouter_client = LLMClient(provider="openrouter")
+            assert openrouter_client.api_key == "env-openrouter-key"
+
+            # Test LiteLLM with env URL and key
+            litellm_client = LLMClient(provider="litellm")
+            assert litellm_client.api_url == "http://custom-litellm:8001/generate"
+            assert litellm_client.api_key == "env-litellm-key"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_openrouter_custom_model_in_params(self, mock_async_client_class):
+        """Test OpenRouter with custom model specified in params."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "Custom model response"}}]
+        }
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="openrouter", api_key="test_key")
+        params = {"model": "custom/model:latest"}
+        response = await client.send_query("test prompt", params=params)
+
+        assert response == "Custom model response"
+
+        # Verify the custom model was used
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["json"]["model"] == "custom/model:latest"
