@@ -241,15 +241,16 @@ def refresh_token(refresh_data: RefreshRequest, db: Session = Depends(get_db)) -
             expires_delta=access_token_expires,
         )
 
+        # Revoke old refresh token first
+        db_token.is_revoked = True
+        db.commit()  # Commit the revocation first
+
         # Create new refresh token
         refresh_token_expires = timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
         new_refresh_token = create_refresh_token(
             data={"sub": str(user.id), "username": user.username, "role": user.role},
             expires_delta=refresh_token_expires,
         )
-
-        # Revoke old refresh token
-        db_token.is_revoked = True
 
         # Store new refresh token in database
         token_expires = datetime.utcnow() + refresh_token_expires

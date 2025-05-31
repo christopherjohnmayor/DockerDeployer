@@ -3,6 +3,7 @@ JWT authentication module.
 """
 
 import os
+import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional, Union
 
@@ -67,7 +68,12 @@ def create_access_token(
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode.update({"exp": expire, "type": "access"})
+    # Add unique identifier to prevent token collisions
+    to_encode.update({
+        "exp": expire,
+        "type": "access",
+        "jti": str(uuid.uuid4())  # JWT ID for uniqueness
+    })
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -92,7 +98,12 @@ def create_refresh_token(
     else:
         expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
 
-    to_encode.update({"exp": expire, "type": "refresh"})
+    # Add unique identifier to prevent token collisions
+    to_encode.update({
+        "exp": expire,
+        "type": "refresh",
+        "jti": str(uuid.uuid4())  # JWT ID for uniqueness
+    })
 
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

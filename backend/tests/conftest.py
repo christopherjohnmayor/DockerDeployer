@@ -87,7 +87,24 @@ def test_client():
 
 
 @pytest.fixture
-def authenticated_client():
+def clean_database():
+    """
+    Clean database tables before each test.
+    """
+    from app.db.models import MetricsAlert, ContainerMetrics
+
+    db = TestingSessionLocal()
+    try:
+        # Clean up metrics-related tables
+        db.query(MetricsAlert).delete()
+        db.query(ContainerMetrics).delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+@pytest.fixture
+def authenticated_client(clean_database):
     """
     Create an authenticated test client with mocked authentication and services.
     """
@@ -190,7 +207,7 @@ def authenticated_client():
 
 
 @pytest.fixture
-def authenticated_client_with_custom_service():
+def authenticated_client_with_custom_service(clean_database):
     """
     Create an authenticated test client that allows custom service overrides.
     """

@@ -96,11 +96,6 @@ const AlertsManager: React.FC<AlertsManagerProps> = ({ containerId }) => {
     { value: "!=", label: "Not equal to (!=)" },
   ];
 
-  // Fetch alerts on component mount
-  useEffect(() => {
-    loadAlerts();
-  }, [loadAlerts]);
-
   const loadAlerts = useCallback(async () => {
     try {
       const response = await fetchAlerts("/api/alerts");
@@ -111,6 +106,11 @@ const AlertsManager: React.FC<AlertsManagerProps> = ({ containerId }) => {
       console.error("Error loading alerts:", error);
     }
   }, [fetchAlerts]);
+
+  // Fetch alerts on component mount
+  useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
 
   const handleOpenDialog = (alert?: MetricsAlert) => {
     if (alert) {
