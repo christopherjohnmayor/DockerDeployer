@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface UseWebSocketOptions {
   onMessage?: (event: MessageEvent) => void;
@@ -14,7 +14,7 @@ interface UseWebSocketReturn {
   sendMessage: (message: any) => void;
   disconnect: () => void;
   reconnect: () => void;
-  connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
+  connectionState: "connecting" | "connected" | "disconnected" | "error";
 }
 
 export const useWebSocket = (
@@ -31,10 +31,12 @@ export const useWebSocket = (
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
-  const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
-  
+  const [connectionState, setConnectionState] = useState<
+    "connecting" | "connected" | "disconnected" | "error"
+  >("disconnected");
+
   const websocketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const shouldReconnectRef = useRef(true);
 
@@ -44,12 +46,12 @@ export const useWebSocket = (
     }
 
     try {
-      setConnectionState('connecting');
+      setConnectionState("connecting");
       websocketRef.current = new WebSocket(url);
 
       websocketRef.current.onopen = () => {
         setIsConnected(true);
-        setConnectionState('connected');
+        setConnectionState("connected");
         reconnectAttemptsRef.current = 0;
         onConnect?.();
       };
@@ -60,7 +62,7 @@ export const useWebSocket = (
 
       websocketRef.current.onclose = () => {
         setIsConnected(false);
-        setConnectionState('disconnected');
+        setConnectionState("disconnected");
         onDisconnect?.();
 
         // Attempt to reconnect if enabled and within retry limits
@@ -76,18 +78,26 @@ export const useWebSocket = (
       };
 
       websocketRef.current.onerror = (error) => {
-        setConnectionState('error');
+        setConnectionState("error");
         onError?.(error);
       };
     } catch (error) {
-      setConnectionState('error');
-      console.error('WebSocket connection error:', error);
+      setConnectionState("error");
+      console.error("WebSocket connection error:", error);
     }
-  }, [url, onMessage, onConnect, onDisconnect, onError, reconnectInterval, maxReconnectAttempts]);
+  }, [
+    url,
+    onMessage,
+    onConnect,
+    onDisconnect,
+    onError,
+    reconnectInterval,
+    maxReconnectAttempts,
+  ]);
 
   const disconnect = useCallback(() => {
     shouldReconnectRef.current = false;
-    
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
@@ -99,7 +109,7 @@ export const useWebSocket = (
     }
 
     setIsConnected(false);
-    setConnectionState('disconnected');
+    setConnectionState("disconnected");
   }, []);
 
   const reconnect = useCallback(() => {
@@ -112,13 +122,14 @@ export const useWebSocket = (
   const sendMessage = useCallback((message: any) => {
     if (websocketRef.current?.readyState === WebSocket.OPEN) {
       try {
-        const messageString = typeof message === 'string' ? message : JSON.stringify(message);
+        const messageString =
+          typeof message === "string" ? message : JSON.stringify(message);
         websocketRef.current.send(messageString);
       } catch (error) {
-        console.error('Error sending WebSocket message:', error);
+        console.error("Error sending WebSocket message:", error);
       }
     } else {
-      console.warn('WebSocket is not connected. Message not sent:', message);
+      console.warn("WebSocket is not connected. Message not sent:", message);
     }
   }, []);
 
@@ -152,7 +163,7 @@ export const useWebSocket = (
     if (!isConnected) return;
 
     const heartbeatInterval = setInterval(() => {
-      sendMessage({ type: 'ping' });
+      sendMessage({ type: "ping" });
     }, 30000); // Send ping every 30 seconds
 
     return () => {

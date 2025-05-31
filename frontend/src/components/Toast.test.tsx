@@ -257,7 +257,7 @@ describe("Toast Component", () => {
   describe("useToast hook", () => {
     test("throws error when used outside ToastProvider", () => {
       const TestComponentWithoutProvider = () => {
-        const { showToast } = useToast();
+        useToast();
         return <div>Test</div>;
       };
 

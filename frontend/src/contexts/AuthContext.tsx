@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
-  const [initialized, setInitialized] = useState<boolean>(false);
+  const [, setInitialized] = useState<boolean>(false);
 
   // Set up axios interceptor for authentication
   useEffect(() => {

@@ -6,7 +6,6 @@ import {
   isRetryableError,
   getErrorSeverity,
   getValidationErrors,
-  AppError,
 } from "./errorHandling";
 
 // Mock AxiosError for testing

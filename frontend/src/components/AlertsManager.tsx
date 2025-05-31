@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -76,7 +76,7 @@ const AlertsManager: React.FC<AlertsManagerProps> = ({ containerId }) => {
   } = useApiCall();
   const { execute: createAlert, loading: createLoading } = useApiCall();
   const { execute: updateAlert, loading: updateLoading } = useApiCall();
-  const { execute: deleteAlert, loading: deleteLoading } = useApiCall();
+  const { execute: deleteAlert } = useApiCall();
 
   const metricTypes = [
     { value: "cpu_percent", label: "CPU Usage (%)" },
@@ -99,9 +99,9 @@ const AlertsManager: React.FC<AlertsManagerProps> = ({ containerId }) => {
   // Fetch alerts on component mount
   useEffect(() => {
     loadAlerts();
-  }, []);
+  }, [loadAlerts]);
 
-  const loadAlerts = async () => {
+  const loadAlerts = useCallback(async () => {
     try {
       const response = await fetchAlerts("/api/alerts");
       if (response && Array.isArray(response)) {
@@ -110,7 +110,7 @@ const AlertsManager: React.FC<AlertsManagerProps> = ({ containerId }) => {
     } catch (error) {
       console.error("Error loading alerts:", error);
     }
-  };
+  }, [fetchAlerts]);
 
   const handleOpenDialog = (alert?: MetricsAlert) => {
     if (alert) {

@@ -383,7 +383,7 @@ describe("Templates Component", () => {
       // Since viewMode is hardcoded to "grid", we'll create a custom component
       // that forces table view to test the renderTableView function
       const TestTemplatesWithTableView = () => {
-        const [templates, setTemplates] = React.useState([]);
+        const [, setTemplates] = React.useState([]);
         const [filteredTemplates, setFilteredTemplates] = React.useState([]);
         const [loading, setLoading] = React.useState(true);
         const [error, setError] = React.useState(null);
@@ -432,7 +432,7 @@ describe("Templates Component", () => {
           }
         };
 
-        const handleViewDetails = (template: any) => {
+        const handleViewDetails = (_template: any) => {
           // Mock function for testing
         };
 

@@ -24,7 +24,7 @@ import {
   Speed as SpeedIcon,
   Inventory as ContainerIcon,
 } from "@mui/icons-material";
-import { useTheme } from "@mui/material/styles";
+// import { useTheme } from "@mui/material/styles";
 import { useApiCall } from "../hooks/useApiCall";
 import axios from "axios";
 
@@ -50,7 +50,7 @@ interface SystemOverviewProps {
 const SystemOverview: React.FC<SystemOverviewProps> = ({
   refreshInterval = 30000, // 30 seconds
 }) => {
-  const theme = useTheme();
+  // const theme = useTheme();
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(
     null
   );

@@ -14,7 +14,6 @@ import {
 } from "@mui/material";
 import {
   Refresh as RefreshIcon,
-  PlayArrow as PlayIcon,
   Pause as PauseIcon,
 } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
@@ -145,20 +144,6 @@ const RealTimeMetrics: React.FC<RealTimeMetricsProps> = ({
   // Toggle auto-refresh
   const handleToggleAutoRefresh = () => {
     setIsAutoRefresh(!isAutoRefresh);
-  };
-
-  // Get status color
-  const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case "running":
-        return "success";
-      case "stopped":
-        return "error";
-      case "paused":
-        return "warning";
-      default:
-        return "default";
-    }
   };
 
   // Get current stats for display
