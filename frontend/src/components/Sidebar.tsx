@@ -17,6 +17,8 @@ import ListAltIcon from "@mui/icons-material/ListAlt";
 import LayersIcon from "@mui/icons-material/Layers";
 import PeopleIcon from "@mui/icons-material/People";
 import SettingsIcon from "@mui/icons-material/Settings";
+import AssessmentIcon from "@mui/icons-material/Assessment";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import { useAuth } from "../hooks/useAuth";
 
 const drawerWidth = 220;
@@ -32,6 +34,8 @@ const Sidebar: React.FC = () => {
     { text: "Containers", icon: <StorageIcon />, path: "/containers" },
     { text: "Templates", icon: <ListAltIcon />, path: "/templates" },
     { text: "Logs", icon: <LayersIcon />, path: "/logs" },
+    { text: "Metrics", icon: <AssessmentIcon />, path: "/metrics" },
+    { text: "Alerts", icon: <NotificationsActiveIcon />, path: "/alerts" },
     ...(user?.role === "admin"
       ? [
           { text: "Users", icon: <PeopleIcon />, path: "/users" },

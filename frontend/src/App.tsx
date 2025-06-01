@@ -26,6 +26,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import Unauthorized from "./pages/Unauthorized";
+import MetricsVisualization from "./pages/MetricsVisualization";
+import AlertsManagement from "./components/AlertsManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
@@ -158,6 +160,26 @@ const App: React.FC = () => {
                     <ProtectedRoute requiredRole="admin">
                       <MainLayout>
                         <Settings />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/metrics"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <MetricsVisualization />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/alerts"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <AlertsManagement />
                       </MainLayout>
                     </ProtectedRoute>
                   }
