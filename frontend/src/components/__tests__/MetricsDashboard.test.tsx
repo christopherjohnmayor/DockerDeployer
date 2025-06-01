@@ -1,41 +1,59 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
-import MetricsDashboard from '../MetricsDashboard';
-import { useApiCall } from '../../hooks/useApiCall';
-import { useWebSocket } from '../../hooks/useWebSocket';
-import theme from '../../theme';
+import React from "react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
+import { ThemeProvider } from "@mui/material/styles";
+import MetricsDashboard from "../MetricsDashboard";
+import { useApiCall } from "../../hooks/useApiCall";
+import { useWebSocket } from "../../hooks/useWebSocket";
+import theme from "../../theme";
 
 // Mock hooks
-jest.mock('../../hooks/useApiCall');
-jest.mock('../../hooks/useWebSocket');
+jest.mock("../../hooks/useApiCall");
+jest.mock("../../hooks/useWebSocket");
 
 // Mock child components
-jest.mock('../MetricsChart', () => {
+jest.mock("../MetricsChart", () => {
   return function MockMetricsChart() {
     return <div data-testid="metrics-chart">Metrics Chart</div>;
   };
 });
 
-jest.mock('../RealTimeMetrics', () => {
-  return function MockRealTimeMetrics({ containerId }: { containerId: string }) {
-    return <div data-testid="real-time-metrics">Real-time Metrics for {containerId}</div>;
+jest.mock("../RealTimeMetrics", () => {
+  return function MockRealTimeMetrics({
+    containerId,
+  }: {
+    containerId: string;
+  }) {
+    return (
+      <div data-testid="real-time-metrics">
+        Real-time Metrics for {containerId}
+      </div>
+    );
   };
 });
 
-jest.mock('../MetricsHistory', () => {
+jest.mock("../MetricsHistory", () => {
   return function MockMetricsHistory({ containerId }: { containerId: string }) {
-    return <div data-testid="metrics-history">Metrics History for {containerId}</div>;
+    return (
+      <div data-testid="metrics-history">Metrics History for {containerId}</div>
+    );
   };
 });
 
 const mockUseApiCall = useApiCall as jest.MockedFunction<typeof useApiCall>;
-const mockUseWebSocket = useWebSocket as jest.MockedFunction<typeof useWebSocket>;
+const mockUseWebSocket = useWebSocket as jest.MockedFunction<
+  typeof useWebSocket
+>;
 
 // Mock data
 const mockDashboardMetrics = {
-  timestamp: '2024-01-01T00:00:00Z',
+  timestamp: "2024-01-01T00:00:00Z",
   summary: {
     total_containers: 8,
     healthy_containers: 5,
@@ -50,12 +68,12 @@ const mockDashboardMetrics = {
   },
   top_consumers: {
     cpu: [
-      { container_name: 'web-server', value: 85.2 },
-      { container_name: 'api-server', value: 72.1 },
+      { container_name: "web-server", value: 85.2 },
+      { container_name: "api-server", value: 72.1 },
     ],
     memory: [
-      { container_name: 'database', value: 88.7 },
-      { container_name: 'cache', value: 76.3 },
+      { container_name: "database", value: 88.7 },
+      { container_name: "cache", value: 76.3 },
     ],
   },
   alerts_count: 3,
@@ -63,7 +81,7 @@ const mockDashboardMetrics = {
 };
 
 const mockSystemMetrics = {
-  timestamp: '2024-01-01T00:00:00Z',
+  timestamp: "2024-01-01T00:00:00Z",
   docker_info: {
     containers_running: 8,
     containers_paused: 0,
@@ -82,23 +100,21 @@ const mockSystemMetrics = {
 // Test wrapper component
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <BrowserRouter>
-    <ThemeProvider theme={theme}>
-      {children}
-    </ThemeProvider>
+    <ThemeProvider theme={theme}>{children}</ThemeProvider>
   </BrowserRouter>
 );
 
-describe('MetricsDashboard', () => {
+describe("MetricsDashboard", () => {
   beforeEach(() => {
     // Reset mocks
     jest.clearAllMocks();
-    
+
     // Mock localStorage
-    Object.defineProperty(window, 'localStorage', {
+    Object.defineProperty(window, "localStorage", {
       value: {
         getItem: jest.fn((key) => {
-          if (key === 'token') return 'mock-token';
-          if (key === 'userId') return '1';
+          if (key === "token") return "mock-token";
+          if (key === "userId") return "1";
           return null;
         }),
       },
@@ -116,11 +132,11 @@ describe('MetricsDashboard', () => {
     mockUseWebSocket.mockReturnValue({
       isConnected: false,
       sendMessage: jest.fn(),
-      connectionState: 'disconnected',
+      connectionState: "disconnected",
     });
   });
 
-  it('renders the metrics dashboard', async () => {
+  it("renders the metrics dashboard", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -143,13 +159,13 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText('Metrics Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('Overview')).toBeInTheDocument();
-    expect(screen.getByText('Real-time')).toBeInTheDocument();
-    expect(screen.getByText('History')).toBeInTheDocument();
+    expect(screen.getByText("Metrics Dashboard")).toBeInTheDocument();
+    expect(screen.getByText("Overview")).toBeInTheDocument();
+    expect(screen.getAllByText("Real-time")[0]).toBeInTheDocument();
+    expect(screen.getByText("History")).toBeInTheDocument();
   });
 
-  it('renders with container-specific title when containerId is provided', async () => {
+  it("renders with container-specific title when containerId is provided", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -167,15 +183,18 @@ describe('MetricsDashboard', () => {
     await act(async () => {
       render(
         <TestWrapper>
-          <MetricsDashboard containerId="container1" containerName="web-server" />
+          <MetricsDashboard
+            containerId="container1"
+            containerName="web-server"
+          />
         </TestWrapper>
       );
     });
 
-    expect(screen.getByText('web-server Metrics')).toBeInTheDocument();
+    expect(screen.getByText("web-server Metrics")).toBeInTheDocument();
   });
 
-  it('displays loading state', async () => {
+  it("displays loading state", async () => {
     mockUseApiCall.mockReturnValue({
       data: null,
       loading: true,
@@ -191,10 +210,10 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toBeInTheDocument();
   });
 
-  it('displays system health summary', async () => {
+  it("displays system health summary", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -217,13 +236,13 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText('8')).toBeInTheDocument(); // Total containers
-    expect(screen.getByText('5')).toBeInTheDocument(); // Healthy containers
-    expect(screen.getByText('2')).toBeInTheDocument(); // Warning containers
-    expect(screen.getByText('1')).toBeInTheDocument(); // Critical containers
+    expect(screen.getByText("8")).toBeInTheDocument(); // Total containers
+    expect(screen.getByText("5")).toBeInTheDocument(); // Healthy containers
+    expect(screen.getByText("2")).toBeInTheDocument(); // Warning containers
+    expect(screen.getByText("1")).toBeInTheDocument(); // Critical containers
   });
 
-  it('displays WebSocket connection status', async () => {
+  it("displays WebSocket connection status", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -241,7 +260,7 @@ describe('MetricsDashboard', () => {
     mockUseWebSocket.mockReturnValue({
       isConnected: true,
       sendMessage: jest.fn(),
-      connectionState: 'connected',
+      connectionState: "connected",
     });
 
     await act(async () => {
@@ -252,10 +271,10 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText('LIVE')).toBeInTheDocument();
+    expect(screen.getByText("LIVE")).toBeInTheDocument();
   });
 
-  it('toggles real-time updates', async () => {
+  it("toggles real-time updates", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -278,7 +297,7 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    const realTimeSwitch = screen.getByRole('checkbox', { name: /real-time/i });
+    const realTimeSwitch = screen.getByRole("checkbox", { name: /real-time/i });
     expect(realTimeSwitch).toBeChecked();
 
     await act(async () => {
@@ -288,9 +307,9 @@ describe('MetricsDashboard', () => {
     expect(realTimeSwitch).not.toBeChecked();
   });
 
-  it('refreshes data when refresh button is clicked', async () => {
+  it("refreshes data when refresh button is clicked", async () => {
     const mockExecute = jest.fn();
-    
+
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -314,7 +333,7 @@ describe('MetricsDashboard', () => {
     });
 
     const refreshButton = screen.getByLabelText(/refresh/i);
-    
+
     await act(async () => {
       fireEvent.click(refreshButton);
     });
@@ -322,7 +341,7 @@ describe('MetricsDashboard', () => {
     expect(mockExecute).toHaveBeenCalled();
   });
 
-  it('switches between tabs', async () => {
+  it("switches between tabs", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -340,31 +359,40 @@ describe('MetricsDashboard', () => {
     await act(async () => {
       render(
         <TestWrapper>
-          <MetricsDashboard containerId="container1" containerName="web-server" />
+          <MetricsDashboard
+            containerId="container1"
+            containerName="web-server"
+          />
         </TestWrapper>
       );
     });
 
     // Click on Real-time tab
-    const realTimeTab = screen.getByText('Real-time');
-    
+    const realTimeTab = screen.getAllByText("Real-time")[0];
+
     await act(async () => {
       fireEvent.click(realTimeTab);
     });
 
-    expect(screen.getByTestId('real-time-metrics')).toBeInTheDocument();
+    // Check that real-time metrics component is rendered
+    await waitFor(() => {
+      expect(screen.getByText("Real-time Metrics")).toBeInTheDocument();
+    });
 
     // Click on History tab
-    const historyTab = screen.getByText('History');
-    
+    const historyTab = screen.getByText("History");
+
     await act(async () => {
       fireEvent.click(historyTab);
     });
 
-    expect(screen.getByTestId('metrics-history')).toBeInTheDocument();
+    // Check that metrics history component is rendered
+    await waitFor(() => {
+      expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
+    });
   });
 
-  it('displays system performance metrics in overview tab', async () => {
+  it("displays system performance metrics in overview tab", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -387,12 +415,12 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText('System Performance')).toBeInTheDocument();
-    expect(screen.getByText('42.5%')).toBeInTheDocument(); // Average CPU
-    expect(screen.getByText('68.3%')).toBeInTheDocument(); // Average Memory
+    expect(screen.getByText("System Performance")).toBeInTheDocument();
+    expect(screen.getByText("42.5%")).toBeInTheDocument(); // Average CPU
+    expect(screen.getByText("68.3%")).toBeInTheDocument(); // Average Memory
   });
 
-  it('displays network activity metrics', async () => {
+  it("displays network activity metrics", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -415,12 +443,12 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText('Network Activity')).toBeInTheDocument();
-    expect(screen.getByText('1 MB')).toBeInTheDocument(); // Total RX
-    expect(screen.getByText('2 MB')).toBeInTheDocument(); // Total TX
+    expect(screen.getByText("Network Activity")).toBeInTheDocument();
+    expect(screen.getByText("1 MB")).toBeInTheDocument(); // Total RX
+    expect(screen.getByText("2 MB")).toBeInTheDocument(); // Total TX
   });
 
-  it('shows info message when no container is selected for real-time tab', async () => {
+  it("shows info message when no container is selected for real-time tab", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -444,16 +472,18 @@ describe('MetricsDashboard', () => {
     });
 
     // Click on Real-time tab
-    const realTimeTab = screen.getByText('Real-time');
-    
+    const realTimeTab = screen.getAllByText("Real-time")[0];
+
     await act(async () => {
       fireEvent.click(realTimeTab);
     });
 
-    expect(screen.getByText('Select a container to view real-time metrics.')).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a container to view real-time metrics.")
+    ).toBeInTheDocument();
   });
 
-  it('shows info message when no container is selected for history tab', async () => {
+  it("shows info message when no container is selected for history tab", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -477,18 +507,20 @@ describe('MetricsDashboard', () => {
     });
 
     // Click on History tab
-    const historyTab = screen.getByText('History');
-    
+    const historyTab = screen.getByText("History");
+
     await act(async () => {
       fireEvent.click(historyTab);
     });
 
-    expect(screen.getByText('Select a container to view historical metrics.')).toBeInTheDocument();
+    expect(
+      screen.getByText("Select a container to view historical metrics.")
+    ).toBeInTheDocument();
   });
 
-  it('handles fullscreen toggle', async () => {
+  it("handles fullscreen toggle", async () => {
     const mockOnFullscreenToggle = jest.fn();
-    
+
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -512,7 +544,7 @@ describe('MetricsDashboard', () => {
     });
 
     const fullscreenButton = screen.getByLabelText(/fullscreen/i);
-    
+
     await act(async () => {
       fireEvent.click(fullscreenButton);
     });
@@ -520,12 +552,12 @@ describe('MetricsDashboard', () => {
     expect(mockOnFullscreenToggle).toHaveBeenCalled();
   });
 
-  it('displays error message when dashboard data fails to load', async () => {
+  it("displays error message when dashboard data fails to load", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: null,
         loading: false,
-        error: 'Failed to load data',
+        error: "Failed to load data",
         execute: jest.fn(),
       })
       .mockReturnValueOnce({
@@ -543,10 +575,12 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.getByText(/Failed to load dashboard metrics/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Failed to load dashboard metrics/)
+    ).toBeInTheDocument();
   });
 
-  it('hides controls when showControls is false', async () => {
+  it("hides controls when showControls is false", async () => {
     mockUseApiCall
       .mockReturnValueOnce({
         data: mockDashboardMetrics,
@@ -569,7 +603,9 @@ describe('MetricsDashboard', () => {
       );
     });
 
-    expect(screen.queryByRole('checkbox', { name: /real-time/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: /real-time/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/refresh/i)).not.toBeInTheDocument();
   });
 });

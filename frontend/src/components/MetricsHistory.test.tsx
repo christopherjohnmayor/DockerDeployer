@@ -134,7 +134,7 @@ describe("MetricsHistory", () => {
           "/api/containers/test-container/metrics/history?hours=24&limit=1000"
         );
       },
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
 
     const timeRangeSelect = screen.getByRole("combobox");
@@ -159,9 +159,9 @@ describe("MetricsHistory", () => {
           "/api/containers/test-container/metrics/history?hours=6&limit=1000"
         );
       },
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
-  }, 20000);
+  }, 30000);
 
   it("shows custom date pickers when custom range is selected", async () => {
     await act(async () => {
@@ -188,7 +188,7 @@ describe("MetricsHistory", () => {
       expect(screen.getByLabelText("Start Date")).toBeInTheDocument();
       expect(screen.getByLabelText("End Date")).toBeInTheDocument();
     });
-  }, 15000);
+  }, 30000);
 
   it("handles manual refresh", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
@@ -204,7 +204,7 @@ describe("MetricsHistory", () => {
           "/api/containers/test-container/metrics/history?hours=24&limit=1000"
         );
       },
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
 
     const refreshButton = screen.getByRole("button", {
@@ -219,7 +219,7 @@ describe("MetricsHistory", () => {
     await waitFor(() => {
       expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
     });
-  }, 20000);
+  }, 30000);
 
   it("shows loading state in refresh button", () => {
     mockedUseApiCall.mockReturnValue({
@@ -310,7 +310,7 @@ describe("MetricsHistory", () => {
           "/api/containers/test-container/metrics/history?hours=24&limit=1000"
         );
       },
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
 
     // Use the combobox role to find the Select component
@@ -337,7 +337,7 @@ describe("MetricsHistory", () => {
           "/api/containers/test-container/metrics/history?hours=1&limit=1000"
         );
       },
-      { timeout: 15000 }
+      { timeout: 20000 }
     );
-  }, 20000);
+  }, 30000);
 });

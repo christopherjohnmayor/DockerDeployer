@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Grid,
@@ -21,7 +21,7 @@ import {
   IconButton,
   Chip,
   Divider,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Dashboard as DashboardIcon,
   Timeline as TimelineIcon,
@@ -30,14 +30,14 @@ import {
   Settings as SettingsIcon,
   Fullscreen as FullscreenIcon,
   FullscreenExit as FullscreenExitIcon,
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { useApiCall } from '../hooks/useApiCall';
-import { useWebSocket } from '../hooks/useWebSocket';
-import MetricsChart from './MetricsChart';
-import RealTimeMetrics from './RealTimeMetrics';
-import MetricsHistory from './MetricsHistory';
-import { formatBytes, formatPercentage } from '../utils/formatters';
+} from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { useApiCall } from "../hooks/useApiCall";
+import { useWebSocket } from "../hooks/useWebSocket";
+import MetricsChart from "./MetricsChart";
+import RealTimeMetrics from "./RealTimeMetrics";
+import MetricsHistory from "./MetricsHistory";
+import { formatBytes, formatPercentage } from "../utils/formatters";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -45,7 +45,12 @@ interface TabPanelProps {
   value: number;
 }
 
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index, ...other }) => {
+const TabPanel: React.FC<TabPanelProps> = ({
+  children,
+  value,
+  index,
+  ...other
+}) => {
   return (
     <div
       role="tabpanel"
@@ -103,42 +108,50 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [realTimeEnabled, setRealTimeEnabled] = useState(autoRefresh);
-  const [selectedTimeRange, setSelectedTimeRange] = useState('1h');
-  const [selectedMetric, setSelectedMetric] = useState('cpu_percent');
+  const [selectedTimeRange, setSelectedTimeRange] = useState("1h");
+  const [selectedMetric, setSelectedMetric] = useState("cpu_percent");
 
   // API calls
-  const { data: dashboardMetrics, loading: dashboardLoading, execute: fetchDashboard } = useApiCall();
-  const { data: systemMetrics, loading: systemLoading, execute: fetchSystemMetrics } = useApiCall();
+  const {
+    data: dashboardMetrics,
+    loading: dashboardLoading,
+    execute: fetchDashboard,
+  } = useApiCall();
+  const {
+    data: systemMetrics,
+    loading: systemLoading,
+    execute: fetchSystemMetrics,
+  } = useApiCall();
 
   // WebSocket for real-time dashboard updates
   const wsUrl = realTimeEnabled
-    ? `ws://localhost:8000/ws/notifications/${localStorage.getItem('userId')}?token=${localStorage.getItem('token')}`
+    ? `ws://localhost:8000/ws/notifications/${localStorage.getItem("userId")}?token=${localStorage.getItem("token")}`
     : null;
 
   const { isConnected, connectionState } = useWebSocket(wsUrl, {
     onMessage: (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'metrics_update' || data.type === 'alert_triggered') {
+        if (data.type === "metrics_update" || data.type === "alert_triggered") {
           // Refresh dashboard data when receiving updates
-          fetchDashboard('/api/metrics/summary');
+          fetchDashboard("/api/metrics/summary");
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error("Error parsing WebSocket message:", error);
       }
     },
     onConnect: () => {
-      console.log('Connected to dashboard WebSocket');
+      console.log("Connected to dashboard WebSocket");
     },
     onError: (error) => {
-      console.error('Dashboard WebSocket error:', error);
+      console.error("Dashboard WebSocket error:", error);
     },
   });
 
   // Fetch initial data
   useEffect(() => {
-    fetchDashboard('/api/metrics/summary');
-    fetchSystemMetrics('/api/system/metrics');
+    fetchDashboard("/api/metrics/summary");
+    fetchSystemMetrics("/api/system/metrics");
   }, []);
 
   // Auto-refresh data
@@ -146,22 +159,25 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
     if (!realTimeEnabled) return;
 
     const interval = setInterval(() => {
-      fetchDashboard('/api/metrics/summary');
+      fetchDashboard("/api/metrics/summary");
       if (activeTab === 0) {
-        fetchSystemMetrics('/api/system/metrics');
+        fetchSystemMetrics("/api/system/metrics");
       }
     }, refreshInterval);
 
     return () => clearInterval(interval);
   }, [realTimeEnabled, refreshInterval, activeTab]);
 
-  const handleTabChange = useCallback((event: React.SyntheticEvent, newValue: number) => {
-    setActiveTab(newValue);
-  }, []);
+  const handleTabChange = useCallback(
+    (event: React.SyntheticEvent, newValue: number) => {
+      setActiveTab(newValue);
+    },
+    []
+  );
 
   const handleRefresh = useCallback(() => {
-    fetchDashboard('/api/metrics/summary');
-    fetchSystemMetrics('/api/system/metrics');
+    fetchDashboard("/api/metrics/summary");
+    fetchSystemMetrics("/api/system/metrics");
   }, []);
 
   const getHealthColor = (score: number) => {
@@ -171,25 +187,27 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   };
 
   const getHealthLabel = (score: number) => {
-    if (score >= 80) return 'Healthy';
-    if (score >= 60) return 'Warning';
-    return 'Critical';
+    if (score >= 80) return "Healthy";
+    if (score >= 60) return "Warning";
+    return "Critical";
   };
 
   return (
-    <Box sx={{ width: '100%', height: fullscreen ? '100vh' : 'auto' }}>
+    <Box sx={{ width: "100%", height: fullscreen ? "100vh" : "auto" }}>
       {/* Header */}
       <Paper elevation={2} sx={{ p: 2, mb: 2 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
           <Box display="flex" alignItems="center" gap={2}>
             <DashboardIcon color="primary" />
             <Typography variant="h5">
-              {containerId ? `${containerName || containerId} Metrics` : 'Metrics Dashboard'}
+              {containerId
+                ? `${containerName || containerId} Metrics`
+                : "Metrics Dashboard"}
             </Typography>
             {realTimeEnabled && (
               <Chip
-                label={isConnected ? 'LIVE' : 'CONNECTING'}
-                color={isConnected ? 'success' : 'warning'}
+                label={isConnected ? "LIVE" : "CONNECTING"}
+                color={isConnected ? "success" : "warning"}
                 size="small"
                 variant="filled"
               />
@@ -209,12 +227,17 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                 label="Real-time"
               />
               <Tooltip title="Refresh">
-                <IconButton onClick={handleRefresh} disabled={dashboardLoading}>
-                  <RefreshIcon />
-                </IconButton>
+                <span>
+                  <IconButton
+                    onClick={handleRefresh}
+                    disabled={dashboardLoading}
+                  >
+                    <RefreshIcon />
+                  </IconButton>
+                </span>
               </Tooltip>
               {onFullscreenToggle && (
-                <Tooltip title={fullscreen ? 'Exit Fullscreen' : 'Fullscreen'}>
+                <Tooltip title={fullscreen ? "Exit Fullscreen" : "Fullscreen"}>
                   <IconButton onClick={onFullscreenToggle}>
                     {fullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
                   </IconButton>
@@ -321,7 +344,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           <Grid container spacing={3}>
             {/* System Metrics Overview */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+              <Paper elevation={2} sx={{ p: 3, height: "100%" }}>
                 <Typography variant="h6" gutterBottom>
                   System Performance
                 </Typography>
@@ -329,7 +352,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   <Grid item xs={6}>
                     <Box textAlign="center">
                       <Typography variant="h4" color="error.main">
-                        {dashboardMetrics.aggregated_metrics?.avg_cpu_percent?.toFixed(1) || '0.0'}%
+                        {dashboardMetrics.aggregated_metrics?.avg_cpu_percent?.toFixed(
+                          1
+                        ) || "0.0"}
+                        %
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
                         Average CPU
@@ -339,7 +365,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   <Grid item xs={6}>
                     <Box textAlign="center">
                       <Typography variant="h4" color="warning.main">
-                        {dashboardMetrics.aggregated_metrics?.avg_memory_percent?.toFixed(1) || '0.0'}%
+                        {dashboardMetrics.aggregated_metrics?.avg_memory_percent?.toFixed(
+                          1
+                        ) || "0.0"}
+                        %
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
                         Average Memory
@@ -352,7 +381,7 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
 
             {/* Network Activity */}
             <Grid item xs={12} md={6}>
-              <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+              <Paper elevation={2} sx={{ p: 3, height: "100%" }}>
                 <Typography variant="h6" gutterBottom>
                   Network Activity
                 </Typography>
@@ -360,7 +389,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   <Grid item xs={6}>
                     <Box textAlign="center">
                       <Typography variant="h6" color="info.main">
-                        {formatBytes(dashboardMetrics.aggregated_metrics?.total_network_rx_bytes || 0)}
+                        {formatBytes(
+                          dashboardMetrics.aggregated_metrics
+                            ?.total_network_rx_bytes || 0
+                        )}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
                         Total RX
@@ -370,7 +402,10 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
                   <Grid item xs={6}>
                     <Box textAlign="center">
                       <Typography variant="h6" color="info.main">
-                        {formatBytes(dashboardMetrics.aggregated_metrics?.total_network_tx_bytes || 0)}
+                        {formatBytes(
+                          dashboardMetrics.aggregated_metrics
+                            ?.total_network_tx_bytes || 0
+                        )}
                       </Typography>
                       <Typography variant="body2" color="textSecondary">
                         Total TX

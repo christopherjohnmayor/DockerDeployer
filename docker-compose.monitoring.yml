@@ -1,0 +1,262 @@
+version: "3.8"
+
+# DockerDeployer Production Monitoring Stack
+# This compose file adds monitoring, logging, and alerting to the production deployment
+
+services:
+  # Prometheus for metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: dockerdeployer-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - dockerdeployer-network
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: dockerdeployer-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    ports:
+      - "3001:3000"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Node Exporter for system metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: dockerdeployer-node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # cAdvisor for container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: dockerdeployer-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    ports:
+      - "8080:8080"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # AlertManager for alerting
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: dockerdeployer-alertmanager
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    ports:
+      - "9093:9093"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: dockerdeployer-loki
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/loki:/etc/loki
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Promtail for log collection
+  promtail:
+    image: grafana/promtail:latest
+    container_name: dockerdeployer-promtail
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail:/etc/promtail
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Jaeger for distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: dockerdeployer-jaeger
+    restart: unless-stopped
+    environment:
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Redis Exporter for Redis metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    container_name: dockerdeployer-redis-exporter
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    ports:
+      - "9121:9121"
+    networks:
+      - dockerdeployer-network
+      - monitoring-network
+    depends_on:
+      - redis
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Postgres Exporter for database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: dockerdeployer-postgres-exporter
+    restart: unless-stopped
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${POSTGRES_USER:-dockerdeployer}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-dockerdeployer}?sslmode=disable
+    ports:
+      - "9187:9187"
+    networks:
+      - dockerdeployer-network
+      - monitoring-network
+    depends_on:
+      - postgres
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Nginx Exporter for web server metrics (if using nginx)
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: dockerdeployer-nginx-exporter
+    restart: unless-stopped
+    command:
+      - '-nginx.scrape-uri=http://nginx:8080/nginx_status'
+    ports:
+      - "9113:9113"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Blackbox Exporter for endpoint monitoring
+  blackbox-exporter:
+    image: prom/blackbox-exporter:latest
+    container_name: dockerdeployer-blackbox-exporter
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/blackbox:/etc/blackbox_exporter
+    command:
+      - '--config.file=/etc/blackbox_exporter/config.yml'
+    ports:
+      - "9115:9115"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+  # Uptime Kuma for uptime monitoring
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: dockerdeployer-uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime_kuma_data:/app/data
+    ports:
+      - "3002:3001"
+    networks:
+      - monitoring-network
+    labels:
+      org.label-schema.group: "monitoring"
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  loki_data:
+    driver: local
+  uptime_kuma_data:
+    driver: local
+
+networks:
+  monitoring-network:
+    driver: bridge
+  dockerdeployer-network:
+    external: true
+
+# Health checks for monitoring services
+x-healthcheck-defaults: &healthcheck-defaults
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
