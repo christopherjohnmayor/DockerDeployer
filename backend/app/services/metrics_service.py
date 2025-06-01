@@ -154,6 +154,246 @@ class MetricsService:
         """
         return self.docker_manager.get_system_stats()
 
+    async def get_streaming_metrics(self, container_id: str):
+        """
+        Get streaming metrics for a container.
+
+        Args:
+            container_id: Container ID or name
+
+        Yields:
+            Dictionary containing real-time metrics
+        """
+        async for stats in self.docker_manager.get_streaming_stats(container_id):
+            yield stats
+
+    def get_multiple_container_metrics(self, container_ids: List[str]) -> Dict[str, Any]:
+        """
+        Get metrics for multiple containers efficiently.
+
+        Args:
+            container_ids: List of container IDs or names
+
+        Returns:
+            Dictionary mapping container IDs to their metrics
+        """
+        return self.docker_manager.get_multiple_container_stats(container_ids)
+
+    def get_aggregated_metrics(self, container_ids: List[str]) -> Dict[str, Any]:
+        """
+        Get aggregated metrics across multiple containers.
+
+        Args:
+            container_ids: List of container IDs or names
+
+        Returns:
+            Dictionary containing aggregated metrics
+        """
+        return self.docker_manager.get_aggregated_metrics(container_ids)
+
+    def get_metrics_trends(
+        self, container_id: str, hours: int = 24, metric_type: str = "cpu_percent"
+    ) -> Dict[str, Any]:
+        """
+        Calculate trends and predictions for container metrics.
+
+        Args:
+            container_id: Container ID or name
+            hours: Number of hours of history to analyze
+            metric_type: Type of metric to analyze (cpu_percent, memory_percent, etc.)
+
+        Returns:
+            Dictionary containing trend analysis
+        """
+        try:
+            # Get historical data
+            historical_data = self.get_historical_metrics(container_id, hours, limit=1000)
+
+            if not historical_data:
+                return {"error": "No historical data available"}
+
+            # Extract metric values and timestamps
+            values = []
+            timestamps = []
+
+            for record in historical_data:
+                if metric_type in record and record[metric_type] is not None:
+                    values.append(float(record[metric_type]))
+                    timestamps.append(record["timestamp"])
+
+            if len(values) < 2:
+                return {"error": "Insufficient data for trend analysis"}
+
+            # Calculate basic statistics
+            avg_value = sum(values) / len(values)
+            min_value = min(values)
+            max_value = max(values)
+
+            # Calculate trend (simple linear regression slope)
+            n = len(values)
+            x_values = list(range(n))
+
+            sum_x = sum(x_values)
+            sum_y = sum(values)
+            sum_xy = sum(x * y for x, y in zip(x_values, values))
+            sum_x2 = sum(x * x for x in x_values)
+
+            # Calculate slope (trend)
+            if n * sum_x2 - sum_x * sum_x != 0:
+                slope = (n * sum_xy - sum_x * sum_y) / (n * sum_x2 - sum_x * sum_x)
+            else:
+                slope = 0
+
+            # Determine trend direction
+            if slope > 0.1:
+                trend_direction = "increasing"
+            elif slope < -0.1:
+                trend_direction = "decreasing"
+            else:
+                trend_direction = "stable"
+
+            # Calculate volatility (standard deviation)
+            variance = sum((x - avg_value) ** 2 for x in values) / len(values)
+            volatility = variance ** 0.5
+
+            return {
+                "container_id": container_id,
+                "metric_type": metric_type,
+                "analysis_period_hours": hours,
+                "data_points": len(values),
+                "statistics": {
+                    "average": round(avg_value, 2),
+                    "minimum": round(min_value, 2),
+                    "maximum": round(max_value, 2),
+                    "volatility": round(volatility, 2),
+                },
+                "trend": {
+                    "direction": trend_direction,
+                    "slope": round(slope, 4),
+                    "strength": "high" if abs(slope) > 1 else "medium" if abs(slope) > 0.5 else "low",
+                },
+                "recent_values": values[-10:] if len(values) >= 10 else values,
+                "timestamps": timestamps[-10:] if len(timestamps) >= 10 else timestamps,
+            }
+
+        except Exception as e:
+            logger.error(f"Error calculating trends for container {container_id}: {e}")
+            return {"error": f"Failed to calculate trends: {str(e)}"}
+
+    def get_metrics_summary(self, container_ids: List[str] = None) -> Dict[str, Any]:
+        """
+        Get a comprehensive metrics summary for containers.
+
+        Args:
+            container_ids: Optional list of container IDs. If None, gets all containers.
+
+        Returns:
+            Dictionary containing metrics summary
+        """
+        try:
+            # If no container IDs provided, get all running containers
+            if container_ids is None:
+                containers = self.docker_manager.list_containers(all=False)
+                container_ids = [c["id"] for c in containers]
+
+            if not container_ids:
+                return {"error": "No containers found"}
+
+            # Get current metrics for all containers
+            current_metrics = self.get_multiple_container_metrics(container_ids)
+
+            # Get aggregated metrics
+            aggregated = self.get_aggregated_metrics(container_ids)
+
+            # Calculate health scores
+            health_scores = {}
+            for container_id, metrics in current_metrics.items():
+                if "error" not in metrics:
+                    health_score = self._calculate_health_score(metrics)
+                    health_scores[container_id] = health_score
+
+            # Identify containers with issues
+            high_cpu_containers = []
+            high_memory_containers = []
+
+            for container_id, metrics in current_metrics.items():
+                if "error" not in metrics:
+                    if metrics.get("cpu_percent", 0) > 80:
+                        high_cpu_containers.append({
+                            "container_id": container_id,
+                            "container_name": metrics.get("container_name"),
+                            "cpu_percent": metrics.get("cpu_percent"),
+                        })
+
+                    if metrics.get("memory_percent", 0) > 80:
+                        high_memory_containers.append({
+                            "container_id": container_id,
+                            "container_name": metrics.get("container_name"),
+                            "memory_percent": metrics.get("memory_percent"),
+                        })
+
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "summary": {
+                    "total_containers": len(container_ids),
+                    "healthy_containers": len([s for s in health_scores.values() if s >= 80]),
+                    "warning_containers": len([s for s in health_scores.values() if 60 <= s < 80]),
+                    "critical_containers": len([s for s in health_scores.values() if s < 60]),
+                },
+                "aggregated_metrics": aggregated.get("aggregated_metrics", {}),
+                "alerts": {
+                    "high_cpu_containers": high_cpu_containers,
+                    "high_memory_containers": high_memory_containers,
+                },
+                "health_scores": health_scores,
+                "individual_metrics": current_metrics,
+            }
+
+        except Exception as e:
+            logger.error(f"Error generating metrics summary: {e}")
+            return {"error": f"Failed to generate metrics summary: {str(e)}"}
+
+    def _calculate_health_score(self, metrics: Dict[str, Any]) -> int:
+        """
+        Calculate a health score (0-100) for a container based on its metrics.
+
+        Args:
+            metrics: Container metrics dictionary
+
+        Returns:
+            Health score between 0 and 100
+        """
+        try:
+            score = 100
+
+            # CPU usage impact
+            cpu_percent = metrics.get("cpu_percent", 0)
+            if cpu_percent > 90:
+                score -= 30
+            elif cpu_percent > 80:
+                score -= 20
+            elif cpu_percent > 70:
+                score -= 10
+
+            # Memory usage impact
+            memory_percent = metrics.get("memory_percent", 0)
+            if memory_percent > 90:
+                score -= 30
+            elif memory_percent > 80:
+                score -= 20
+            elif memory_percent > 70:
+                score -= 10
+
+            # Container status impact
+            status = metrics.get("status", "unknown")
+            if status != "running":
+                score -= 50
+
+            return max(0, score)
+
+        except Exception:
+            return 0
+
     def cleanup_old_metrics(self, days: int = 30) -> int:
         """
         Clean up old metrics data.

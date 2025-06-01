@@ -1,12 +1,13 @@
 import os
 import sys
+from datetime import datetime
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import Body, Depends, FastAPI, HTTPException, Request, WebSocket, status
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
@@ -1115,6 +1116,206 @@ async def get_system_metrics(
         )
 
 
+@app.get(
+    "/api/containers/metrics/multiple",
+    tags=["Metrics"],
+    summary="Get metrics for multiple containers",
+    description="Get current metrics for multiple containers efficiently.",
+    responses={
+        200: {"description": "Multiple container metrics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("120/minute")
+async def get_multiple_container_metrics(
+    request: Request,
+    container_ids: str = Query(..., description="Comma-separated list of container IDs"),
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Get current metrics for multiple containers efficiently.
+
+    Args:
+        container_ids: Comma-separated list of container IDs or names
+
+    Returns:
+        Dictionary mapping container IDs to their current metrics
+    """
+    try:
+        container_list = [cid.strip() for cid in container_ids.split(",") if cid.strip()]
+
+        if not container_list:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one container ID must be provided"
+            )
+
+        metrics = metrics_service.get_multiple_container_metrics(container_list)
+        return {
+            "container_ids": container_list,
+            "metrics": metrics,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get multiple container metrics: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/containers/metrics/aggregated",
+    tags=["Metrics"],
+    summary="Get aggregated metrics",
+    description="Get aggregated metrics across multiple containers.",
+    responses={
+        200: {"description": "Aggregated metrics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("60/minute")
+async def get_aggregated_metrics(
+    request: Request,
+    container_ids: str = Query(..., description="Comma-separated list of container IDs"),
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Get aggregated metrics across multiple containers.
+
+    Provides totals, averages, and combined statistics for the specified containers.
+    """
+    try:
+        container_list = [cid.strip() for cid in container_ids.split(",") if cid.strip()]
+
+        if not container_list:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="At least one container ID must be provided"
+            )
+
+        metrics = metrics_service.get_aggregated_metrics(container_list)
+
+        if "error" in metrics:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=metrics["error"]
+            )
+
+        return metrics
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get aggregated metrics: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/containers/{container_id}/metrics/trends",
+    tags=["Metrics"],
+    summary="Get metrics trends",
+    description="Get trend analysis for container metrics over time.",
+    responses={
+        200: {"description": "Metrics trends analysis"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("30/minute")
+async def get_metrics_trends(
+    request: Request,
+    container_id: str,
+    hours: int = Query(24, description="Number of hours of history to analyze"),
+    metric_type: str = Query("cpu_percent", description="Type of metric to analyze"),
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Get trend analysis for container metrics over time.
+
+    Analyzes historical data to provide insights into metric trends, volatility,
+    and predictions for the specified container and metric type.
+    """
+    try:
+        trends = metrics_service.get_metrics_trends(container_id, hours, metric_type)
+
+        if "error" in trends:
+            if "not found" in trends["error"].lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=trends["error"]
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=trends["error"]
+                )
+
+        return trends
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get metrics trends: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/metrics/summary",
+    tags=["Metrics"],
+    summary="Get metrics summary",
+    description="Get comprehensive metrics summary for all or specified containers.",
+    responses={
+        200: {"description": "Metrics summary"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("30/minute")
+async def get_metrics_summary(
+    request: Request,
+    container_ids: str = Query(None, description="Optional comma-separated list of container IDs"),
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Get comprehensive metrics summary for containers.
+
+    Provides health scores, aggregated metrics, alerts, and overall system status.
+    If container_ids is not provided, analyzes all running containers.
+    """
+    try:
+        container_list = None
+        if container_ids:
+            container_list = [cid.strip() for cid in container_ids.split(",") if cid.strip()]
+
+        summary = metrics_service.get_metrics_summary(container_list)
+
+        if "error" in summary:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=summary["error"]
+            )
+
+        return summary
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get metrics summary: {str(e)}",
+        )
+
+
 @app.post(
     "/api/alerts",
     tags=["Alerts"],
@@ -1677,3 +1878,219 @@ async def websocket_notifications(
     ws://localhost:8000/ws/notifications/{user_id}?token=your_jwt_token
     """
     await websocket_notifications_endpoint(websocket, user_id, db)
+
+
+@app.websocket("/ws/metrics/{container_id}")
+async def websocket_metrics_stream(
+    websocket: WebSocket,
+    container_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    WebSocket endpoint for real-time container metrics streaming.
+
+    Connect to this endpoint to receive real-time metrics updates for a specific container.
+    Streams CPU, memory, network, and disk I/O metrics every few seconds.
+
+    Authentication is required via token in query parameters:
+    ws://localhost:8000/ws/metrics/{container_id}?token=your_jwt_token
+    """
+    import json
+    import asyncio
+    from app.auth.dependencies import get_current_user_websocket
+
+    try:
+        # Authenticate user
+        user = await get_current_user_websocket(websocket, db)
+        if not user:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        await websocket.accept()
+
+        # Send connection confirmation
+        await websocket.send_text(
+            json.dumps({
+                "type": "connection_established",
+                "container_id": container_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": f"Connected to metrics stream for container {container_id}",
+            })
+        )
+
+        # Get metrics service
+        metrics_service = get_metrics_service(db)
+
+        # Stream metrics
+        while True:
+            try:
+                # Get current metrics
+                metrics = metrics_service.get_current_metrics(container_id)
+
+                if "error" not in metrics:
+                    # Send metrics update
+                    await websocket.send_text(
+                        json.dumps({
+                            "type": "metrics_update",
+                            "container_id": container_id,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "metrics": metrics,
+                        })
+                    )
+                else:
+                    # Send error message
+                    await websocket.send_text(
+                        json.dumps({
+                            "type": "error",
+                            "container_id": container_id,
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "message": metrics["error"],
+                        })
+                    )
+
+                # Wait before next update (5 seconds)
+                await asyncio.sleep(5)
+
+            except Exception as e:
+                await websocket.send_text(
+                    json.dumps({
+                        "type": "error",
+                        "container_id": container_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "message": f"Error getting metrics: {str(e)}",
+                    })
+                )
+                await asyncio.sleep(5)
+
+    except Exception as e:
+        try:
+            await websocket.send_text(
+                json.dumps({
+                    "type": "connection_error",
+                    "message": f"Connection error: {str(e)}",
+                })
+            )
+        except:
+            pass
+        finally:
+            await websocket.close()
+
+
+@app.websocket("/ws/metrics/multiple")
+async def websocket_multiple_metrics_stream(
+    websocket: WebSocket,
+    db: Session = Depends(get_db)
+):
+    """
+    WebSocket endpoint for real-time metrics streaming for multiple containers.
+
+    Connect to this endpoint and send container IDs to receive real-time metrics
+    for multiple containers simultaneously.
+
+    Authentication is required via token in query parameters:
+    ws://localhost:8000/ws/metrics/multiple?token=your_jwt_token
+
+    Send a message with container IDs:
+    {"type": "subscribe", "container_ids": ["container1", "container2"]}
+    """
+    import json
+    import asyncio
+    from app.auth.dependencies import get_current_user_websocket
+
+    try:
+        # Authenticate user
+        user = await get_current_user_websocket(websocket, db)
+        if not user:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        await websocket.accept()
+
+        # Send connection confirmation
+        await websocket.send_text(
+            json.dumps({
+                "type": "connection_established",
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": "Connected to multiple metrics stream",
+            })
+        )
+
+        # Get metrics service
+        metrics_service = get_metrics_service(db)
+        subscribed_containers = []
+
+        # Handle incoming messages and stream metrics
+        async def handle_messages():
+            while True:
+                try:
+                    data = await websocket.receive_text()
+                    message = json.loads(data)
+
+                    if message.get("type") == "subscribe":
+                        container_ids = message.get("container_ids", [])
+                        subscribed_containers.clear()
+                        subscribed_containers.extend(container_ids)
+
+                        await websocket.send_text(
+                            json.dumps({
+                                "type": "subscription_updated",
+                                "container_ids": subscribed_containers,
+                                "timestamp": datetime.utcnow().isoformat(),
+                            })
+                        )
+
+                except Exception as e:
+                    await websocket.send_text(
+                        json.dumps({
+                            "type": "error",
+                            "message": f"Error handling message: {str(e)}",
+                        })
+                    )
+
+        async def stream_metrics():
+            while True:
+                try:
+                    if subscribed_containers:
+                        # Get metrics for all subscribed containers
+                        metrics = metrics_service.get_multiple_container_metrics(subscribed_containers)
+
+                        # Send metrics update
+                        await websocket.send_text(
+                            json.dumps({
+                                "type": "multiple_metrics_update",
+                                "timestamp": datetime.utcnow().isoformat(),
+                                "metrics": metrics,
+                            })
+                        )
+
+                    # Wait before next update (5 seconds)
+                    await asyncio.sleep(5)
+
+                except Exception as e:
+                    await websocket.send_text(
+                        json.dumps({
+                            "type": "error",
+                            "timestamp": datetime.utcnow().isoformat(),
+                            "message": f"Error streaming metrics: {str(e)}",
+                        })
+                    )
+                    await asyncio.sleep(5)
+
+        # Run both tasks concurrently
+        await asyncio.gather(
+            handle_messages(),
+            stream_metrics()
+        )
+
+    except Exception as e:
+        try:
+            await websocket.send_text(
+                json.dumps({
+                    "type": "connection_error",
+                    "message": f"Connection error: {str(e)}",
+                })
+            )
+        except:
+            pass
+        finally:
+            await websocket.close()

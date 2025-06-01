@@ -244,3 +244,197 @@ class TestDockerManagerMetrics:
 
         assert "stats_stream" in result
         assert result["stats_stream"] == mock_stats_generator
+
+    @pytest.mark.asyncio
+    async def test_get_streaming_stats_success(self, docker_manager, mock_docker_client, mock_container_stats):
+        """Test successful streaming stats retrieval."""
+        # Setup mock container
+        mock_container = MagicMock()
+        mock_container.id = "test_container_id"
+        mock_container.name = "test_container"
+        mock_container.status = "running"
+
+        # Setup stats generator with multiple stats
+        stats_data = [mock_container_stats, mock_container_stats]
+        mock_stats_generator = iter(stats_data)
+        mock_container.stats.return_value = mock_stats_generator
+
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Test the async generator
+        results = []
+        async for stats in docker_manager.get_streaming_stats("test_container_id"):
+            results.append(stats)
+            if len(results) >= 2:  # Limit to avoid infinite loop
+                break
+
+        # Assertions
+        assert len(results) == 2
+        for result in results:
+            assert "container_id" in result
+            assert "container_name" in result
+            assert result["container_id"] == "test_container_id"
+            assert result["container_name"] == "test_container"
+
+    @pytest.mark.asyncio
+    async def test_get_streaming_stats_not_found(self, docker_manager, mock_docker_client):
+        """Test streaming stats when container not found."""
+        from docker.errors import NotFound
+
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+
+        # Test the async generator
+        results = []
+        async for stats in docker_manager.get_streaming_stats("nonexistent_container"):
+            results.append(stats)
+            break  # Only get first result
+
+        assert len(results) == 1
+        assert "error" in results[0]
+        assert "Container nonexistent_container not found" in results[0]["error"]
+
+    def test_get_multiple_container_stats_success(self, docker_manager, mock_docker_client, mock_container_stats):
+        """Test successful multiple container stats retrieval."""
+        # Setup mock containers
+        container_ids = ["container1", "container2", "container3"]
+
+        def mock_get_stats(container_id):
+            mock_container = MagicMock()
+            mock_container.id = container_id
+            mock_container.name = f"name_{container_id}"
+            mock_container.status = "running"
+
+            mock_stats_generator = iter([mock_container_stats])
+            mock_container.stats.return_value = mock_stats_generator
+
+            return mock_container
+
+        mock_docker_client.containers.get.side_effect = mock_get_stats
+
+        # Test the method
+        result = docker_manager.get_multiple_container_stats(container_ids)
+
+        # Assertions
+        assert len(result) == 3
+        for container_id in container_ids:
+            assert container_id in result
+            assert "container_id" in result[container_id]
+            assert result[container_id]["container_id"] == container_id
+            assert result[container_id]["container_name"] == f"name_{container_id}"
+
+    def test_get_multiple_container_stats_with_errors(self, docker_manager, mock_docker_client, mock_container_stats):
+        """Test multiple container stats with some containers having errors."""
+        from docker.errors import NotFound
+
+        container_ids = ["container1", "container2", "container3"]
+
+        def mock_get_stats(container_id):
+            if container_id == "container2":
+                raise NotFound("Container not found")
+
+            mock_container = MagicMock()
+            mock_container.id = container_id
+            mock_container.name = f"name_{container_id}"
+            mock_container.status = "running"
+
+            mock_stats_generator = iter([mock_container_stats])
+            mock_container.stats.return_value = mock_stats_generator
+
+            return mock_container
+
+        mock_docker_client.containers.get.side_effect = mock_get_stats
+
+        # Test the method
+        result = docker_manager.get_multiple_container_stats(container_ids)
+
+        # Assertions
+        assert len(result) == 3
+        assert "container_id" in result["container1"]
+        assert "error" in result["container2"]
+        assert "container_id" in result["container3"]
+
+    def test_get_aggregated_metrics_success(self, docker_manager, mock_docker_client, mock_container_stats):
+        """Test successful aggregated metrics calculation."""
+        container_ids = ["container1", "container2"]
+
+        def mock_get_stats(container_id):
+            mock_container = MagicMock()
+            mock_container.id = container_id
+            mock_container.name = f"name_{container_id}"
+            mock_container.status = "running"
+
+            mock_stats_generator = iter([mock_container_stats])
+            mock_container.stats.return_value = mock_stats_generator
+
+            return mock_container
+
+        mock_docker_client.containers.get.side_effect = mock_get_stats
+
+        # Test the method
+        result = docker_manager.get_aggregated_metrics(container_ids)
+
+        # Assertions
+        assert "timestamp" in result
+        assert "container_count" in result
+        assert "total_containers" in result
+        assert "aggregated_metrics" in result
+        assert "individual_stats" in result
+
+        assert result["container_count"] == 2
+        assert result["total_containers"] == 2
+
+        aggregated = result["aggregated_metrics"]
+        assert "avg_cpu_percent" in aggregated
+        assert "total_memory_usage" in aggregated
+        assert "total_memory_limit" in aggregated
+        assert "avg_memory_percent" in aggregated
+        assert "total_network_rx_bytes" in aggregated
+        assert "total_network_tx_bytes" in aggregated
+
+        # Check that values are aggregated correctly
+        assert aggregated["total_memory_usage"] == 134217728 * 2  # 2 containers
+        assert aggregated["total_memory_limit"] == 536870912 * 2  # 2 containers
+        assert aggregated["total_network_rx_bytes"] == 1024 * 2  # 2 containers
+        assert aggregated["total_network_tx_bytes"] == 2048 * 2  # 2 containers
+
+    def test_get_aggregated_metrics_empty_list(self, docker_manager):
+        """Test aggregated metrics with empty container list."""
+        result = docker_manager.get_aggregated_metrics([])
+
+        # Should return aggregated metrics with zero values
+        assert "timestamp" in result
+        assert result["container_count"] == 0
+        assert result["total_containers"] == 0
+
+    def test_get_aggregated_metrics_with_errors(self, docker_manager, mock_docker_client, mock_container_stats):
+        """Test aggregated metrics with some containers having errors."""
+        from docker.errors import NotFound
+
+        container_ids = ["container1", "container2", "container3"]
+
+        def mock_get_stats(container_id):
+            if container_id == "container2":
+                raise NotFound("Container not found")
+
+            mock_container = MagicMock()
+            mock_container.id = container_id
+            mock_container.name = f"name_{container_id}"
+            mock_container.status = "running"
+
+            mock_stats_generator = iter([mock_container_stats])
+            mock_container.stats.return_value = mock_stats_generator
+
+            return mock_container
+
+        mock_docker_client.containers.get.side_effect = mock_get_stats
+
+        # Test the method
+        result = docker_manager.get_aggregated_metrics(container_ids)
+
+        # Assertions - should only aggregate valid containers
+        assert result["container_count"] == 2  # Only 2 valid containers
+        assert result["total_containers"] == 3  # Total requested containers
+
+        # Should have individual stats for all containers (including errors)
+        assert len(result["individual_stats"]) == 3
+        assert "error" in result["individual_stats"]["container2"]

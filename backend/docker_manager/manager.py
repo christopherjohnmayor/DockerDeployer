@@ -8,10 +8,9 @@ except ImportError:
     APIError = Exception
     DockerException = Exception
 
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
@@ -137,6 +136,114 @@ class DockerManager:
         except Exception as e:
             logger.error(f"Unexpected error getting stats for {container_id}: {e}")
             return {"error": str(e)}
+
+    async def get_streaming_stats(self, container_id: str):
+        """
+        Get streaming statistics for a container (async generator).
+
+        Args:
+            container_id: Container ID or name
+
+        Yields:
+            Dictionary containing parsed container statistics
+        """
+        try:
+            container = self.client.containers.get(container_id)
+            stats_generator = container.stats(stream=True, decode=True)
+
+            for stats in stats_generator:
+                yield self._parse_container_stats(stats, container)
+
+        except NotFound:
+            yield {"error": f"Container {container_id} not found"}
+        except APIError as e:
+            logger.error(f"Docker API error streaming stats for {container_id}: {e}")
+            yield {"error": str(e)}
+        except Exception as e:
+            logger.error(f"Unexpected error streaming stats for {container_id}: {e}")
+            yield {"error": str(e)}
+
+    def get_multiple_container_stats(self, container_ids: List[str]) -> Dict[str, Any]:
+        """
+        Get statistics for multiple containers efficiently.
+
+        Args:
+            container_ids: List of container IDs or names
+
+        Returns:
+            Dictionary mapping container IDs to their statistics
+        """
+        results = {}
+
+        for container_id in container_ids:
+            try:
+                stats = self.get_container_stats(container_id)
+                results[container_id] = stats
+            except Exception as e:
+                logger.error(f"Error getting stats for container {container_id}: {e}")
+                results[container_id] = {"error": f"Failed to get stats: {str(e)}"}
+
+        return results
+
+    def get_aggregated_metrics(self, container_ids: List[str]) -> Dict[str, Any]:
+        """
+        Get aggregated metrics across multiple containers.
+
+        Args:
+            container_ids: List of container IDs or names
+
+        Returns:
+            Dictionary containing aggregated metrics
+        """
+        try:
+            all_stats = self.get_multiple_container_stats(container_ids)
+
+            # Initialize aggregation variables
+            total_cpu = 0.0
+            total_memory_usage = 0
+            total_memory_limit = 0
+            total_network_rx = 0
+            total_network_tx = 0
+            total_block_read = 0
+            total_block_write = 0
+            valid_containers = 0
+
+            # Aggregate metrics
+            for container_id, stats in all_stats.items():
+                if "error" not in stats:
+                    total_cpu += stats.get("cpu_percent", 0)
+                    total_memory_usage += stats.get("memory_usage", 0)
+                    total_memory_limit += stats.get("memory_limit", 0)
+                    total_network_rx += stats.get("network_rx_bytes", 0)
+                    total_network_tx += stats.get("network_tx_bytes", 0)
+                    total_block_read += stats.get("block_read_bytes", 0)
+                    total_block_write += stats.get("block_write_bytes", 0)
+                    valid_containers += 1
+
+            # Calculate averages and totals
+            avg_cpu = total_cpu / valid_containers if valid_containers > 0 else 0
+            avg_memory_percent = (total_memory_usage / total_memory_limit * 100) if total_memory_limit > 0 else 0
+
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "container_count": valid_containers,
+                "total_containers": len(container_ids),
+                "aggregated_metrics": {
+                    "avg_cpu_percent": round(avg_cpu, 2),
+                    "total_memory_usage": total_memory_usage,
+                    "total_memory_limit": total_memory_limit,
+                    "avg_memory_percent": round(avg_memory_percent, 2),
+                    "total_network_rx_bytes": total_network_rx,
+                    "total_network_tx_bytes": total_network_tx,
+                    "total_block_read_bytes": total_block_read,
+                    "total_block_write_bytes": total_block_write,
+                },
+                "individual_stats": all_stats,
+            }
+
+        except Exception as e:
+            logger.error(f"Error getting aggregated metrics: {e}")
+            return {"error": f"Failed to get aggregated metrics: {str(e)}"}
 
     def _parse_container_stats(
         self, stats: Dict[str, Any], container

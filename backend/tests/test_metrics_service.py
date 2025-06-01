@@ -565,3 +565,283 @@ class TestMetricsService:
 
         # Should return empty list on exception
         assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_streaming_metrics(self, metrics_service, mock_docker_manager):
+        """Test streaming metrics functionality."""
+        # Mock the async generator
+        async def mock_streaming_stats(container_id):
+            yield {"container_id": container_id, "cpu_percent": 50.0}
+            yield {"container_id": container_id, "cpu_percent": 60.0}
+
+        mock_docker_manager.get_streaming_stats = mock_streaming_stats
+
+        # Test the streaming metrics
+        results = []
+        async for metrics in metrics_service.get_streaming_metrics("test_container"):
+            results.append(metrics)
+            if len(results) >= 2:
+                break
+
+        assert len(results) == 2
+        assert results[0]["cpu_percent"] == 50.0
+        assert results[1]["cpu_percent"] == 60.0
+
+    def test_get_multiple_container_metrics(self, metrics_service, mock_docker_manager):
+        """Test multiple container metrics retrieval."""
+        container_ids = ["container1", "container2"]
+        expected_result = {
+            "container1": {"container_id": "container1", "cpu_percent": 30.0},
+            "container2": {"container_id": "container2", "cpu_percent": 40.0},
+        }
+
+        mock_docker_manager.get_multiple_container_stats.return_value = expected_result
+
+        result = metrics_service.get_multiple_container_metrics(container_ids)
+
+        assert result == expected_result
+        mock_docker_manager.get_multiple_container_stats.assert_called_once_with(container_ids)
+
+    def test_get_aggregated_metrics(self, metrics_service, mock_docker_manager):
+        """Test aggregated metrics calculation."""
+        container_ids = ["container1", "container2"]
+        expected_result = {
+            "timestamp": "2024-01-01T00:00:00Z",
+            "container_count": 2,
+            "aggregated_metrics": {
+                "avg_cpu_percent": 35.0,
+                "total_memory_usage": 1073741824,
+            },
+        }
+
+        mock_docker_manager.get_aggregated_metrics.return_value = expected_result
+
+        result = metrics_service.get_aggregated_metrics(container_ids)
+
+        assert result == expected_result
+        mock_docker_manager.get_aggregated_metrics.assert_called_once_with(container_ids)
+
+    def test_get_metrics_trends_success(self, metrics_service, mock_db_session):
+        """Test successful metrics trends calculation."""
+        # Mock historical data
+        historical_data = [
+            {"timestamp": "2024-01-01T00:00:00Z", "cpu_percent": 10.0},
+            {"timestamp": "2024-01-01T01:00:00Z", "cpu_percent": 20.0},
+            {"timestamp": "2024-01-01T02:00:00Z", "cpu_percent": 30.0},
+            {"timestamp": "2024-01-01T03:00:00Z", "cpu_percent": 40.0},
+            {"timestamp": "2024-01-01T04:00:00Z", "cpu_percent": 50.0},
+        ]
+
+        # Mock the get_historical_metrics method
+        metrics_service.get_historical_metrics = MagicMock(return_value=historical_data)
+
+        result = metrics_service.get_metrics_trends("test_container", 24, "cpu_percent")
+
+        # Assertions
+        assert "container_id" in result
+        assert "metric_type" in result
+        assert "analysis_period_hours" in result
+        assert "data_points" in result
+        assert "statistics" in result
+        assert "trend" in result
+
+        assert result["container_id"] == "test_container"
+        assert result["metric_type"] == "cpu_percent"
+        assert result["data_points"] == 5
+
+        # Check statistics
+        stats = result["statistics"]
+        assert stats["average"] == 30.0  # (10+20+30+40+50)/5
+        assert stats["minimum"] == 10.0
+        assert stats["maximum"] == 50.0
+
+        # Check trend (should be increasing)
+        trend = result["trend"]
+        assert trend["direction"] == "increasing"
+        assert trend["slope"] > 0
+
+    def test_get_metrics_trends_insufficient_data(self, metrics_service):
+        """Test metrics trends with insufficient data."""
+        # Mock insufficient historical data
+        historical_data = [{"timestamp": "2024-01-01T00:00:00Z", "cpu_percent": 10.0}]
+        metrics_service.get_historical_metrics = MagicMock(return_value=historical_data)
+
+        result = metrics_service.get_metrics_trends("test_container", 24, "cpu_percent")
+
+        assert "error" in result
+        assert "Insufficient data" in result["error"]
+
+    def test_get_metrics_trends_no_data(self, metrics_service):
+        """Test metrics trends with no historical data."""
+        metrics_service.get_historical_metrics = MagicMock(return_value=[])
+
+        result = metrics_service.get_metrics_trends("test_container", 24, "cpu_percent")
+
+        assert "error" in result
+        assert "No historical data available" in result["error"]
+
+    def test_get_metrics_summary_success(self, metrics_service, mock_docker_manager):
+        """Test successful metrics summary generation."""
+        # Mock container list
+        mock_containers = [
+            {"id": "container1", "name": "test1"},
+            {"id": "container2", "name": "test2"},
+        ]
+        mock_docker_manager.list_containers.return_value = mock_containers
+
+        # Mock current metrics
+        current_metrics = {
+            "container1": {
+                "container_id": "container1",
+                "container_name": "test1",
+                "cpu_percent": 85.0,  # High CPU
+                "memory_percent": 70.0,
+                "status": "running",
+            },
+            "container2": {
+                "container_id": "container2",
+                "container_name": "test2",
+                "cpu_percent": 30.0,
+                "memory_percent": 85.0,  # High memory
+                "status": "running",
+            },
+        }
+
+        # Mock aggregated metrics
+        aggregated_metrics = {
+            "aggregated_metrics": {
+                "avg_cpu_percent": 57.5,
+                "avg_memory_percent": 77.5,
+            }
+        }
+
+        metrics_service.get_multiple_container_metrics = MagicMock(return_value=current_metrics)
+        metrics_service.get_aggregated_metrics = MagicMock(return_value=aggregated_metrics)
+
+        result = metrics_service.get_metrics_summary()
+
+        # Assertions
+        assert "timestamp" in result
+        assert "summary" in result
+        assert "aggregated_metrics" in result
+        assert "alerts" in result
+        assert "health_scores" in result
+        assert "individual_metrics" in result
+
+        # Check summary
+        summary = result["summary"]
+        assert summary["total_containers"] == 2
+
+        # Check alerts
+        alerts = result["alerts"]
+        assert len(alerts["high_cpu_containers"]) == 1  # container1 has 85% CPU
+        assert len(alerts["high_memory_containers"]) == 1  # container2 has 85% memory
+        assert alerts["high_cpu_containers"][0]["container_id"] == "container1"
+        assert alerts["high_memory_containers"][0]["container_id"] == "container2"
+
+        # Check health scores
+        health_scores = result["health_scores"]
+        assert "container1" in health_scores
+        assert "container2" in health_scores
+        # Both containers should have reduced health scores due to high resource usage
+        assert health_scores["container1"] < 100
+        assert health_scores["container2"] < 100
+
+    def test_get_metrics_summary_with_container_ids(self, metrics_service):
+        """Test metrics summary with specific container IDs."""
+        container_ids = ["container1", "container2"]
+
+        current_metrics = {
+            "container1": {"container_id": "container1", "cpu_percent": 50.0, "status": "running"},
+            "container2": {"container_id": "container2", "cpu_percent": 60.0, "status": "running"},
+        }
+
+        aggregated_metrics = {"aggregated_metrics": {"avg_cpu_percent": 55.0}}
+
+        metrics_service.get_multiple_container_metrics = MagicMock(return_value=current_metrics)
+        metrics_service.get_aggregated_metrics = MagicMock(return_value=aggregated_metrics)
+
+        result = metrics_service.get_metrics_summary(container_ids)
+
+        # Should call with the provided container IDs
+        metrics_service.get_multiple_container_metrics.assert_called_once_with(container_ids)
+        metrics_service.get_aggregated_metrics.assert_called_once_with(container_ids)
+
+        assert result["summary"]["total_containers"] == 2
+
+    def test_get_metrics_summary_no_containers(self, metrics_service, mock_docker_manager):
+        """Test metrics summary when no containers are found."""
+        mock_docker_manager.list_containers.return_value = []
+
+        result = metrics_service.get_metrics_summary()
+
+        assert "error" in result
+        assert "No containers found" in result["error"]
+
+    def test_calculate_health_score_healthy_container(self, metrics_service):
+        """Test health score calculation for a healthy container."""
+        metrics = {
+            "cpu_percent": 30.0,
+            "memory_percent": 40.0,
+            "status": "running",
+        }
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 100  # No penalties applied
+
+    def test_calculate_health_score_high_cpu(self, metrics_service):
+        """Test health score calculation for container with high CPU."""
+        metrics = {
+            "cpu_percent": 95.0,  # Very high CPU
+            "memory_percent": 40.0,
+            "status": "running",
+        }
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 70  # 100 - 30 (high CPU penalty)
+
+    def test_calculate_health_score_high_memory(self, metrics_service):
+        """Test health score calculation for container with high memory."""
+        metrics = {
+            "cpu_percent": 30.0,
+            "memory_percent": 95.0,  # Very high memory
+            "status": "running",
+        }
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 70  # 100 - 30 (high memory penalty)
+
+    def test_calculate_health_score_stopped_container(self, metrics_service):
+        """Test health score calculation for stopped container."""
+        metrics = {
+            "cpu_percent": 0.0,
+            "memory_percent": 0.0,
+            "status": "stopped",
+        }
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 50  # 100 - 50 (stopped container penalty)
+
+    def test_calculate_health_score_multiple_issues(self, metrics_service):
+        """Test health score calculation for container with multiple issues."""
+        metrics = {
+            "cpu_percent": 95.0,  # High CPU (-30)
+            "memory_percent": 95.0,  # High memory (-30)
+            "status": "running",
+        }
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 40  # 100 - 30 - 30 = 40
+
+    def test_calculate_health_score_exception_handling(self, metrics_service):
+        """Test health score calculation with invalid metrics."""
+        metrics = {}  # Empty metrics should not crash
+
+        score = metrics_service._calculate_health_score(metrics)
+
+        assert score == 50  # Should return 50 for unknown status (100 - 50 penalty)
