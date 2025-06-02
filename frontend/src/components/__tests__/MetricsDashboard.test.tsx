@@ -387,12 +387,10 @@ describe("MetricsDashboard", () => {
       fireEvent.click(historyTab);
     });
 
-    // Check that history tab content is rendered (may show error message)
+    // Check that history tab content is rendered
     await waitFor(() => {
-      // The component might show an error message instead of history
-      const hasHistory = screen.queryByText("CPU Usage History");
-      const hasError = screen.queryByText("Failed to load dashboard metrics");
-      expect(hasHistory || hasError).toBeTruthy();
+      // The component shows metrics history content with data-testid
+      expect(screen.getByTestId("metrics-history")).toBeInTheDocument();
     });
   });
 
