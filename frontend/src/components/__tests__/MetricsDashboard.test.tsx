@@ -478,9 +478,11 @@ describe("MetricsDashboard", () => {
       fireEvent.click(realTimeTab);
     });
 
-    expect(
-      screen.getByText("Select a container to view real-time metrics.")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("Select a container to view real-time metrics.")
+      ).toBeInTheDocument();
+    });
   });
 
   it("shows info message when no container is selected for history tab", async () => {
@@ -513,9 +515,11 @@ describe("MetricsDashboard", () => {
       fireEvent.click(historyTab);
     });
 
-    expect(
-      screen.getByText("Select a container to view historical metrics.")
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText("Select a container to view historical metrics.")
+      ).toBeInTheDocument();
+    });
   });
 
   it("handles fullscreen toggle", async () => {

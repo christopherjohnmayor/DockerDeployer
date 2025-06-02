@@ -95,7 +95,7 @@ describe("ContainerDetail Component", () => {
     // Check tabs are present
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Logs")).toBeInTheDocument();
-    expect(screen.getByText("Metrics")).toBeInTheDocument();
+    expect(screen.getAllByText("Metrics")[0]).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
   });
 
@@ -127,7 +127,7 @@ describe("ContainerDetail Component", () => {
 
     // Click on Metrics tab
     await act(async () => {
-      fireEvent.click(screen.getByText("Metrics"));
+      fireEvent.click(screen.getAllByText("Metrics")[0]);
     });
 
     // Wait for metrics to load
@@ -297,7 +297,7 @@ describe("ContainerDetail Component", () => {
       });
 
       // Switch to metrics tab to trigger fetchMetrics
-      const metricsTab = screen.getByText("Metrics");
+      const metricsTab = screen.getAllByText("Metrics")[0];
       await act(async () => {
         fireEvent.click(metricsTab);
       });
