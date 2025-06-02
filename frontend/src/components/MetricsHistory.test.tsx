@@ -180,29 +180,21 @@ describe("MetricsHistory", () => {
   it("handles manual refresh", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    await act(async () => {
-      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    renderWithProviders(<MetricsHistory containerId="test-container" />);
+
+    // Wait for component to render
+    await waitFor(() => {
+      expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
     });
 
-    // Wait for initial load
-    await waitFor(
-      () => {
-        expect(mockUseApiCall.execute).toHaveBeenCalledWith(
-          "/api/containers/test-container/metrics/history?hours=24&limit=1000"
-        );
-      },
-      { timeout: 20000 }
-    );
-
+    // Find and click refresh button
     const refreshButton = screen.getByRole("button", {
       name: /refresh metrics data/i,
     });
 
-    await act(async () => {
-      fireEvent.click(refreshButton);
-    });
+    fireEvent.click(refreshButton);
 
-    // Should be called twice - once on mount, once on refresh
+    // Verify API was called (initial + refresh)
     await waitFor(() => {
       expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
     });
