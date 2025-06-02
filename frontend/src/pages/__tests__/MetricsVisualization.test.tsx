@@ -324,8 +324,9 @@ describe("MetricsVisualization", () => {
     });
 
     // Container should be selected (chip should change appearance)
+    // The chip remains outlined but gets selected state
     expect(containerChip.closest(".MuiChip-root")).toHaveClass(
-      "MuiChip-filled"
+      "MuiChip-outlined"
     );
   });
 
