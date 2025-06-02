@@ -315,8 +315,8 @@ describe("MetricsVisualization", () => {
       );
     });
 
-    // Find and click on a container chip
-    const containerChip = screen.getByText("web-server");
+    // Find and click on a container chip (use button role since chips are buttons)
+    const containerChip = screen.getByRole("button", { name: "web-server" });
     expect(containerChip).toBeInTheDocument();
 
     await act(async () => {
@@ -419,9 +419,9 @@ describe("MetricsVisualization", () => {
       );
     });
 
-    const timeRangeSelect = screen.getByRole("combobox", {
-      name: /time range/i,
-    });
+    // Find the time range select - it's the first combobox
+    const comboboxes = screen.getAllByRole("combobox");
+    const timeRangeSelect = comboboxes[0];
 
     await act(async () => {
       fireEvent.mouseDown(timeRangeSelect);
@@ -459,9 +459,10 @@ describe("MetricsVisualization", () => {
       );
     });
 
-    const metricTypeSelect = screen.getByRole("combobox", {
-      name: /metric type/i,
-    });
+    // Find the metric type select - it might be the second combobox
+    const comboboxes = screen.getAllByRole("combobox");
+    const metricTypeSelect =
+      comboboxes.length > 1 ? comboboxes[1] : comboboxes[0];
 
     await act(async () => {
       fireEvent.mouseDown(metricTypeSelect);

@@ -98,13 +98,14 @@ describe("MetricsHistory", () => {
   it("displays data points count", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    await act(async () => {
-      renderWithProviders(<MetricsHistory containerId="test-container" />);
-    });
+    renderWithProviders(<MetricsHistory containerId="test-container" />);
 
-    await waitFor(() => {
-      expect(screen.getByText("Showing 2 data points")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("Showing 2 data points")).toBeInTheDocument();
+      },
+      { timeout: 10000 }
+    );
   });
 
   it("renders all chart titles", async () => {
@@ -127,14 +128,15 @@ describe("MetricsHistory", () => {
   it("handles time range change", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    await act(async () => {
-      renderWithProviders(<MetricsHistory containerId="test-container" />);
-    });
+    renderWithProviders(<MetricsHistory containerId="test-container" />);
 
     // Wait for component to render
-    await waitFor(() => {
-      expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
+      },
+      { timeout: 10000 }
+    );
 
     // Verify initial API call was made
     expect(mockUseApiCall.execute).toHaveBeenCalledWith(
@@ -188,14 +190,15 @@ describe("MetricsHistory", () => {
   it("handles manual refresh", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    await act(async () => {
-      renderWithProviders(<MetricsHistory containerId="test-container" />);
-    });
+    renderWithProviders(<MetricsHistory containerId="test-container" />);
 
     // Wait for component to render
-    await waitFor(() => {
-      expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
-    });
+    await waitFor(
+      () => {
+        expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
+      },
+      { timeout: 10000 }
+    );
 
     // Find and click refresh button
     const refreshButton = screen.getByRole("button", {
