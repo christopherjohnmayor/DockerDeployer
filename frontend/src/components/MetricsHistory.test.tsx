@@ -98,7 +98,9 @@ describe("MetricsHistory", () => {
   it("displays data points count", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Showing 2 data points")).toBeInTheDocument();
@@ -108,7 +110,9 @@ describe("MetricsHistory", () => {
   it("renders all chart titles", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     await waitFor(() => {
       expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
@@ -123,7 +127,9 @@ describe("MetricsHistory", () => {
   it("handles time range change", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for component to render
     await waitFor(() => {
@@ -155,7 +161,9 @@ describe("MetricsHistory", () => {
   }, 30000);
 
   it("shows custom date pickers when custom range is selected", async () => {
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for component to render
     await waitFor(() => {
@@ -180,7 +188,9 @@ describe("MetricsHistory", () => {
   it("handles manual refresh", async () => {
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     // Wait for component to render
     await waitFor(() => {
@@ -200,13 +210,15 @@ describe("MetricsHistory", () => {
     });
   }, 30000);
 
-  it("shows loading state in refresh button", () => {
+  it("shows loading state in refresh button", async () => {
     mockedUseApiCall.mockReturnValue({
       ...mockUseApiCall,
       loading: true,
     });
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
     const refreshButton = screen.getByRole("button", {
       name: /refresh metrics data/i,
