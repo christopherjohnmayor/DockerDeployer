@@ -7,15 +7,18 @@ This guide provides a comprehensive approach to deploying DockerDeployer to prod
 ## Current Status
 
 ### ✅ Backend Ready
+
 - **Test Coverage**: 84.38% (exceeds 80% threshold)
 - **Tests**: 307 passing, 1 skipped
 - **Key Features**: JWT auth, rate limiting, metrics, alerts
 
 ### ⚠️ Frontend Needs Fixes
+
 - **Tests**: 496 passing, 32 failing
 - **Issues**: Material-UI testing patterns, timeouts, dialog state
 
 ### ✅ Infrastructure Ready
+
 - Docker configurations for dev/prod
 - GitHub Actions CI/CD pipeline
 - Environment configurations
@@ -23,6 +26,37 @@ This guide provides a comprehensive approach to deploying DockerDeployer to prod
 ## Phase 1: Pre-deployment Fixes
 
 ### 1.1 Frontend Test Fixes (HIGH PRIORITY)
+
+**Current Status**: 513 passing, 15 failing tests
+**Target**: 100% test success rate
+
+**Critical Issues to Fix**:
+
+1. **RealTimeMetrics Component**:
+
+   - Button accessibility issues with refresh button
+   - Error handling for API responses
+   - Material-UI Tooltip wrapping for disabled buttons
+
+2. **MetricsHistory Component**:
+
+   - Excessive API calls during testing (133 vs expected 2)
+   - Timeout issues with async operations
+   - Loading state management
+
+3. **Recharts Integration**:
+   - DOM prop warnings (`dataKey`, `tickFormatter`, `activeDot`)
+   - Component mocking for testing environment
+
+**Fix Strategy**:
+
+```bash
+# 1. Fix Material-UI testing patterns
+# 2. Implement proper async/await patterns
+# 3. Add proper component mocking for Recharts
+# 4. Increase timeouts for complex operations
+# 5. Fix button accessibility with span wrapping
+```
 
 ```bash
 # Fix Material-UI testing patterns
@@ -36,6 +70,7 @@ npm test -- --coverage
 ```
 
 **Required Changes:**
+
 - Use `getAllByText()` for multiple elements instead of `getByText()`
 - Increase test timeouts for async operations
 - Fix dialog state management with proper cleanup
@@ -136,18 +171,21 @@ curl https://your-domain.com/api/containers
 ## Phase 4: Security Hardening
 
 ### 4.1 Authentication & Authorization
+
 - ✅ JWT authentication implemented
 - ✅ Role-based access control (admin/user)
 - ✅ Rate limiting configured (87% coverage)
 - ✅ Password reset functionality
 
 ### 4.2 API Security
+
 - ✅ CORS properly configured
 - ✅ Input validation on all endpoints
 - ✅ SQL injection protection (SQLAlchemy ORM)
 - ✅ XSS protection (React built-in)
 
 ### 4.3 Infrastructure Security
+
 - ✅ Docker socket access controlled
 - ✅ Environment variables for secrets
 - ✅ Network isolation with Docker networks
@@ -156,18 +194,21 @@ curl https://your-domain.com/api/containers
 ## Phase 5: Performance Optimization
 
 ### 5.1 API Performance
+
 - **Target**: <200ms response times
 - **Current**: Optimized with async/await patterns
 - **Caching**: Redis implementation ready
 - **Database**: Connection pooling configured
 
 ### 5.2 Frontend Performance
+
 - **Build**: Vite production builds optimized
 - **Assets**: Static asset optimization
 - **Lazy Loading**: Component-based code splitting
 - **Caching**: Browser caching headers
 
 ### 5.3 Container Performance
+
 - **Images**: Multi-stage builds for smaller images
 - **Resources**: CPU/memory limits configured
 - **Networking**: Optimized container networking
@@ -176,18 +217,21 @@ curl https://your-domain.com/api/containers
 ## Phase 6: Monitoring & Logging
 
 ### 6.1 Application Monitoring
+
 - ✅ Real-time metrics collection
 - ✅ Container health monitoring
 - ✅ Alert system with WebSocket notifications
 - ✅ Performance metrics tracking
 
 ### 6.2 Infrastructure Monitoring
+
 - Docker container metrics
 - System resource utilization
 - Network performance
 - Storage usage
 
 ### 6.3 Logging Strategy
+
 - Centralized log collection
 - Log rotation and retention
 - Error tracking and alerting
@@ -267,6 +311,7 @@ echo "✅ Rollback completed"
 ## Support and Maintenance
 
 ### Regular Maintenance Tasks
+
 - Monitor system metrics and alerts
 - Review and rotate security keys
 - Update dependencies and security patches
@@ -274,6 +319,7 @@ echo "✅ Rollback completed"
 - Review and optimize performance metrics
 
 ### Emergency Procedures
+
 - Incident response plan
 - Rollback procedures
 - Contact information for critical issues
