@@ -23,7 +23,6 @@ services:
       dockerfile: Dockerfile.dev
     container_name: dockerdeployer-backend
     volumes:
-      - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock:rw
       - db_data:/app/data
       - config_data:/app/config_repo
@@ -60,7 +59,6 @@ services:
       dockerfile: Dockerfile.dev
     container_name: dockerdeployer-frontend
     volumes:
-      - ./frontend:/app
       - /app/node_modules
     env_file:
       - .env.dev
