@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback } from "react";
 import {
   Badge,
   IconButton,
@@ -15,7 +15,7 @@ import {
   Divider,
   Alert,
   Snackbar,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Notifications as NotificationsIcon,
   Warning as WarningIcon,
@@ -23,11 +23,12 @@ import {
   Info as InfoIcon,
   CheckCircle as CheckCircleIcon,
   Clear as ClearIcon,
-} from '@mui/icons-material';
-import { format } from 'date-fns';
+} from "@mui/icons-material";
+import { format } from "date-fns";
 
-import { AuthContext } from '../contexts/AuthContext';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { AuthContext } from "../contexts/AuthContext";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { getNotificationWebSocketUrl } from "../utils/websocket";
 
 interface AlertNotification {
   type: string;
@@ -53,130 +54,149 @@ interface AlertNotificationsProps {
 }
 
 const AlertNotifications: React.FC<AlertNotificationsProps> = ({
-  maxNotifications = 50
+  maxNotifications = 50,
 }) => {
   const { user, token } = useContext(AuthContext);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<AlertNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('info');
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<
+    "success" | "error" | "warning" | "info"
+  >("info");
 
   // WebSocket connection for real-time notifications
   const { isConnected, sendMessage } = useWebSocket(
-    user ? `ws://localhost:8000/ws/notifications/${user.id}?token=${token}` : null,
+    user && token ? getNotificationWebSocketUrl(user.id, token) : null,
     {
       onMessage: handleWebSocketMessage,
       onConnect: () => {
-        console.log('Connected to notification service');
+        console.log("Connected to notification service");
         // Request notification history when connected
-        sendMessage({ type: 'get_notification_history', limit: maxNotifications });
+        sendMessage({
+          type: "get_notification_history",
+          limit: maxNotifications,
+        });
       },
       onDisconnect: () => {
-        console.log('Disconnected from notification service');
+        console.log("Disconnected from notification service");
       },
       onError: (error) => {
-        console.error('WebSocket error:', error);
-        showSnackbar('Connection error. Notifications may be delayed.', 'error');
-      }
+        console.error("WebSocket error:", error);
+        showSnackbar(
+          "Connection error. Notifications may be delayed.",
+          "error"
+        );
+      },
     }
   );
 
   function handleWebSocketMessage(event: MessageEvent) {
     try {
       const data = JSON.parse(event.data);
-      
+
       switch (data.type) {
-        case 'connection_established':
-          console.log('Notification connection established');
+        case "connection_established":
+          console.log("Notification connection established");
           break;
-          
-        case 'alert_triggered':
+
+        case "alert_triggered":
           handleAlertTriggered(data);
           break;
-          
-        case 'alert_acknowledged':
+
+        case "alert_acknowledged":
           handleAlertAcknowledged(data);
           break;
-          
-        case 'notification_history':
+
+        case "notification_history":
           setNotifications(data.notifications || []);
           setUnreadCount(data.notifications?.length || 0);
           break;
-          
-        case 'pending_notification':
+
+        case "pending_notification":
           addNotification(data);
           break;
-          
-        case 'system_notification':
-        case 'user_notification':
+
+        case "system_notification":
+        case "user_notification":
           handleSystemNotification(data);
           break;
-          
-        case 'error':
-          console.error('WebSocket error:', data.message);
-          showSnackbar(data.message, 'error');
+
+        case "error":
+          console.error("WebSocket error:", data.message);
+          showSnackbar(data.message, "error");
           break;
-          
+
         default:
-          console.log('Unknown notification type:', data.type);
+          console.log("Unknown notification type:", data.type);
       }
     } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
+      console.error("Error parsing WebSocket message:", error);
     }
   }
 
   const handleAlertTriggered = useCallback((data: AlertNotification) => {
     addNotification(data);
-    
+
     // Show browser notification if permission granted
-    if (Notification.permission === 'granted' && data.alert) {
+    if (Notification.permission === "granted" && data.alert) {
       new Notification(`DockerDeployer Alert: ${data.alert.name}`, {
-        body: data.message || `${data.alert.metric_type} is ${data.alert.current_value} (threshold: ${data.alert.comparison_operator} ${data.alert.threshold_value})`,
-        icon: '/favicon.ico',
+        body:
+          data.message ||
+          `${data.alert.metric_type} is ${data.alert.current_value} (threshold: ${data.alert.comparison_operator} ${data.alert.threshold_value})`,
+        icon: "/favicon.ico",
         tag: `alert-${data.alert.id}`,
       });
     }
-    
+
     // Show snackbar for immediate feedback
     showSnackbar(
-      `Alert triggered: ${data.alert?.name || 'Unknown alert'}`,
-      data.severity === 'critical' ? 'error' : 'warning'
+      `Alert triggered: ${data.alert?.name || "Unknown alert"}`,
+      data.severity === "critical" ? "error" : "warning"
     );
   }, []);
 
   const handleAlertAcknowledged = useCallback((data: any) => {
     // Update notifications to mark alert as acknowledged
-    setNotifications(prev => 
-      prev.map(notification => 
+    setNotifications((prev) =>
+      prev.map((notification) =>
         notification.alert?.id === data.alert_id
           ? { ...notification, acknowledged: true }
           : notification
       )
     );
-    
-    showSnackbar('Alert acknowledged', 'success');
+
+    showSnackbar("Alert acknowledged", "success");
   }, []);
 
   const handleSystemNotification = useCallback((data: AlertNotification) => {
     addNotification(data);
-    showSnackbar(data.message || 'System notification', data.notification_type as any || 'info');
+    showSnackbar(
+      data.message || "System notification",
+      (data.notification_type as any) || "info"
+    );
   }, []);
 
-  const addNotification = useCallback((notification: AlertNotification) => {
-    setNotifications(prev => {
-      const updated = [notification, ...prev].slice(0, maxNotifications);
-      return updated;
-    });
-    setUnreadCount(prev => prev + 1);
-  }, [maxNotifications]);
+  const addNotification = useCallback(
+    (notification: AlertNotification) => {
+      setNotifications((prev) => {
+        const updated = [notification, ...prev].slice(0, maxNotifications);
+        return updated;
+      });
+      setUnreadCount((prev) => prev + 1);
+    },
+    [maxNotifications]
+  );
 
-  const showSnackbar = useCallback((message: string, severity: 'success' | 'error' | 'warning' | 'info') => {
-    setSnackbarMessage(message);
-    setSnackbarSeverity(severity);
-    setSnackbarOpen(true);
-  }, []);
+  const showSnackbar = useCallback(
+    (message: string, severity: "success" | "error" | "warning" | "info") => {
+      setSnackbarMessage(message);
+      setSnackbarSeverity(severity);
+      setSnackbarOpen(true);
+    },
+    []
+  );
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -190,12 +210,12 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
   const acknowledgeAlert = async (alertId: number) => {
     try {
       sendMessage({
-        type: 'acknowledge_alert',
-        alert_id: alertId
+        type: "acknowledge_alert",
+        alert_id: alertId,
       });
     } catch (error) {
-      console.error('Error acknowledging alert:', error);
-      showSnackbar('Failed to acknowledge alert', 'error');
+      console.error("Error acknowledging alert:", error);
+      showSnackbar("Failed to acknowledge alert", "error");
     }
   };
 
@@ -207,11 +227,11 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
 
   const getSeverityIcon = (severity?: string) => {
     switch (severity) {
-      case 'critical':
+      case "critical":
         return <ErrorIcon color="error" />;
-      case 'warning':
+      case "warning":
         return <WarningIcon color="warning" />;
-      case 'info':
+      case "info":
         return <InfoIcon color="info" />;
       default:
         return <NotificationsIcon />;
@@ -220,20 +240,20 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
 
   const getSeverityColor = (severity?: string) => {
     switch (severity) {
-      case 'critical':
-        return 'error';
-      case 'warning':
-        return 'warning';
-      case 'info':
-        return 'info';
+      case "critical":
+        return "error";
+      case "warning":
+        return "warning";
+      case "info":
+        return "info";
       default:
-        return 'default';
+        return "default";
     }
   };
 
   // Request notification permission on mount
   useEffect(() => {
-    if (Notification.permission === 'default') {
+    if (Notification.permission === "default") {
       Notification.requestPermission();
     }
   }, []);
@@ -265,16 +285,11 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
           },
         }}
       >
-        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: "divider" }}>
           <Typography variant="h6">
             Notifications
             {!isConnected && (
-              <Chip
-                label="Offline"
-                color="error"
-                size="small"
-                sx={{ ml: 1 }}
-              />
+              <Chip label="Offline" color="error" size="small" sx={{ ml: 1 }} />
             )}
           </Typography>
         </Box>
@@ -287,7 +302,7 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
           </MenuItem>
         ) : (
           <>
-            <List sx={{ maxHeight: 300, overflow: 'auto' }}>
+            <List sx={{ maxHeight: 300, overflow: "auto" }}>
               {notifications.map((notification, index) => (
                 <ListItem key={index} divider>
                   <ListItemIcon>
@@ -295,12 +310,14 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box
+                        sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                      >
                         <Typography variant="subtitle2">
-                          {notification.alert?.name || 'System Notification'}
+                          {notification.alert?.name || "System Notification"}
                         </Typography>
                         <Chip
-                          label={notification.severity || 'info'}
+                          label={notification.severity || "info"}
                           color={getSeverityColor(notification.severity) as any}
                           size="small"
                         />
@@ -309,16 +326,22 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
                     secondary={
                       <Box>
                         <Typography variant="body2" color="text.secondary">
-                          {notification.message || notification.alert?.description}
+                          {notification.message ||
+                            notification.alert?.description}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {format(new Date(notification.timestamp), 'MMM dd, HH:mm')}
+                          {format(
+                            new Date(notification.timestamp),
+                            "MMM dd, HH:mm"
+                          )}
                         </Typography>
                         {notification.alert && !notification.acknowledged && (
                           <Button
                             size="small"
                             startIcon={<CheckCircleIcon />}
-                            onClick={() => acknowledgeAlert(notification.alert!.id)}
+                            onClick={() =>
+                              acknowledgeAlert(notification.alert!.id)
+                            }
                             sx={{ mt: 1 }}
                           >
                             Acknowledge
@@ -343,7 +366,7 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
         open={snackbarOpen}
         autoHideDuration={6000}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}

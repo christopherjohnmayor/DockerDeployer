@@ -70,7 +70,9 @@ import os
 if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
     storage_uri = "memory://"
 else:
-    storage_uri = "redis://localhost:6379"
+    # Use Redis URL from environment or default
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+    storage_uri = redis_url
 
 limiter = Limiter(
     key_func=get_user_id_or_ip,
@@ -241,6 +243,7 @@ def setup_rate_limiting(app):
     """
     # Add SlowAPI middleware
     app.state.limiter = limiter
+    app.add_middleware(SlowAPIMiddleware)
     app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
 
     logger.info("Rate limiting middleware configured")

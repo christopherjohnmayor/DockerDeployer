@@ -77,12 +77,19 @@
         "statements": 80
       }
     },
+    "transform": {
+      "^.+\\.(ts|tsx)$": "ts-jest"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(.*\\.mjs$))"
+    ],
     "globals": {
       "import.meta": {
         "env": {
           "DEV": true,
           "PROD": false,
-          "MODE": "test"
+          "MODE": "test",
+          "VITE_API_URL": "http://localhost:8000"
         }
       }
     }

@@ -60,6 +60,94 @@ async def register_user(user_in: UserCreate, db: Session = Depends(get_db)) -> A
     Raises:
         HTTPException: If username or email already exists
     """
+    # Additional server-side XSS protection
+    import html
+    import re
+    import logging
+
+    logger = logging.getLogger(__name__)
+    print(f"🔍 XSS VALIDATION: Checking username='{user_in.username}', full_name='{user_in.full_name}'")
+    logger.info(f"🔍 Validating user registration: username='{user_in.username}', full_name='{user_in.full_name}'")
+
+    def validate_input_security(input_value: str, field_name: str) -> None:
+        """
+        Comprehensive XSS and injection validation for user inputs.
+
+        Args:
+            input_value: The input string to validate
+            field_name: Name of the field for error messages
+
+        Raises:
+            HTTPException: If input contains dangerous patterns
+        """
+        if not input_value:
+            return
+
+        # Enhanced XSS protection patterns - comprehensive detection
+        dangerous_patterns = [
+            r'<script[^>]*>.*?</script>',  # Script tags (any attributes)
+            r'<iframe[^>]*>.*?</iframe>',  # Iframe tags (any attributes)
+            r'javascript\s*:',  # JavaScript protocol (with whitespace)
+            r'on\w+\s*=',  # Event handlers (onclick, onload, etc.)
+            r'<object[^>]*>.*?</object>',  # Object tags
+            r'<embed[^>]*>.*?</embed>',  # Embed tags
+            r'<link[^>]*>',  # Link tags
+            r'<meta[^>]*>',  # Meta tags
+            r'<style[^>]*>.*?</style>',  # Style tags
+            r'expression\s*\(',  # CSS expressions
+            r'url\s*\(',  # CSS url() function
+            r'@import',  # CSS imports
+            r'vbscript\s*:',  # VBScript protocol
+            r'data\s*:',  # Data URLs (can contain scripts)
+            r'<svg[^>]*>.*?</svg>',  # SVG tags (can contain scripts)
+            r'<math[^>]*>.*?</math>',  # MathML tags
+            r'<form[^>]*>',  # Form tags
+            r'<input[^>]*>',  # Input tags
+            r'<textarea[^>]*>',  # Textarea tags
+            r'<button[^>]*>',  # Button tags
+            r'<select[^>]*>',  # Select tags
+            r'<option[^>]*>',  # Option tags
+            r'<base[^>]*>',  # Base tags
+            r'<frame[^>]*>',  # Frame tags
+            r'<frameset[^>]*>',  # Frameset tags
+            r'<applet[^>]*>',  # Applet tags
+            r'<bgsound[^>]*>',  # Background sound tags
+            r'<blink[^>]*>',  # Blink tags
+            r'<marquee[^>]*>',  # Marquee tags
+        ]
+
+        # Check for dangerous patterns
+        for pattern in dangerous_patterns:
+            if re.search(pattern, input_value, flags=re.IGNORECASE | re.DOTALL):
+                logger.warning(f"🚨 XSS attempt detected in {field_name}: {pattern} matched in '{input_value[:50]}...'")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{field_name} contains invalid characters",
+                )
+
+        # Check for basic HTML tags and entities
+        if '<' in input_value or '>' in input_value:
+            logger.warning(f"🚨 HTML tags detected in {field_name}: '{input_value[:50]}...'")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"{field_name} contains invalid characters",
+            )
+
+        # Check for encoded HTML entities that could be dangerous
+        dangerous_entities = ['&lt;', '&gt;', '&#60;', '&#62;', '&#x3C;', '&#x3E;']
+        for entity in dangerous_entities:
+            if entity.lower() in input_value.lower():
+                logger.warning(f"🚨 HTML entities detected in {field_name}: '{input_value[:50]}...'")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"{field_name} contains invalid characters",
+                )
+
+    # Validate all user inputs with enhanced security
+    validate_input_security(user_in.username, "Username")
+    validate_input_security(user_in.email, "Email")
+    validate_input_security(user_in.full_name, "Full name")
+
     # Check if username already exists
     user = db.query(UserModel).filter(UserModel.username == user_in.username).first()
     if user:

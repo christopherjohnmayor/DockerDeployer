@@ -35,6 +35,7 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { useApiCall } from "../hooks/useApiCall";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getMetricsWebSocketUrl } from "../utils/websocket";
 import MetricsChart from "../components/MetricsChart";
 import { formatBytes, formatPercentage } from "../utils/formatters";
 
@@ -265,7 +266,7 @@ const MetricsVisualization: React.FC = () => {
   // WebSocket for real-time updates
   const wsUrl =
     realTimeEnabled && selectedContainers.length > 0
-      ? `ws://localhost:8000/ws/metrics/multiple?token=${localStorage.getItem("token")}`
+      ? getMetricsWebSocketUrl(localStorage.getItem("token") || "")
       : null;
 
   const [realTimeData, setRealTimeData] = useState<

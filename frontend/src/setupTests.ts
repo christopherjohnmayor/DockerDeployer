@@ -4,6 +4,21 @@
 // learn more: https://github.com/testing-library/jest-dom
 import "@testing-library/jest-dom";
 
+// Mock import.meta.env for Vite compatibility in Jest
+Object.defineProperty(globalThis, "import", {
+  value: {
+    meta: {
+      env: {
+        DEV: true,
+        PROD: false,
+        MODE: "test",
+        VITE_API_URL: "http://localhost:8000",
+      },
+    },
+  },
+  writable: true,
+});
+
 // Mock the axios module
 jest.mock("axios", () => ({
   get: jest.fn(() => Promise.resolve({ data: {} })),

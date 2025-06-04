@@ -2,6 +2,8 @@
 Authentication models for request and response validation.
 """
 
+import html
+import re
 from datetime import datetime
 from typing import Optional
 
@@ -15,11 +17,97 @@ class UserBase(BaseModel):
     email: EmailStr
     full_name: Optional[str] = None
 
+    @validator("username")
+    def sanitize_username(cls, v):
+        """Sanitize username to prevent XSS."""
+        if v:
+            # Remove HTML tags and escape special characters
+            sanitized = html.escape(v.strip())
+            # Remove script tags and other dangerous patterns
+            dangerous_patterns = [
+                r'<script[^>]*>.*?</script>',
+                r'javascript:',
+                r'on\w+\s*=',
+                r'<iframe[^>]*>.*?</iframe>',
+                r'<object[^>]*>.*?</object>',
+                r'<embed[^>]*>.*?</embed>'
+            ]
+            for pattern in dangerous_patterns:
+                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+            return sanitized
+        return v
+
+    @validator("full_name")
+    def sanitize_full_name(cls, v):
+        """Sanitize full name to prevent XSS."""
+        if v:
+            # Remove HTML tags and escape special characters
+            sanitized = html.escape(v.strip())
+            # Remove script tags and other dangerous patterns
+            dangerous_patterns = [
+                r'<script[^>]*>.*?</script>',
+                r'javascript:',
+                r'on\w+\s*=',
+                r'<iframe[^>]*>.*?</iframe>',
+                r'<object[^>]*>.*?</object>',
+                r'<embed[^>]*>.*?</embed>'
+            ]
+            for pattern in dangerous_patterns:
+                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+            return sanitized
+        return v
+
 
 class UserCreate(UserBase):
     """User creation model."""
 
     password: str = Field(..., min_length=8)
+
+    @validator("username", pre=True)
+    def sanitize_username_create(cls, v):
+        """Sanitize username to prevent XSS."""
+        if v:
+            # Remove HTML tags and escape special characters
+            sanitized = html.escape(str(v).strip())
+            # Remove script tags and other dangerous patterns
+            dangerous_patterns = [
+                r'<script[^>]*>.*?</script>',
+                r'javascript:',
+                r'on\w+\s*=',
+                r'<iframe[^>]*>.*?</iframe>',
+                r'<object[^>]*>.*?</object>',
+                r'<embed[^>]*>.*?</embed>'
+            ]
+            for pattern in dangerous_patterns:
+                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+            # Also reject if it still contains dangerous characters
+            if '<' in sanitized or '>' in sanitized or 'javascript:' in sanitized.lower():
+                raise ValueError("Username contains invalid characters")
+            return sanitized
+        return v
+
+    @validator("full_name", pre=True)
+    def sanitize_full_name_create(cls, v):
+        """Sanitize full name to prevent XSS."""
+        if v:
+            # Remove HTML tags and escape special characters
+            sanitized = html.escape(str(v).strip())
+            # Remove script tags and other dangerous patterns
+            dangerous_patterns = [
+                r'<script[^>]*>.*?</script>',
+                r'javascript:',
+                r'on\w+\s*=',
+                r'<iframe[^>]*>.*?</iframe>',
+                r'<object[^>]*>.*?</object>',
+                r'<embed[^>]*>.*?</embed>'
+            ]
+            for pattern in dangerous_patterns:
+                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
+            # Also reject if it still contains dangerous characters
+            if '<' in sanitized or '>' in sanitized or 'javascript:' in sanitized.lower():
+                raise ValueError("Full name contains invalid characters")
+            return sanitized
+        return v
 
     @validator("password")
     def password_strength(cls, v):

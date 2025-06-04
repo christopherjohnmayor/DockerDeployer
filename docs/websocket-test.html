@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DockerDeployer WebSocket CSP Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid;
+        }
+        .success { 
+            background-color: #d4edda; 
+            color: #155724; 
+            border-color: #28a745;
+        }
+        .error { 
+            background-color: #f8d7da; 
+            color: #721c24; 
+            border-color: #dc3545;
+        }
+        .info { 
+            background-color: #d1ecf1; 
+            color: #0c5460; 
+            border-color: #17a2b8;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border-color: #ffc107;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary { 
+            background-color: #007bff; 
+            color: white; 
+        }
+        .btn-primary:hover { 
+            background-color: #0056b3; 
+        }
+        .btn-secondary { 
+            background-color: #6c757d; 
+            color: white; 
+        }
+        .btn-secondary:hover { 
+            background-color: #545b62; 
+        }
+        #log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            border-radius: 4px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 DockerDeployer WebSocket CSP Test</h1>
+        
+        <div class="status info">
+            <strong>Purpose:</strong> Test WebSocket connections with updated Content Security Policy (CSP) configuration.
+            <br><strong>Expected:</strong> All WebSocket connections should succeed without CSP violations.
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 Test Controls</h3>
+            <button class="btn-primary" onclick="runAllTests()">Run All Tests</button>
+            <button class="btn-primary" onclick="testNotificationWebSocket()">Test Notifications</button>
+            <button class="btn-primary" onclick="testMetricsWebSocket()">Test Metrics</button>
+            <button class="btn-secondary" onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Connection Status</h3>
+            <div id="status-notifications" class="status info">Notifications WebSocket: Not tested</div>
+            <div id="status-metrics" class="status info">Metrics WebSocket: Not tested</div>
+        </div>
+
+        <div class="test-section">
+            <h3>📝 Test Log</h3>
+            <div id="log">Ready to test WebSocket connections...\nClick "Run All Tests" to begin.\n</div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔒 CSP Information</h3>
+            <div id="csp-info" class="status info">
+                <strong>Current CSP:</strong> <span id="csp-value">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const log = document.getElementById('log');
+        const statusNotifications = document.getElementById('status-notifications');
+        const statusMetrics = document.getElementById('status-metrics');
+        const cspValue = document.getElementById('csp-value');
+
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toISOString().substr(11, 8);
+            const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+            const logEntry = `[${timestamp}] ${icon} ${message}\n`;
+            log.textContent += logEntry;
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearLog() {
+            log.textContent = 'Log cleared.\n';
+        }
+
+        function updateStatus(element, status, type) {
+            element.className = `status ${type}`;
+            element.textContent = status;
+        }
+
+        function runAllTests() {
+            addLog('Starting comprehensive WebSocket tests...', 'info');
+            clearStatuses();
+            
+            setTimeout(() => testNotificationWebSocket(), 500);
+            setTimeout(() => testMetricsWebSocket(), 2000);
+        }
+
+        function clearStatuses() {
+            updateStatus(statusNotifications, 'Notifications WebSocket: Testing...', 'warning');
+            updateStatus(statusMetrics, 'Metrics WebSocket: Testing...', 'warning');
+        }
+
+        function testNotificationWebSocket() {
+            addLog('Testing Notifications WebSocket connection...', 'info');
+            
+            // Simulate user ID and token for testing
+            const userId = 1;
+            const token = 'test-token-123';
+            const wsUrl = `/ws/notifications/${userId}?token=${encodeURIComponent(token)}`;
+            
+            testWebSocketConnection(wsUrl, 'Notifications', (success) => {
+                if (success) {
+                    updateStatus(statusNotifications, 'Notifications WebSocket: ✅ Connected', 'success');
+                } else {
+                    updateStatus(statusNotifications, 'Notifications WebSocket: ❌ Failed', 'error');
+                }
+            });
+        }
+
+        function testMetricsWebSocket() {
+            addLog('Testing Metrics WebSocket connection...', 'info');
+            
+            const token = 'test-token-123';
+            const wsUrl = `/ws/metrics/multiple?token=${encodeURIComponent(token)}`;
+            
+            testWebSocketConnection(wsUrl, 'Metrics', (success) => {
+                if (success) {
+                    updateStatus(statusMetrics, 'Metrics WebSocket: ✅ Connected', 'success');
+                } else {
+                    updateStatus(statusMetrics, 'Metrics WebSocket: ❌ Failed', 'error');
+                }
+            });
+        }
+
+        function testWebSocketConnection(path, name, callback) {
+            // Convert relative path to full WebSocket URL
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const fullUrl = `${protocol}//${window.location.host}${path}`;
+            
+            addLog(`Connecting to: ${fullUrl}`, 'info');
+            
+            try {
+                const ws = new WebSocket(fullUrl);
+                let connected = false;
+                
+                const timeout = setTimeout(() => {
+                    if (!connected) {
+                        addLog(`${name} WebSocket connection timeout`, 'error');
+                        ws.close();
+                        callback(false);
+                    }
+                }, 5000);
+                
+                ws.onopen = function(event) {
+                    connected = true;
+                    clearTimeout(timeout);
+                    addLog(`${name} WebSocket connected successfully!`, 'success');
+                    
+                    // Send a test message
+                    try {
+                        ws.send(JSON.stringify({ type: 'ping', timestamp: new Date().toISOString() }));
+                        addLog(`${name} test message sent`, 'info');
+                    } catch (error) {
+                        addLog(`${name} failed to send test message: ${error.message}`, 'warning');
+                    }
+                    
+                    // Close after successful test
+                    setTimeout(() => {
+                        ws.close();
+                        callback(true);
+                    }, 1000);
+                };
+                
+                ws.onmessage = function(event) {
+                    addLog(`${name} received message: ${event.data}`, 'info');
+                };
+                
+                ws.onclose = function(event) {
+                    if (connected) {
+                        addLog(`${name} WebSocket closed (Code: ${event.code})`, 'info');
+                    } else {
+                        addLog(`${name} WebSocket failed to connect (Code: ${event.code})`, 'error');
+                        callback(false);
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    clearTimeout(timeout);
+                    addLog(`${name} WebSocket error: ${error.message || 'Connection failed'}`, 'error');
+                    addLog('Check browser console for CSP violations', 'warning');
+                    callback(false);
+                };
+                
+            } catch (error) {
+                addLog(`Failed to create ${name} WebSocket: ${error.message}`, 'error');
+                callback(false);
+            }
+        }
+
+        function getCspInfo() {
+            // Try to get CSP from meta tag
+            const metaCsp = document.querySelector('meta[http-equiv="Content-Security-Policy"]');
+            if (metaCsp) {
+                cspValue.textContent = metaCsp.getAttribute('content');
+            } else {
+                // CSP is likely set via HTTP headers
+                cspValue.textContent = 'Set via HTTP headers (check Network tab → Response Headers)';
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            addLog('WebSocket CSP Test Tool initialized', 'info');
+            addLog('Make sure DockerDeployer is running on localhost:3000', 'info');
+            addLog('Backend should be accessible on localhost:8000', 'info');
+            getCspInfo();
+        });
+    </script>
+</body>
+</html>

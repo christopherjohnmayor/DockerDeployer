@@ -26,6 +26,7 @@ from app.middleware.rate_limiting import (
     rate_limit_metrics,
     setup_rate_limiting,
 )
+from app.middleware.security import setup_security_middleware
 from app.services.metrics_service import MetricsService
 from app.websocket.notifications import websocket_notifications_endpoint
 from llm.client import LLMClient
@@ -62,14 +63,19 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# Configure CORS
+# Configure CORS with specific origins
+import os
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=cors_origins,  # Specific origins only, no wildcard
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
+
+# Configure security headers
+setup_security_middleware(app)
 
 # Initialize database
 init_db()
