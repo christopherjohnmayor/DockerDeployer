@@ -28,6 +28,7 @@ from app.middleware.rate_limiting import (
 )
 from app.middleware.security import setup_security_middleware
 from app.services.metrics_service import MetricsService
+from app.services.production_monitoring_service import ProductionMonitoringService
 from app.websocket.notifications import websocket_notifications_endpoint
 from llm.client import LLMClient
 
@@ -144,6 +145,11 @@ def get_metrics_service(db_session=Depends(get_db)):
     """Get metrics service instance with database session."""
     docker_manager = get_docker_manager()
     return MetricsService(db_session, docker_manager)
+
+
+def get_production_monitoring_service(db_session=Depends(get_db)):
+    """Get production monitoring service instance with database session."""
+    return ProductionMonitoringService(db_session)
 
 
 intent_parser = IntentParser()
@@ -1319,6 +1325,95 @@ async def get_metrics_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get metrics summary: {str(e)}",
+        )
+
+
+# --- Production Monitoring Endpoints ---
+
+
+@app.get(
+    "/api/production/metrics",
+    tags=["Production Monitoring"],
+    summary="Get production metrics",
+    description="Get comprehensive production monitoring metrics including API performance, system health, and alerts.",
+    responses={
+        200: {"description": "Production metrics"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("30/minute")
+async def get_production_metrics(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    monitoring_service: ProductionMonitoringService = Depends(get_production_monitoring_service),
+):
+    """
+    Get comprehensive production monitoring metrics.
+
+    Returns API performance metrics, system health status, container metrics,
+    recent alerts, and overall health score for production monitoring.
+    """
+    try:
+        metrics = await monitoring_service.get_production_metrics()
+
+        if "error" in metrics:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=metrics["error"],
+            )
+
+        return metrics
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get production metrics: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/system/health",
+    tags=["Production Monitoring"],
+    summary="Get system health status",
+    description="Get simplified system health status with overall health score.",
+    responses={
+        200: {"description": "System health status"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("60/minute")
+async def get_system_health_status(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    monitoring_service: ProductionMonitoringService = Depends(get_production_monitoring_service),
+):
+    """
+    Get simplified system health status.
+
+    Returns overall health status (healthy/warning/critical) with health score
+    and summary message for quick health checks.
+    """
+    try:
+        health_status = await monitoring_service.get_system_health_status()
+
+        if health_status.get("status") == "error":
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=health_status.get("message", "Unknown error"),
+            )
+
+        return health_status
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get system health status: {str(e)}",
         )
 
 

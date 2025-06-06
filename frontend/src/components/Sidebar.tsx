@@ -19,6 +19,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import SettingsIcon from "@mui/icons-material/Settings";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
 import { useAuth } from "../hooks/useAuth";
 
 const drawerWidth = 220;
@@ -38,6 +39,11 @@ const Sidebar: React.FC = () => {
     { text: "Alerts", icon: <NotificationsActiveIcon />, path: "/alerts" },
     ...(user?.role === "admin"
       ? [
+          {
+            text: "Production",
+            icon: <MonitorHeartIcon />,
+            path: "/production",
+          },
           { text: "Users", icon: <PeopleIcon />, path: "/users" },
           { text: "Settings", icon: <SettingsIcon />, path: "/settings" },
         ]

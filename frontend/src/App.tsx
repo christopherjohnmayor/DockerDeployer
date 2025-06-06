@@ -28,6 +28,7 @@ import UserManagement from "./pages/UserManagement";
 import Unauthorized from "./pages/Unauthorized";
 import MetricsVisualization from "./pages/MetricsVisualization";
 import AlertsManagement from "./components/AlertsManagement";
+import ProductionMonitoring from "./components/ProductionMonitoring";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ToastProvider } from "./components/Toast";
@@ -180,6 +181,16 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <MainLayout>
                         <AlertsManagement />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/production"
+                  element={
+                    <ProtectedRoute requiredRole="admin">
+                      <MainLayout>
+                        <ProductionMonitoring />
                       </MainLayout>
                     </ProtectedRoute>
                   }
