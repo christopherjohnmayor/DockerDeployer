@@ -6,12 +6,24 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
+import { ThemeProvider, createTheme } from "@mui/material/styles";
 import axios from "axios";
 import ContainerDetail from "./ContainerDetail";
+import { ToastProvider } from "./Toast";
 
 // Mock axios
 jest.mock("axios");
 const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Create a theme for testing
+const theme = createTheme();
+
+// Test wrapper component
+const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <ThemeProvider theme={theme}>
+    <ToastProvider>{children}</ToastProvider>
+  </ThemeProvider>
+);
 
 // Suppress Material-UI warnings in tests
 const originalError = console.error;
@@ -78,7 +90,11 @@ describe("ContainerDetail Component", () => {
 
   test("renders container details correctly", async () => {
     await act(async () => {
-      render(<ContainerDetail containerId="test-container-id" />);
+      render(
+        <TestWrapper>
+          <ContainerDetail containerId="test-container-id" />
+        </TestWrapper>
+      );
     });
 
     // Wait for container data to load
@@ -95,13 +111,17 @@ describe("ContainerDetail Component", () => {
     // Check tabs are present
     expect(screen.getByText("Overview")).toBeInTheDocument();
     expect(screen.getByText("Logs")).toBeInTheDocument();
-    expect(screen.getAllByText("Metrics")[0]).toBeInTheDocument();
+    expect(screen.getByText("Real-time Metrics")).toBeInTheDocument();
     expect(screen.getByText("Environment")).toBeInTheDocument();
   });
 
   test("switches tabs correctly", async () => {
     await act(async () => {
-      render(<ContainerDetail containerId="test-container-id" />);
+      render(
+        <TestWrapper>
+          <ContainerDetail containerId="test-container-id" />
+        </TestWrapper>
+      );
     });
 
     // Wait for container data to load
@@ -127,7 +147,7 @@ describe("ContainerDetail Component", () => {
 
     // Click on Metrics tab
     await act(async () => {
-      fireEvent.click(screen.getAllByText("Metrics")[0]);
+      fireEvent.click(screen.getByText("Real-time Metrics"));
     });
 
     // Wait for metrics to load
@@ -151,7 +171,11 @@ describe("ContainerDetail Component", () => {
 
   test("handles container actions correctly", async () => {
     await act(async () => {
-      render(<ContainerDetail containerId="test-container-id" />);
+      render(
+        <TestWrapper>
+          <ContainerDetail containerId="test-container-id" />
+        </TestWrapper>
+      );
     });
 
     // Wait for container data to load
@@ -197,7 +221,11 @@ describe("ContainerDetail Component", () => {
     });
 
     await act(async () => {
-      render(<ContainerDetail containerId="nonexistent-id" />);
+      render(
+        <TestWrapper>
+          <ContainerDetail containerId="nonexistent-id" />
+        </TestWrapper>
+      );
     });
 
     // Wait for error message
@@ -208,7 +236,11 @@ describe("ContainerDetail Component", () => {
 
   test("refreshes logs when refresh button is clicked", async () => {
     await act(async () => {
-      render(<ContainerDetail containerId="test-container-id" />);
+      render(
+        <TestWrapper>
+          <ContainerDetail containerId="test-container-id" />
+        </TestWrapper>
+      );
     });
 
     // Wait for container data to load
@@ -256,7 +288,11 @@ describe("ContainerDetail Component", () => {
       });
 
       await act(async () => {
-        render(<ContainerDetail containerId="test-container-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="test-container-id" />
+          </TestWrapper>
+        );
       });
 
       await waitFor(() => {
@@ -289,7 +325,11 @@ describe("ContainerDetail Component", () => {
       });
 
       await act(async () => {
-        render(<ContainerDetail containerId="test-container-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="test-container-id" />
+          </TestWrapper>
+        );
       });
 
       await waitFor(() => {
@@ -297,7 +337,7 @@ describe("ContainerDetail Component", () => {
       });
 
       // Switch to metrics tab to trigger fetchMetrics
-      const metricsTab = screen.getAllByText("Metrics")[0];
+      const metricsTab = screen.getByText("Real-time Metrics");
       await act(async () => {
         fireEvent.click(metricsTab);
       });
@@ -319,7 +359,11 @@ describe("ContainerDetail Component", () => {
       });
 
       await act(async () => {
-        render(<ContainerDetail containerId="test-container-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="test-container-id" />
+          </TestWrapper>
+        );
       });
 
       await waitFor(() => {
@@ -348,7 +392,11 @@ describe("ContainerDetail Component", () => {
       mockedAxios.get.mockResolvedValue({ data: null });
 
       await act(async () => {
-        render(<ContainerDetail containerId="nonexistent-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="nonexistent-id" />
+          </TestWrapper>
+        );
       });
 
       // Should show container not found message - covers line 211
@@ -365,7 +413,11 @@ describe("ContainerDetail Component", () => {
       mockedAxios.post.mockRejectedValue({});
 
       await act(async () => {
-        render(<ContainerDetail containerId="test-container-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="test-container-id" />
+          </TestWrapper>
+        );
       });
 
       await waitFor(() => {
@@ -398,7 +450,11 @@ describe("ContainerDetail Component", () => {
       });
 
       await act(async () => {
-        render(<ContainerDetail containerId="test-container-id" />);
+        render(
+          <TestWrapper>
+            <ContainerDetail containerId="test-container-id" />
+          </TestWrapper>
+        );
       });
 
       await waitFor(() => {

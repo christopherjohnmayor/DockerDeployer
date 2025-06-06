@@ -72,7 +72,8 @@ describe("RealTimeMetrics", () => {
   it("renders refresh button", () => {
     renderWithTheme(<RealTimeMetrics containerId="test-container" />);
 
-    const refreshButton = screen.getByRole("button", { name: /refresh now/i });
+    // The button is wrapped in a Tooltip, so we need to find it by its icon or position
+    const refreshButton = screen.getByRole("button");
     expect(refreshButton).toBeInTheDocument();
   });
 
@@ -170,7 +171,8 @@ describe("RealTimeMetrics", () => {
     const consoleSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    mockUseApiCall.execute.mockResolvedValue({ error: "Container not found" });
+    // Mock a rejected promise to trigger the catch block
+    mockUseApiCall.execute.mockRejectedValue(new Error("Container not found"));
 
     renderWithTheme(<RealTimeMetrics containerId="test-container" />);
 

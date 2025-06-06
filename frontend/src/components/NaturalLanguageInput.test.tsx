@@ -35,7 +35,7 @@ describe("NaturalLanguageInput Component", () => {
   test("renders input field and button correctly", () => {
     render(<NaturalLanguageInput />);
 
-    // Check if the input field is rendered
+    // Check if the input field is rendered (Autocomplete with freeSolo renders as combobox)
     const inputElement = screen.getByRole("combobox");
     expect(inputElement).toBeInTheDocument();
 
