@@ -63,15 +63,18 @@ const MetricsHistory: React.FC<MetricsHistoryProps> = ({ containerId }) => {
 
   const { execute: fetchHistoricalMetrics, loading, error } = useApiCall();
 
-  // Time range options
-  const timeRangeOptions = [
-    { value: "1h", label: "Last Hour", hours: 1 },
-    { value: "6h", label: "Last 6 Hours", hours: 6 },
-    { value: "24h", label: "Last 24 Hours", hours: 24 },
-    { value: "7d", label: "Last 7 Days", hours: 168 },
-    { value: "30d", label: "Last 30 Days", hours: 720 },
-    { value: "custom", label: "Custom Range", hours: 0 },
-  ];
+  // Time range options - memoized to prevent infinite re-renders
+  const timeRangeOptions = React.useMemo(
+    () => [
+      { value: "1h", label: "Last Hour", hours: 1 },
+      { value: "6h", label: "Last 6 Hours", hours: 6 },
+      { value: "24h", label: "Last 24 Hours", hours: 24 },
+      { value: "7d", label: "Last 7 Days", hours: 168 },
+      { value: "30d", label: "Last 30 Days", hours: 720 },
+      { value: "custom", label: "Custom Range", hours: 0 },
+    ],
+    []
+  );
 
   // Format bytes to human readable format
   const formatBytes = useCallback((bytes: number): string => {

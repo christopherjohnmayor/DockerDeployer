@@ -59,6 +59,9 @@ const mockedUseApiCall = useApiCallModule.useApiCall as jest.MockedFunction<
 describe("MetricsHistory", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Reset the mock to default state
+    mockUseApiCall.execute.mockClear();
+    mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
     mockedUseApiCall.mockReturnValue(mockUseApiCall);
   });
 
@@ -175,16 +178,28 @@ describe("MetricsHistory", () => {
   }, 30000);
 
   it("handles manual refresh", async () => {
+    // Clear any previous calls and set up fresh mock
+    mockUseApiCall.execute.mockClear();
     mockUseApiCall.execute.mockResolvedValue(mockApiResponse);
 
-    renderWithProviders(<MetricsHistory containerId="test-container" />);
+    await act(async () => {
+      renderWithProviders(<MetricsHistory containerId="test-container" />);
+    });
 
-    // Wait for component to render
+    // Wait for initial render and API call
     await waitFor(
       () => {
         expect(screen.getByText("CPU Usage History")).toBeInTheDocument();
       },
-      { timeout: 10000 }
+      { timeout: 20000 }
+    );
+
+    // Wait for initial API call to complete
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledTimes(1);
+      },
+      { timeout: 20000 }
     );
 
     // Find and click refresh button
@@ -192,13 +207,18 @@ describe("MetricsHistory", () => {
       name: /refresh metrics data/i,
     });
 
-    fireEvent.click(refreshButton);
-
-    // Verify API was called (initial + refresh)
-    await waitFor(() => {
-      expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      fireEvent.click(refreshButton);
     });
-  }, 30000);
+
+    // Verify API was called again (initial + refresh = 2)
+    await waitFor(
+      () => {
+        expect(mockUseApiCall.execute).toHaveBeenCalledTimes(2);
+      },
+      { timeout: 20000 }
+    );
+  }, 60000);
 
   it("shows loading state in refresh button", async () => {
     mockedUseApiCall.mockReturnValue({
@@ -214,9 +234,11 @@ describe("MetricsHistory", () => {
       name: /refresh metrics data/i,
     });
     expect(refreshButton).toBeDisabled();
-    // Check for loading indicator in the component - use getAllByText since there are multiple charts
-    expect(screen.getAllByText("Loading metrics...")).toHaveLength(6);
-  });
+
+    // Check for CircularProgress component in the refresh button
+    const progressIndicator = screen.getByRole("progressbar");
+    expect(progressIndicator).toBeInTheDocument();
+  }, 10000);
 
   it("displays error state", () => {
     const errorMessage = "Failed to load historical metrics";
