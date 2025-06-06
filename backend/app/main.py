@@ -28,6 +28,7 @@ from app.middleware.rate_limiting import (
 )
 from app.middleware.security import setup_security_middleware
 from app.services.metrics_service import MetricsService
+from app.services.container_metrics_visualization_service import ContainerMetricsVisualizationService
 from app.services.production_monitoring_service import ProductionMonitoringService
 from app.websocket.notifications import websocket_notifications_endpoint
 from llm.client import LLMClient
@@ -150,6 +151,12 @@ def get_metrics_service(db_session=Depends(get_db)):
 def get_production_monitoring_service(db_session=Depends(get_db)):
     """Get production monitoring service instance with database session."""
     return ProductionMonitoringService(db_session)
+
+
+def get_visualization_service(db_session=Depends(get_db)):
+    """Get container metrics visualization service instance with database session."""
+    docker_manager = get_docker_manager()
+    return ContainerMetricsVisualizationService(db_session, docker_manager)
 
 
 intent_parser = IntentParser()
@@ -1325,6 +1332,179 @@ async def get_metrics_summary(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get metrics summary: {str(e)}",
+        )
+
+
+# --- Enhanced Container Metrics Visualization Endpoints ---
+
+
+@app.get(
+    "/api/containers/{container_id}/metrics/visualization",
+    tags=["Containers"],
+    summary="Get enhanced metrics visualization data",
+    description="Returns enhanced metrics data optimized for visualization with health scores, predictions, and trends.",
+    responses={
+        200: {"description": "Enhanced metrics visualization data"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("30/minute")
+async def get_enhanced_metrics_visualization(
+    request: Request,
+    container_id: str,
+    hours: int = Query(24, description="Number of hours of history to retrieve"),
+    time_range: str = Query("24h", description="Time range for aggregation (1h, 6h, 24h, 7d, 30d)"),
+    current_user: User = Depends(get_current_user),
+    visualization_service: ContainerMetricsVisualizationService = Depends(get_visualization_service),
+):
+    """
+    Get enhanced metrics data optimized for visualization.
+
+    This endpoint provides comprehensive metrics data including:
+    - Historical metrics with time-based aggregation
+    - Container health scores (0-100 scale)
+    - Resource usage predictions
+    - Performance trends analysis
+    - Visualization configuration recommendations
+
+    Args:
+        container_id: Container ID or name
+        hours: Number of hours of history to retrieve (default: 24)
+        time_range: Time range for aggregation (1h, 6h, 24h, 7d, 30d)
+
+    Requires authentication.
+    """
+    try:
+        result = visualization_service.get_enhanced_metrics_visualization(
+            container_id, hours, time_range
+        )
+
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=result["error"]
+            )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get enhanced metrics visualization: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/containers/{container_id}/health-score",
+    tags=["Containers"],
+    summary="Get container health score",
+    description="Returns comprehensive health score (0-100) with component analysis and recommendations.",
+    responses={
+        200: {"description": "Container health score data"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("60/minute")
+async def get_container_health_score(
+    request: Request,
+    container_id: str,
+    hours: int = Query(1, description="Number of hours to analyze for health calculation"),
+    current_user: User = Depends(get_current_user),
+    visualization_service: ContainerMetricsVisualizationService = Depends(get_visualization_service),
+):
+    """
+    Get comprehensive health score for a container.
+
+    Calculates a health score (0-100) based on:
+    - CPU usage patterns and stability
+    - Memory usage and efficiency
+    - Network I/O consistency
+    - Disk I/O performance
+
+    Args:
+        container_id: Container ID or name
+        hours: Number of hours to analyze (default: 1)
+
+    Returns health score with component breakdown and improvement recommendations.
+    Requires authentication.
+    """
+    try:
+        result = visualization_service.calculate_container_health_score(container_id, hours)
+
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=result["error"]
+            )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to calculate health score: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/containers/{container_id}/metrics/predictions",
+    tags=["Containers"],
+    summary="Get resource usage predictions",
+    description="Returns predictive analytics for future resource usage based on historical trends.",
+    responses={
+        200: {"description": "Resource usage predictions"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found or insufficient data"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("20/minute")
+async def get_resource_usage_predictions(
+    request: Request,
+    container_id: str,
+    hours: int = Query(24, description="Number of hours of historical data to analyze"),
+    prediction_hours: int = Query(6, description="Number of hours to predict into the future"),
+    current_user: User = Depends(get_current_user),
+    visualization_service: ContainerMetricsVisualizationService = Depends(get_visualization_service),
+):
+    """
+    Get predictive analytics for future resource usage.
+
+    Uses historical metrics to predict:
+    - CPU usage trends
+    - Memory usage patterns
+    - Resource exhaustion alerts
+    - Confidence levels for predictions
+
+    Args:
+        container_id: Container ID or name
+        hours: Hours of historical data to analyze (default: 24)
+        prediction_hours: Hours to predict into future (default: 6)
+
+    Requires minimum 10 data points for reliable predictions.
+    Requires authentication.
+    """
+    try:
+        result = visualization_service.predict_resource_usage(
+            container_id, hours, prediction_hours
+        )
+
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=result["error"]
+            )
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate predictions: {str(e)}",
         )
 
 

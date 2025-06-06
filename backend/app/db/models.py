@@ -237,3 +237,107 @@ class MetricsAlert(Base):
     # Relationships
     creator = relationship("User", foreign_keys=[created_by])
     acknowledger = relationship("User", foreign_keys=[acknowledged_by])
+
+
+class ContainerMetricsHistory(Base):
+    """Container metrics history model for aggregated time-series data."""
+
+    __tablename__ = "container_metrics_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    container_id = Column(String, index=True, nullable=False)
+    container_name = Column(String, index=True, nullable=True)
+    timestamp = Column(DateTime, index=True, nullable=False)
+    interval_minutes = Column(Integer, default=60, nullable=False)
+
+    # Aggregated CPU metrics
+    cpu_percent_avg = Column(Float, nullable=True)
+    cpu_percent_min = Column(Float, nullable=True)
+    cpu_percent_max = Column(Float, nullable=True)
+
+    # Aggregated Memory metrics
+    memory_percent_avg = Column(Float, nullable=True)
+    memory_percent_min = Column(Float, nullable=True)
+    memory_percent_max = Column(Float, nullable=True)
+    memory_usage_avg = Column(BigInteger, nullable=True)
+    memory_usage_min = Column(BigInteger, nullable=True)
+    memory_usage_max = Column(BigInteger, nullable=True)
+
+    # Aggregated Network metrics
+    network_rx_bytes_avg = Column(BigInteger, nullable=True)
+    network_rx_bytes_total = Column(BigInteger, nullable=True)
+    network_tx_bytes_avg = Column(BigInteger, nullable=True)
+    network_tx_bytes_total = Column(BigInteger, nullable=True)
+
+    # Aggregated Disk I/O metrics
+    block_read_bytes_avg = Column(BigInteger, nullable=True)
+    block_read_bytes_total = Column(BigInteger, nullable=True)
+    block_write_bytes_avg = Column(BigInteger, nullable=True)
+    block_write_bytes_total = Column(BigInteger, nullable=True)
+
+    # Metadata
+    data_points_count = Column(Integer, default=1, nullable=False)
+    health_score = Column(Float, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ContainerHealthScore(Base):
+    """Container health score model for tracking health over time."""
+
+    __tablename__ = "container_health_scores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    container_id = Column(String, index=True, nullable=False)
+    container_name = Column(String, nullable=True)
+    timestamp = Column(DateTime, index=True, nullable=False)
+
+    # Overall health score (0-100)
+    overall_health_score = Column(Float, nullable=False)
+    health_status = Column(String, nullable=False)  # excellent, good, warning, critical
+
+    # Component scores
+    cpu_health_score = Column(Float, nullable=True)
+    memory_health_score = Column(Float, nullable=True)
+    network_health_score = Column(Float, nullable=True)
+    disk_health_score = Column(Float, nullable=True)
+
+    # Analysis metadata
+    analysis_period_hours = Column(Integer, default=1, nullable=False)
+    data_points_analyzed = Column(Integer, default=0, nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class ContainerPrediction(Base):
+    """Container prediction model for storing prediction results."""
+
+    __tablename__ = "container_predictions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    container_id = Column(String, index=True, nullable=False)
+    container_name = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Prediction metadata
+    prediction_timestamp = Column(DateTime, index=True, nullable=False)
+    prediction_hours = Column(Integer, default=6, nullable=False)
+    analysis_period_hours = Column(Integer, default=24, nullable=False)
+
+    # CPU predictions
+    cpu_predicted_value = Column(Float, nullable=True)
+    cpu_confidence = Column(Float, nullable=True)
+    cpu_trend = Column(String, nullable=True)  # increasing, decreasing, stable
+
+    # Memory predictions
+    memory_predicted_value = Column(Float, nullable=True)
+    memory_confidence = Column(Float, nullable=True)
+    memory_trend = Column(String, nullable=True)  # increasing, decreasing, stable
+
+    # Prediction accuracy (filled when actual data becomes available)
+    cpu_actual_value = Column(Float, nullable=True)
+    memory_actual_value = Column(Float, nullable=True)
+    cpu_accuracy_score = Column(Float, nullable=True)
+    memory_accuracy_score = Column(Float, nullable=True)
+
+    # Status
+    is_validated = Column(Boolean, default=False, nullable=False)

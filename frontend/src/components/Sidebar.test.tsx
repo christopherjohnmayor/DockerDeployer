@@ -322,7 +322,7 @@ describe("Sidebar Component", () => {
 
     // Check that icons are rendered (they should be present as SVG elements)
     const listItems = screen.getAllByRole("link");
-    expect(listItems).toHaveLength(8); // 6 basic + 2 admin items (added Metrics and Alerts)
+    expect(listItems).toHaveLength(9); // 6 basic + 3 admin items (added Metrics, Alerts, and Production)
 
     // Each list item should contain an icon
     listItems.forEach((item) => {

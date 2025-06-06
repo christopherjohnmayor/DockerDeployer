@@ -21,6 +21,7 @@ import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import RealTimeMetrics from "./RealTimeMetrics";
 import MetricsHistory from "./MetricsHistory";
 import AlertsManager from "./AlertsManager";
+import ContainerMetricsVisualization from "./ContainerMetricsVisualization";
 
 /**
  * Props for the ContainerDetail component.
@@ -312,6 +313,7 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
           <Tab label="Logs" />
           <Tab label="Real-time Metrics" />
           <Tab label="Metrics History" />
+          <Tab label="Enhanced Visualization" />
           <Tab label="Alerts" />
           <Tab label="Environment" />
         </Tabs>
@@ -399,10 +401,14 @@ const ContainerDetail: React.FC<ContainerDetailProps> = ({ containerId }) => {
         </TabPanel>
 
         <TabPanel value={tabValue} index={4}>
-          <AlertsManager containerId={containerId} />
+          <ContainerMetricsVisualization containerId={containerId} />
         </TabPanel>
 
         <TabPanel value={tabValue} index={5}>
+          <AlertsManager containerId={containerId} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={6}>
           <Typography variant="h6" gutterBottom>
             Environment Variables
           </Typography>

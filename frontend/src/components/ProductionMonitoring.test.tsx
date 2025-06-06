@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import ProductionMonitoring from "./ProductionMonitoring";
@@ -12,7 +18,9 @@ jest.mock("../hooks/useApiCall");
 jest.mock("../hooks/useWebSocket");
 
 const mockedUseApiCall = useApiCall as jest.MockedFunction<typeof useApiCall>;
-const mockedUseWebSocket = useWebSocket as jest.MockedFunction<typeof useWebSocket>;
+const mockedUseWebSocket = useWebSocket as jest.MockedFunction<
+  typeof useWebSocket
+>;
 
 // Test wrapper component
 const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -87,13 +95,13 @@ const mockUseWebSocket = {
 describe("ProductionMonitoring", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Reset mocks to default state
     mockUseApiCall.data = null;
     mockUseApiCall.loading = false;
     mockUseApiCall.error = null;
     mockUseApiCall.execute.mockClear();
-    
+
     mockedUseApiCall.mockReturnValue(mockUseApiCall);
     mockedUseWebSocket.mockReturnValue(mockUseWebSocket);
   });
@@ -167,9 +175,9 @@ describe("ProductionMonitoring", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Container Status")).toBeInTheDocument();
-      expect(screen.getByText("15")).toBeInTheDocument(); // Total containers
-      expect(screen.getByText("12")).toBeInTheDocument(); // Running containers
-      expect(screen.getByText("2")).toBeInTheDocument(); // Failed containers
+      expect(screen.getAllByText("15")[0]).toBeInTheDocument(); // Total containers
+      expect(screen.getAllByText("12")[0]).toBeInTheDocument(); // Running containers
+      expect(screen.getAllByText("2")[0]).toBeInTheDocument(); // Failed containers
     });
   });
 
@@ -187,7 +195,9 @@ describe("ProductionMonitoring", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Recent Alerts")).toBeInTheDocument();
-      expect(screen.getByText("High memory usage detected")).toBeInTheDocument();
+      expect(
+        screen.getByText("High memory usage detected")
+      ).toBeInTheDocument();
       expect(screen.getByText("Container failed to start")).toBeInTheDocument();
     });
   });
@@ -220,7 +230,9 @@ describe("ProductionMonitoring", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Failed to load production metrics/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Failed to load production metrics/)
+      ).toBeInTheDocument();
     });
   });
 
@@ -234,12 +246,14 @@ describe("ProductionMonitoring", () => {
     });
 
     const refreshButton = screen.getByLabelText("Refresh");
-    
+
     await act(async () => {
       fireEvent.click(refreshButton);
     });
 
-    expect(mockUseApiCall.execute).toHaveBeenCalledWith("/api/production/metrics");
+    expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+      "/api/production/metrics"
+    );
   });
 
   test("toggles real-time monitoring", async () => {
@@ -252,7 +266,7 @@ describe("ProductionMonitoring", () => {
     });
 
     const realTimeSwitch = screen.getByRole("checkbox");
-    
+
     await act(async () => {
       fireEvent.click(realTimeSwitch);
     });
@@ -305,7 +319,7 @@ describe("ProductionMonitoring", () => {
 
     // Should show alerts count in the badge
     await waitFor(() => {
-      expect(screen.getByText("2")).toBeInTheDocument(); // Alert count chip
+      expect(screen.getAllByText("2")[0]).toBeInTheDocument(); // Alert count chip
     });
   });
 
@@ -319,7 +333,9 @@ describe("ProductionMonitoring", () => {
     });
 
     // Initial API calls should be made
-    expect(mockUseApiCall.execute).toHaveBeenCalledWith("/api/production/metrics");
+    expect(mockUseApiCall.execute).toHaveBeenCalledWith(
+      "/api/production/metrics"
+    );
     expect(mockUseApiCall.execute).toHaveBeenCalledWith("/api/system/health");
   });
 
@@ -335,7 +351,9 @@ describe("ProductionMonitoring", () => {
       );
     });
 
-    const refreshButton = screen.getByLabelText("Refresh");
+    const refreshButton = screen
+      .getByLabelText("Refresh")
+      .querySelector("button");
     expect(refreshButton).toBeDisabled();
   });
 }, 30000);
