@@ -28,7 +28,7 @@ class ProductionMonitoringService:
         from app.services.metrics_service import MetricsService
 
         self.docker_manager = DockerManager()
-        self.metrics_service = MetricsService(db)
+        self.metrics_service = MetricsService(db, self.docker_manager)
         self.performance_cache = {}
         self.alert_thresholds = {
             "api_response_time": 500,  # ms
