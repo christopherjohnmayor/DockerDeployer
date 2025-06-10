@@ -1,5 +1,5 @@
 """
-Tests for the LLM client module.
+Tests for the LLM client module and related components.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
