@@ -1,0 +1,109 @@
+# Performance Testing Dependencies for Template Marketplace
+# Install with: pip install -r performance-requirements.txt
+
+# Core load testing framework
+locust>=2.17.0
+
+# HTTP client for advanced testing scenarios
+requests>=2.31.0
+
+# Data analysis and visualization
+pandas>=2.0.0
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# System monitoring and metrics
+psutil>=5.9.0
+
+# JSON processing and data manipulation
+jq>=1.6.0
+
+# Performance profiling
+memory-profiler>=0.61.0
+line-profiler>=4.1.0
+
+# Database performance testing
+sqlalchemy-utils>=0.41.0
+
+# Async testing support
+aiohttp>=3.8.0
+asyncio-throttle>=1.0.2
+
+# Report generation
+jinja2>=3.1.0
+reportlab>=4.0.0
+
+# Configuration management
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+
+# Logging and monitoring
+structlog>=23.1.0
+prometheus-client>=0.17.0
+
+# Statistical analysis
+numpy>=1.24.0
+scipy>=1.11.0
+
+# Time series data handling
+arrow>=1.2.0
+pendulum>=2.1.0
+
+# Network testing utilities
+ping3>=4.0.0
+speedtest-cli>=2.1.0
+
+# System resource monitoring
+py-cpuinfo>=9.0.0
+GPUtil>=1.4.0
+
+# Load testing result analysis
+locust-plugins>=4.3.0
+
+# Advanced HTTP testing
+httpx>=0.24.0
+urllib3>=2.0.0
+
+# Performance benchmarking
+pytest-benchmark>=4.0.0
+timeit>=0.0.0
+
+# Memory leak detection
+objgraph>=3.6.0
+tracemalloc>=0.0.0
+
+# Database connection pooling testing
+sqlalchemy>=2.0.0
+asyncpg>=0.28.0
+
+# Redis performance testing
+redis>=4.6.0
+hiredis>=2.2.0
+
+# Docker container monitoring
+docker>=6.1.0
+
+# API response validation
+jsonschema>=4.19.0
+cerberus>=1.3.0
+
+# Rate limiting testing
+ratelimit>=2.2.0
+slowapi>=0.1.0
+
+# WebSocket testing
+websockets>=11.0.0
+socketio-client>=0.7.0
+
+# Security testing
+bandit>=1.7.0
+safety>=2.3.0
+
+# Code quality and linting
+flake8>=6.0.0
+black>=23.7.0
+isort>=5.12.0
+
+# Documentation generation
+sphinx>=7.1.0
+sphinx-rtd-theme>=1.3.0
