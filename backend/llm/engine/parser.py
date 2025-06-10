@@ -6,7 +6,12 @@ into actionable Docker commands and operations.
 
 import json
 import re
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
+
+try:
+    import yaml
+except ImportError:
+    yaml = None
 
 
 class ResponseParsingError(Exception):
@@ -100,18 +105,22 @@ class DockerCommandParser:
         """
         # Check if this is a Docker command
         if not parsed_data.get("is_docker_command", False):
-            return False, "Not a Docker command"
+            return True, None  # Non-Docker commands are valid
+
+        # Check required fields
+        required_fields = ["command_type", "operation"]
+        for field in required_fields:
+            if field not in parsed_data:
+                return False, f"Missing required field: {field}"
 
         # Check command type
         command_type = parsed_data.get("command_type")
-        if not command_type or command_type not in self.valid_operations:
+        if command_type not in self.valid_operations:
             return False, f"Invalid command type: {command_type}"
 
         # Check operation
         operation = parsed_data.get("operation")
-        if not operation or operation not in self.valid_operations.get(
-            command_type, []
-        ):
+        if operation not in self.valid_operations.get(command_type, []):
             return (
                 False,
                 f"Invalid operation '{operation}' for command type '{command_type}'",
@@ -193,7 +202,7 @@ class ComposeFileParser:
             return services_match.group(1).strip()
 
         raise ResponseParsingError(
-            "Could not extract docker-compose.yml content from LLM response"
+            "No docker-compose.yml content found in LLM response"
         )
 
     def validate_compose_file(self, compose_content: str) -> Tuple[bool, Optional[str]]:
@@ -206,17 +215,27 @@ class ComposeFileParser:
         Returns:
             Tuple of (is_valid, error_message)
         """
-        # Check for required sections
-        if "services:" not in compose_content:
-            return False, "Missing 'services:' section in docker-compose.yml"
+        # Try to parse as YAML if yaml module is available
+        if yaml is not None:
+            try:
+                parsed_yaml = yaml.safe_load(compose_content)
+                if not isinstance(parsed_yaml, dict):
+                    return False, "Invalid YAML: root must be an object"
 
-        # Check for common YAML syntax issues
-        if re.search(r"^\s+[^-#\s].*:", compose_content, re.MULTILINE):
-            # This is a basic check for indentation issues in YAML
-            # A more thorough check would require a YAML parser
-            return True, "Warning: Possible indentation issues in YAML"
+                # Check for required sections
+                if "services" not in parsed_yaml:
+                    return False, "No services defined in docker-compose.yml"
 
-        return True, None
+                return True, None
+            except yaml.YAMLError as e:
+                return False, f"Invalid YAML: {str(e)}"
+        else:
+            # Fallback to basic string checks if yaml module not available
+            # Check for required sections
+            if "services:" not in compose_content:
+                return False, "No services defined in docker-compose.yml"
+
+            return True, None
 
     def parse_response(self, response: str) -> str:
         """
