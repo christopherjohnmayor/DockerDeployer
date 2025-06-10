@@ -151,17 +151,33 @@ def custom_rate_limit_exceeded_handler(
 # Rate limiting decorators for different endpoint types
 def rate_limit_auth(limit: str = "10/minute"):
     """Rate limit for authentication endpoints."""
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
     return limiter.limit(limit)
 
 
 def rate_limit_api(limit: str = "100/minute"):
     """Rate limit for general API endpoints."""
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
     return limiter.limit(limit)
 
 
 def rate_limit_metrics(limit: str = "60/minute"):
     """Rate limit for metrics endpoints (more frequent access expected)."""
     print(f"DEBUG: rate_limit_metrics called with limit: {limit}")
+
+    # Disable rate limiting in test environment to avoid SlowAPI response injection issues
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        print("DEBUG: Rate limiting disabled for testing - returning no-op decorator")
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
+
     decorator = limiter.limit(limit)
     print(f"DEBUG: Created rate limit decorator: {decorator}")
     return decorator
@@ -169,16 +185,28 @@ def rate_limit_metrics(limit: str = "60/minute"):
 
 def rate_limit_websocket(limit: str = "5/minute"):
     """Rate limit for WebSocket connections."""
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
     return limiter.limit(limit)
 
 
 def rate_limit_admin(limit: str = "200/minute"):
     """Rate limit for admin endpoints (higher limits for admin users)."""
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
     return limiter.limit(limit)
 
 
 def rate_limit_upload(limit: str = "10/hour"):
     """Rate limit for file upload endpoints."""
+    if os.getenv("TESTING") == "true" or os.getenv("DISABLE_RATE_LIMITING") == "true":
+        def no_op_decorator(func):
+            return func
+        return no_op_decorator
     return limiter.limit(limit)
 
 
