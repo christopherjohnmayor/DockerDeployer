@@ -102,13 +102,14 @@ except Exception as e:
 # Set up security middleware
 setup_security_middleware(app)
 
-# Add performance monitoring middleware
-app.add_middleware(
-    PerformanceMonitoringMiddleware,
-    slow_request_threshold=200.0,  # 200ms threshold
-    collect_system_metrics=True,
-    system_metrics_interval=30.0  # Collect system metrics every 30 seconds
-)
+# Add performance monitoring middleware (disabled in testing)
+if not os.getenv("TESTING") == "true":
+    app.add_middleware(
+        PerformanceMonitoringMiddleware,
+        slow_request_threshold=200.0,  # 200ms threshold
+        collect_system_metrics=True,
+        system_metrics_interval=30.0  # Collect system metrics every 30 seconds
+    )
 
 # Include routers
 app.include_router(
@@ -1477,7 +1478,7 @@ async def get_enhanced_metrics_visualization(
                 detail=result["error"]
             )
 
-        return JSONResponse(content=result)
+        return result
 
     except HTTPException:
         raise
@@ -1533,7 +1534,7 @@ async def get_container_health_score(
                 detail=result["error"]
             )
 
-        return JSONResponse(content=result)
+        return result
 
     except Exception as e:
         raise HTTPException(
@@ -1591,7 +1592,7 @@ async def get_resource_usage_predictions(
                 detail=result["error"]
             )
 
-        return JSONResponse(content=result)
+        return result
 
     except HTTPException:
         raise
@@ -1637,7 +1638,7 @@ async def get_production_metrics(
                 detail=metrics["error"],
             )
 
-        return JSONResponse(content=metrics)
+        return metrics
 
     except HTTPException:
         raise
@@ -1680,7 +1681,7 @@ async def get_system_health_status(
                 detail=health_status.get("message", "Unknown error"),
             )
 
-        return JSONResponse(content=health_status)
+        return health_status
 
     except HTTPException:
         raise

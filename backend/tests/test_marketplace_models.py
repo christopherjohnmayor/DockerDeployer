@@ -18,6 +18,20 @@ from app.db.models import (
 from tests.conftest import TestingSessionLocal
 
 
+def get_valid_docker_compose_yaml():
+    """Get a valid Docker Compose YAML for testing."""
+    return """version: '3.8'
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - '80:80'
+    environment:
+      - ENV=production
+    volumes:
+      - ./html:/usr/share/nginx/html"""
+
+
 @pytest.fixture
 def db_session():
     """Create a database session for testing."""
@@ -93,7 +107,7 @@ def test_template(db_session: Session, test_user: User, test_category: TemplateC
         author_id=test_user.id,
         category_id=test_category.id,
         version="1.0.0",
-        docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx",
+        docker_compose_yaml=get_valid_docker_compose_yaml(),
         status=TemplateStatus.PENDING,
         tags=["test", "nginx"],
     )
@@ -172,29 +186,29 @@ class TestMarketplaceTemplate:
             description="A pending template",
             author_id=test_user.id,
             category_id=test_category.id,
-            docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx",
+            docker_compose_yaml=get_valid_docker_compose_yaml(),
             status=TemplateStatus.PENDING,
         )
         db_session.add(template_pending)
-        
+
         # Test approved status
         template_approved = MarketplaceTemplate(
             name="Approved Template",
             description="An approved template",
             author_id=test_user.id,
             category_id=test_category.id,
-            docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx",
+            docker_compose_yaml=get_valid_docker_compose_yaml(),
             status=TemplateStatus.APPROVED,
         )
         db_session.add(template_approved)
-        
+
         # Test rejected status
         template_rejected = MarketplaceTemplate(
             name="Rejected Template",
             description="A rejected template",
             author_id=test_user.id,
             category_id=test_category.id,
-            docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx",
+            docker_compose_yaml=get_valid_docker_compose_yaml(),
             status=TemplateStatus.REJECTED,
         )
         db_session.add(template_rejected)
@@ -267,7 +281,7 @@ class TestTemplateVersion:
         version = TemplateVersion(
             template_id=test_template.id,
             version_number="1.1.0",
-            docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx:latest",
+            docker_compose_yaml=get_valid_docker_compose_yaml(),
             changelog="Updated to latest nginx",
         )
         db_session.add(version)
@@ -284,7 +298,7 @@ class TestTemplateVersion:
         version = TemplateVersion(
             template_id=test_template.id,
             version_number="2.0.0",
-            docker_compose_yaml="version: '3'\nservices:\n  test:\n    image: nginx:alpine",
+            docker_compose_yaml=get_valid_docker_compose_yaml(),
         )
         db_session.add(version)
         db_session.commit()
