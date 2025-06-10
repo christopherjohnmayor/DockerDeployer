@@ -459,3 +459,153 @@ class TestDockerManager:
         )
         assert "error" in result
         assert "Failed to parse stats" in result["error"]
+
+    @patch("docker.from_env")
+    def test_get_container_stats_complex_parsing(self, mock_from_env, mock_docker_client):
+        """Test complex container stats parsing scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container_id"
+        mock_container.name = "test_container"
+        mock_container.status = "running"
+
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test with bytes response that needs JSON parsing
+        mock_stats_bytes = b'{"cpu_stats": {"cpu_usage": {"total_usage": 1000000}}, "memory_stats": {"usage": 1024}}'
+        mock_container.stats.return_value = mock_stats_bytes
+
+        result = manager.get_container_stats("test_container_id")
+        assert "container_id" in result
+        assert result["container_id"] == "test_container_id"
+
+        # Test with generator response (older Docker SDK)
+        def mock_stats_generator():
+            yield {"cpu_stats": {"cpu_usage": {"total_usage": 2000000}}, "memory_stats": {"usage": 2048}}
+
+        mock_container.stats.side_effect = [Exception("stream=False failed"), mock_stats_generator()]
+
+        result = manager.get_container_stats("test_container_id")
+        assert "container_id" in result
+        assert result["container_id"] == "test_container_id"
+
+    @patch("docker.from_env")
+    def test_get_container_stats_fallback_scenarios(self, mock_from_env, mock_docker_client):
+        """Test container stats fallback scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container_id"
+        mock_container.name = "test_container"
+        mock_container.status = "running"
+
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test both stream=False and stream=True failing
+        mock_container.stats.side_effect = [
+            Exception("stream=False failed"),
+            Exception("stream=True failed")
+        ]
+
+        result = manager.get_container_stats("test_container_id")
+        assert "error" in result
+        assert "Failed to get stats" in result["error"]
+
+        # Test with no stats available (StopIteration)
+        def mock_empty_generator():
+            return iter([])
+
+        mock_container.stats.side_effect = [Exception("stream=False failed"), mock_empty_generator()]
+
+        result = manager.get_container_stats("test_container_id")
+        assert "error" in result
+        assert "Failed to get stats" in result["error"]
+
+    @patch("docker.from_env")
+    def test_get_multiple_container_stats_error_handling(self, mock_from_env, mock_docker_client):
+        """Test error handling in multiple container stats."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Mock get_container_stats to raise exception for one container
+        original_get_stats = manager.get_container_stats
+        def mock_get_stats(container_id):
+            if container_id == "failing_container":
+                raise Exception("Container stats failed")
+            return original_get_stats(container_id)
+
+        manager.get_container_stats = mock_get_stats
+
+        # Test with mixed success/failure
+        container_ids = ["working_container", "failing_container"]
+        result = manager.get_multiple_container_stats(container_ids)
+
+        assert len(result) == 2
+        assert "failing_container" in result
+        assert "error" in result["failing_container"]
+        assert "Failed to get stats" in result["failing_container"]["error"]
+
+    @patch("docker.from_env")
+    def test_get_aggregated_metrics_error_handling(self, mock_from_env, mock_docker_client):
+        """Test error handling in aggregated metrics."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Mock get_multiple_container_stats to raise exception
+        def mock_failing_multiple_stats(container_ids):
+            raise Exception("Multiple stats failed")
+
+        manager.get_multiple_container_stats = mock_failing_multiple_stats
+
+        result = manager.get_aggregated_metrics(["container1", "container2"])
+        assert "error" in result
+        assert "Failed to get aggregated metrics" in result["error"]
+
+    def test_docker_import_error_handling(self):
+        """Test Docker import error handling."""
+        # Test when docker module is None (import failed)
+        with patch('docker_manager.manager.docker', None):
+            with pytest.raises(ImportError) as exc_info:
+                DockerManager()
+            assert "Docker SDK is not available" in str(exc_info.value)
+
+    @patch("docker.from_env")
+    def test_container_operations_api_errors(self, mock_from_env, mock_docker_client):
+        """Test API errors in container operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test start container API error
+        mock_container.start.side_effect = APIError("Start failed")
+        result = manager.start_container("test_container")
+        assert "error" in result
+        assert "Start failed" in result["error"]
+
+        # Test stop container API error
+        mock_container.stop.side_effect = APIError("Stop failed")
+        result = manager.stop_container("test_container")
+        assert "error" in result
+        assert "Stop failed" in result["error"]
+
+        # Test restart container API error
+        mock_container.restart.side_effect = APIError("Restart failed")
+        result = manager.restart_container("test_container")
+        assert "error" in result
+        assert "Restart failed" in result["error"]
+
+        # Test get logs API error
+        mock_container.logs.side_effect = APIError("Logs failed")
+        result = manager.get_logs("test_container")
+        assert "error" in result
+        assert "Logs failed" in result["error"]

@@ -6,6 +6,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
+from docker.errors import APIError, NotFound
 
 from docker_manager.manager import DockerManager
 
@@ -438,3 +439,142 @@ class TestDockerManagerMetrics:
         # Should have individual stats for all containers (including errors)
         assert len(result["individual_stats"]) == 3
         assert "error" in result["individual_stats"]["container2"]
+
+    @patch("docker.from_env")
+    def test_get_streaming_stats_error_handling(self, mock_from_env, mock_docker_client):
+        """Test error handling in streaming stats."""
+        mock_from_env.return_value = mock_docker_client
+
+        docker_manager = DockerManager()
+
+        # Test container not found
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+
+        async def test_streaming():
+            async for result in docker_manager.get_streaming_stats("nonexistent_container"):
+                assert "error" in result
+                assert "Container nonexistent_container not found" in result["error"]
+                break
+
+        # Run the async test
+        import asyncio
+        asyncio.run(test_streaming())
+
+        # Test API error during streaming
+        mock_container = MagicMock()
+        mock_container.stats.side_effect = APIError("Streaming failed")
+        mock_docker_client.containers.get.side_effect = None
+        mock_docker_client.containers.get.return_value = mock_container
+
+        async def test_api_error():
+            async for result in docker_manager.get_streaming_stats("test_container"):
+                assert "error" in result
+                assert "Streaming failed" in result["error"]
+                break
+
+        asyncio.run(test_api_error())
+
+        # Test unexpected error during streaming
+        mock_container.stats.side_effect = Exception("Unexpected streaming error")
+
+        async def test_unexpected_error():
+            async for result in docker_manager.get_streaming_stats("test_container"):
+                assert "error" in result
+                assert "Unexpected streaming error" in result["error"]
+                break
+
+        asyncio.run(test_unexpected_error())
+
+    @patch("docker.from_env")
+    def test_parse_container_stats_complex_scenarios(self, mock_from_env, mock_docker_client):
+        """Test complex container stats parsing scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        docker_manager = DockerManager()
+
+        mock_container = MagicMock()
+        mock_container.id = "test_id"
+        mock_container.name = "test_name"
+        mock_container.status = "running"
+
+        # Test with complex network stats (multiple interfaces)
+        complex_stats = {
+            "cpu_stats": {
+                "cpu_usage": {"total_usage": 1000000000},
+                "system_cpu_usage": 2000000000,
+                "online_cpus": 4,
+            },
+            "precpu_stats": {
+                "cpu_usage": {"total_usage": 900000000},
+                "system_cpu_usage": 1900000000,
+            },
+            "memory_stats": {
+                "usage": 134217728,
+                "limit": 536870912,
+            },
+            "networks": {
+                "eth0": {"rx_bytes": 1024, "tx_bytes": 2048},
+                "eth1": {"rx_bytes": 512, "tx_bytes": 1024},
+                "lo": {"rx_bytes": 256, "tx_bytes": 512},
+            },
+            "blkio_stats": {
+                "io_service_bytes_recursive": [
+                    {"op": "Read", "value": 4096},
+                    {"op": "Write", "value": 8192},
+                    {"op": "Read", "value": 2048},
+                    {"op": "Write", "value": 4096},
+                ]
+            },
+        }
+
+        result = docker_manager._parse_container_stats(complex_stats, mock_container)
+
+        # Verify aggregated network stats
+        assert result["network_rx_bytes"] == 1792  # 1024 + 512 + 256
+        assert result["network_tx_bytes"] == 3584  # 2048 + 1024 + 512
+
+        # Verify aggregated block I/O stats
+        assert result["block_read_bytes"] == 6144  # 4096 + 2048
+        assert result["block_write_bytes"] == 12288  # 8192 + 4096
+
+        # Verify CPU calculation with multiple cores
+        assert result["cpu_percent"] == 400.0  # (100000000 / 100000000) * 4 * 100
+
+    @patch("docker.from_env")
+    def test_parse_container_stats_missing_data_scenarios(self, mock_from_env, mock_docker_client):
+        """Test container stats parsing with various missing data scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        docker_manager = DockerManager()
+
+        mock_container = MagicMock()
+        mock_container.id = "test_id"
+        mock_container.name = "test_name"
+        mock_container.status = "running"
+
+        # Test with missing memory limit (should handle division by zero)
+        stats_no_memory_limit = {
+            "memory_stats": {"usage": 134217728}  # No limit field
+        }
+
+        result = docker_manager._parse_container_stats(stats_no_memory_limit, mock_container)
+        assert result["memory_percent"] == 0.0
+        assert result["memory_limit"] == 0
+
+        # Test with missing network data
+        stats_no_networks = {
+            "memory_stats": {"usage": 134217728, "limit": 536870912}
+        }
+
+        result = docker_manager._parse_container_stats(stats_no_networks, mock_container)
+        assert result["network_rx_bytes"] == 0
+        assert result["network_tx_bytes"] == 0
+
+        # Test with missing block I/O data
+        stats_no_blkio = {
+            "memory_stats": {"usage": 134217728, "limit": 536870912}
+        }
+
+        result = docker_manager._parse_container_stats(stats_no_blkio, mock_container)
+        assert result["block_read_bytes"] == 0
+        assert result["block_write_bytes"] == 0
