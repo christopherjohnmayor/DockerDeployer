@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from typing import Any, Dict, List, Optional
 
 import yaml
-from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, WebSocket, status
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request, Response, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import JSONResponse
@@ -65,7 +65,7 @@ app = FastAPI(
     openapi_url="/openapi.json",
 )
 
-# Configure CORS with specific origins
+# Configure CORS with specific origins first
 import os
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
@@ -76,14 +76,28 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
 )
 
-# Configure security headers
-setup_security_middleware(app)
-
 # Initialize database
 init_db()
 
 # Set up rate limiting
-setup_rate_limiting(app)
+print("DEBUG: About to call setup_rate_limiting")
+try:
+    with open("/tmp/main_debug.log", "w") as f:
+        f.write("About to call setup_rate_limiting\n")
+    setup_rate_limiting(app)
+    print("DEBUG: setup_rate_limiting completed")
+    with open("/tmp/main_debug.log", "a") as f:
+        f.write("setup_rate_limiting completed\n")
+except Exception as e:
+    print(f"DEBUG: CRITICAL ERROR in setup_rate_limiting: {e}")
+    with open("/tmp/main_debug.log", "a") as f:
+        f.write(f"CRITICAL ERROR in setup_rate_limiting: {e}\n")
+    import traceback
+    traceback.print_exc()
+    # Don't re-raise to avoid breaking the app startup
+
+# Set up security middleware
+setup_security_middleware(app)
 
 # Include routers
 app.include_router(
@@ -445,7 +459,47 @@ async def health_check():
     Simple health check endpoint that doesn't require authentication.
     Used by Docker health checks.
     """
+    # Return simple JSON response - SecurityHeadersMiddleware will add security headers
     return {"status": "healthy"}
+
+
+@app.get("/test-rate-limit", include_in_schema=False)
+@rate_limit_api("5/minute")  # Very low limit for testing
+async def test_rate_limit(request: Request):
+    """
+    Test endpoint for rate limiting verification.
+    """
+    print(f"DEBUG: test_rate_limit called from {request.client.host}")
+    return {"message": "Rate limit test", "timestamp": datetime.utcnow().isoformat()}
+
+
+@app.get("/test-rate-limit-metrics", include_in_schema=False)
+@rate_limit_metrics("3/minute")  # Very low limit for testing with metrics decorator
+async def test_rate_limit_metrics(request: Request):
+    """
+    Test endpoint for rate limiting verification using metrics decorator.
+    """
+    print(f"DEBUG: test_rate_limit_metrics called from {request.client.host}")
+    return {"message": "Rate limit metrics test", "timestamp": datetime.utcnow().isoformat()}
+
+
+@app.get("/test-rate-limit-auth/{test_id}", include_in_schema=False)
+@rate_limit_metrics("3/minute")  # Very low limit for testing with auth
+async def test_rate_limit_auth(
+    request: Request,
+    test_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Test endpoint for rate limiting verification with authentication (mimics container stats).
+    """
+    print(f"DEBUG: test_rate_limit_auth called for {test_id} by user {current_user.username}")
+    return {
+        "message": "Rate limit auth test",
+        "test_id": test_id,
+        "user": current_user.username,
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 
 @app.get(
@@ -1023,6 +1077,7 @@ async def get_container_details(
 @rate_limit_metrics("60/minute")
 async def get_container_stats(
     request: Request,
+    response: Response,
     container_id: str,
     current_user: User = Depends(get_current_user),
     metrics_service: MetricsService = Depends(get_metrics_service),
@@ -1033,6 +1088,8 @@ async def get_container_stats(
     Returns current CPU, memory, network, and disk I/O metrics from Docker.
     Requires authentication.
     """
+    print(f"DEBUG: get_container_stats called for container {container_id}")
+    print(f"DEBUG: Request headers: {dict(request.headers)}")
     try:
         stats = metrics_service.get_current_metrics(container_id)
 
@@ -1389,6 +1446,8 @@ async def get_enhanced_metrics_visualization(
 
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -1501,6 +1560,8 @@ async def get_resource_usage_predictions(
 
         return result
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
