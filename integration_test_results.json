@@ -1,0 +1,166 @@
+{
+  "success": true,
+  "live_containers_tested": 3,
+  "mock_containers_tested": 3,
+  "total_endpoints_tested": 18,
+  "live_success_rate": 0.0,
+  "mock_success_rate": 0.0,
+  "overall_success_rate": 0.0,
+  "performance": {
+    "avg_response_time_ms": 2.0483202404446073,
+    "max_response_time_ms": 4.087924957275391,
+    "target_met_200ms": true
+  },
+  "database_persistence": {
+    "test": "database_persistence",
+    "backend_health": true,
+    "response_time_ms": 2.8569698333740234,
+    "success": true
+  },
+  "detailed_results": [
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "cfeda1bdb35b",
+      "status_code": 404,
+      "response_time_ms": 2.1729469299316406,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "cfeda1bdb35b",
+      "status_code": 404,
+      "response_time_ms": 3.3800601959228516,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "cfeda1bdb35b",
+      "status_code": 404,
+      "response_time_ms": 3.173828125,
+      "success": false,
+      "prediction_data": {}
+    },
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "d876d1649f26",
+      "status_code": 404,
+      "response_time_ms": 4.087924957275391,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "d876d1649f26",
+      "status_code": 404,
+      "response_time_ms": 2.9358863830566406,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "d876d1649f26",
+      "status_code": 404,
+      "response_time_ms": 2.443075180053711,
+      "success": false,
+      "prediction_data": {}
+    },
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "f3538a34af3c",
+      "status_code": 404,
+      "response_time_ms": 2.5899410247802734,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "f3538a34af3c",
+      "status_code": 404,
+      "response_time_ms": 1.8630027770996094,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "f3538a34af3c",
+      "status_code": 404,
+      "response_time_ms": 1.336812973022461,
+      "success": false,
+      "prediction_data": {}
+    },
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "test_mysql_0",
+      "status_code": 404,
+      "response_time_ms": 1.0530948638916016,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "test_mysql_0",
+      "status_code": 404,
+      "response_time_ms": 1.7971992492675781,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "test_mysql_0",
+      "status_code": 404,
+      "response_time_ms": 3.197193145751953,
+      "success": false,
+      "prediction_data": {}
+    },
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "test_nginx_0",
+      "status_code": 404,
+      "response_time_ms": 1.764059066772461,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "test_nginx_0",
+      "status_code": 404,
+      "response_time_ms": 1.2128353118896484,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "test_nginx_0",
+      "status_code": 404,
+      "response_time_ms": 1.0349750518798828,
+      "success": false,
+      "prediction_data": {}
+    },
+    {
+      "endpoint": "enhanced_metrics",
+      "container_id": "test_redis_0",
+      "status_code": 404,
+      "response_time_ms": 0.9479522705078125,
+      "success": false,
+      "data_quality": {}
+    },
+    {
+      "endpoint": "health_score",
+      "container_id": "test_redis_0",
+      "status_code": 404,
+      "response_time_ms": 0.8990764617919922,
+      "success": false,
+      "health_data": {}
+    },
+    {
+      "endpoint": "predictions",
+      "container_id": "test_redis_0",
+      "status_code": 404,
+      "response_time_ms": 0.9799003601074219,
+      "success": false,
+      "prediction_data": {}
+    }
+  ]
+}

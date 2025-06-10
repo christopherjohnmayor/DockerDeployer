@@ -3,7 +3,7 @@ Security middleware for DockerDeployer backend.
 Implements security headers and protections.
 """
 
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
@@ -17,7 +17,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         """Add security headers to response."""
         response = await call_next(request)
-        
+
         # Content Security Policy
         csp_policy = (
             "default-src 'self'; "
@@ -30,7 +30,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "base-uri 'self'; "
             "form-action 'self'"
         )
-        
+
         # Security headers
         security_headers = {
             "Content-Security-Policy": csp_policy,
@@ -40,15 +40,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "Referrer-Policy": "strict-origin-when-cross-origin",
             "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
         }
-        
+
         # Add HSTS header for HTTPS
         if request.url.scheme == "https":
             security_headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        
+
         # Apply headers to response
         for header, value in security_headers.items():
             response.headers[header] = value
-        
+
         return response
 
 

@@ -1,0 +1,77 @@
+{
+  "overall_status": "\u2705 EXCELLENT",
+  "endpoints_tested": 3,
+  "endpoints_passing": 3,
+  "pass_percentage": 100.0,
+  "average_response_time": 37.80222222222222,
+  "average_success_rate": 100.0,
+  "recommendation": "System meets performance requirements for production deployment",
+  "detailed_results": [
+    {
+      "endpoint": "/health",
+      "concurrent_users": 50,
+      "total_requests": 200,
+      "successful_requests": 200,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "total_duration": 0.17,
+      "requests_per_second": 1157.65,
+      "response_times": {
+        "min": 22.68,
+        "max": 71.73,
+        "avg": 42.24,
+        "median": 46.28,
+        "p95": 52.33
+      },
+      "performance_analysis": {
+        "meets_target_count": 200,
+        "meets_target_percentage": 100.0,
+        "slow_requests": 0
+      }
+    },
+    {
+      "endpoint": "/docs",
+      "concurrent_users": 50,
+      "total_requests": 200,
+      "successful_requests": 200,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "total_duration": 0.14,
+      "requests_per_second": 1391.18,
+      "response_times": {
+        "min": 26.9,
+        "max": 53.78,
+        "avg": 34.96,
+        "median": 28.15,
+        "p95": 53.69
+      },
+      "performance_analysis": {
+        "meets_target_count": 200,
+        "meets_target_percentage": 100.0,
+        "slow_requests": 0
+      }
+    },
+    {
+      "endpoint": "/openapi.json",
+      "concurrent_users": 50,
+      "total_requests": 200,
+      "successful_requests": 200,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "total_duration": 0.11,
+      "requests_per_second": 1739.18,
+      "response_times": {
+        "min": 24.07,
+        "max": 36.07,
+        "avg": 27.79,
+        "median": 27.01,
+        "p95": 33.42
+      },
+      "performance_analysis": {
+        "meets_target_count": 200,
+        "meets_target_percentage": 100.0,
+        "slow_requests": 0
+      }
+    }
+  ]
+}

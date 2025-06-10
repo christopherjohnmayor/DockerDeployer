@@ -2,6 +2,7 @@
 Tests for enhanced container metrics visualization API endpoints.
 """
 
+import os
 from unittest.mock import Mock, patch
 from contextlib import contextmanager
 
@@ -9,28 +10,55 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from app.main import app
+from app.main import app, get_visualization_service
+from app.auth.dependencies import get_current_user
+
+# Set environment variables for testing
+os.environ["TESTING"] = "true"
+os.environ["DISABLE_RATE_LIMITING"] = "true"
 
 
 @contextmanager
 def override_dependencies(mock_auth_user, mock_visualization_service):
     """Helper context manager to override FastAPI dependencies."""
-    from app.main import app, get_visualization_service
-    from app.auth.dependencies import get_current_user
-
     def override_get_current_user():
         return mock_auth_user
 
     def override_get_visualization_service():
         return mock_visualization_service
 
+    # Store original overrides to restore later
+    original_overrides = app.dependency_overrides.copy()
+
+    # Set new overrides
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_visualization_service] = override_get_visualization_service
 
-    try:
-        yield
-    finally:
-        app.dependency_overrides.clear()
+    # Mock the rate limiting function to avoid JWT token issues in tests
+    with patch('app.middleware.rate_limiting.get_user_id_or_ip') as mock_rate_limit, \
+         patch('app.middleware.performance_monitoring.PerformanceMonitoringMiddleware.dispatch') as mock_perf, \
+         patch('app.middleware.rate_limiting.rate_limit_metrics') as mock_rate_decorator:
+
+        mock_rate_limit.return_value = f"user:{mock_auth_user.id}"
+
+        # Create a passthrough for performance monitoring
+        async def passthrough_dispatch(request, call_next):
+            return await call_next(request)
+        mock_perf.side_effect = passthrough_dispatch
+
+        # Create a no-op rate limiting decorator for tests
+        def no_op_decorator(limit=None):
+            def decorator(func):
+                return func
+            return decorator
+        mock_rate_decorator.side_effect = no_op_decorator
+
+        try:
+            yield
+        finally:
+            # Restore original overrides instead of clearing everything
+            app.dependency_overrides.clear()
+            app.dependency_overrides.update(original_overrides)
 
 
 class TestEnhancedMetricsEndpoints:
@@ -121,52 +149,20 @@ class TestEnhancedMetricsEndpoints:
             "error": "Container not found"
         }
 
-        # Override the dependency at the app level
-        from app.main import app, get_visualization_service
-        from app.auth.dependencies import get_current_user
-
-        def override_get_current_user():
-            return mock_auth_user
-
-        def override_get_visualization_service():
-            return mock_visualization_service
-
-        app.dependency_overrides[get_current_user] = override_get_current_user
-        app.dependency_overrides[get_visualization_service] = override_get_visualization_service
-
-        try:
+        with override_dependencies(mock_auth_user, mock_visualization_service):
             response = client.get("/api/containers/nonexistent/metrics/visualization")
             assert response.status_code == status.HTTP_404_NOT_FOUND
-        finally:
-            # Clean up overrides
-            app.dependency_overrides.clear()
 
     def test_get_enhanced_metrics_visualization_with_params(self, client, mock_visualization_service, mock_auth_user):
         """Test enhanced metrics visualization with custom parameters."""
         mock_response = {"container_id": "test_container", "time_range": "7d"}
         mock_visualization_service.get_enhanced_metrics_visualization.return_value = mock_response
 
-        # Override the dependency at the app level
-        from app.main import app, get_visualization_service
-        from app.auth.dependencies import get_current_user
-
-        def override_get_current_user():
-            return mock_auth_user
-
-        def override_get_visualization_service():
-            return mock_visualization_service
-
-        app.dependency_overrides[get_current_user] = override_get_current_user
-        app.dependency_overrides[get_visualization_service] = override_get_visualization_service
-
-        try:
+        with override_dependencies(mock_auth_user, mock_visualization_service):
             response = client.get(
                 "/api/containers/test_container/metrics/visualization?hours=168&time_range=7d"
             )
             assert response.status_code == status.HTTP_200_OK
-        finally:
-            # Clean up overrides
-            app.dependency_overrides.clear()
         # Verify the service was called with correct parameters
         mock_visualization_service.get_enhanced_metrics_visualization.assert_called_once_with(
             "test_container", 168, "7d"
@@ -190,25 +186,9 @@ class TestEnhancedMetricsEndpoints:
 
         mock_visualization_service.calculate_container_health_score.return_value = mock_response
 
-        # Override the dependency at the app level
-        from app.main import app, get_visualization_service
-        from app.auth.dependencies import get_current_user
-
-        def override_get_current_user():
-            return mock_auth_user
-
-        def override_get_visualization_service():
-            return mock_visualization_service
-
-        app.dependency_overrides[get_current_user] = override_get_current_user
-        app.dependency_overrides[get_visualization_service] = override_get_visualization_service
-
-        try:
+        with override_dependencies(mock_auth_user, mock_visualization_service):
             response = client.get("/api/containers/test_container/health-score")
             assert response.status_code == status.HTTP_200_OK
-        finally:
-            # Clean up overrides
-            app.dependency_overrides.clear()
         data = response.json()
         assert data["container_id"] == "test_container"
         assert data["overall_health_score"] == 85.0
@@ -269,11 +249,9 @@ class TestEnhancedMetricsEndpoints:
 
         mock_visualization_service.predict_resource_usage.return_value = mock_response
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                response = client.get("/api/containers/test_container/metrics/predictions")
-
-        assert response.status_code == status.HTTP_200_OK
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            response = client.get("/api/containers/test_container/metrics/predictions")
+            assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["container_id"] == "test_container"
         assert data["prediction_period_hours"] == 6
@@ -286,13 +264,11 @@ class TestEnhancedMetricsEndpoints:
         mock_response = {"container_id": "test_container"}
         mock_visualization_service.predict_resource_usage.return_value = mock_response
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                response = client.get(
-                    "/api/containers/test_container/metrics/predictions?hours=48&prediction_hours=12"
-                )
-
-        assert response.status_code == status.HTTP_200_OK
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            response = client.get(
+                "/api/containers/test_container/metrics/predictions?hours=48&prediction_hours=12"
+            )
+            assert response.status_code == status.HTTP_200_OK
         # Verify the service was called with correct parameters
         mock_visualization_service.predict_resource_usage.assert_called_once_with(
             "test_container", 48, 12
@@ -304,11 +280,9 @@ class TestEnhancedMetricsEndpoints:
             "error": "Insufficient historical data for prediction"
         }
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                response = client.get("/api/containers/test_container/metrics/predictions")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            response = client.get("/api/containers/test_container/metrics/predictions")
+            assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_enhanced_metrics_endpoints_unauthorized(self, client):
         """Test that enhanced metrics endpoints require authentication."""
@@ -335,12 +309,11 @@ class TestEnhancedMetricsEndpoints:
             "/api/containers/test_container/metrics/predictions",
         ]
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                for endpoint in endpoints:
-                    response = client.get(endpoint)
-                    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-                    assert "error" in response.json()["detail"].lower() or "failed" in response.json()["detail"].lower()
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            for endpoint in endpoints:
+                response = client.get(endpoint)
+                assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+                assert "error" in response.json()["detail"].lower() or "failed" in response.json()["detail"].lower()
 
     def test_health_score_component_validation(self, client, mock_visualization_service, mock_auth_user):
         """Test that health score components are properly validated."""
@@ -359,18 +332,16 @@ class TestEnhancedMetricsEndpoints:
 
         mock_visualization_service.calculate_container_health_score.return_value = mock_response
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                response = client.get("/api/containers/test_container/health-score")
-
-        assert response.status_code == status.HTTP_200_OK
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            response = client.get("/api/containers/test_container/health-score")
+            assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        
+
         # Validate component scores are within valid range
         for component, score in data["component_scores"].items():
             assert 0 <= score <= 100
             assert isinstance(score, (int, float))
-        
+
         # Validate overall health score
         assert 0 <= data["overall_health_score"] <= 100
         assert data["health_status"] in ["excellent", "good", "warning", "critical"]
@@ -395,13 +366,11 @@ class TestEnhancedMetricsEndpoints:
 
         mock_visualization_service.predict_resource_usage.return_value = mock_response
 
-        with patch("app.auth.dependencies.get_current_user", return_value=mock_auth_user):
-            with patch("app.main.get_visualization_service", return_value=mock_visualization_service):
-                response = client.get("/api/containers/test_container/metrics/predictions")
-
-        assert response.status_code == status.HTTP_200_OK
+        with override_dependencies(mock_auth_user, mock_visualization_service):
+            response = client.get("/api/containers/test_container/metrics/predictions")
+            assert response.status_code == status.HTTP_200_OK
         data = response.json()
-        
+
         # Validate confidence values are within valid range
         assert 0 <= data["predictions"]["cpu_percent"]["confidence"] <= 1
         assert 0 <= data["predictions"]["memory_percent"]["confidence"] <= 1

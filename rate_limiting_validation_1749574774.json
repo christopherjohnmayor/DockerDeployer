@@ -1,0 +1,1415 @@
+{
+  "timestamp": 1749574774,
+  "overall_status": "\u26a0\ufe0f GOOD - Monitoring working, rate limiting may need configuration",
+  "summary": {
+    "endpoints_tested": 3,
+    "rate_limiting_active": 0,
+    "performance_monitoring_active": 3,
+    "total_requests": 150,
+    "total_rate_limited": 0,
+    "avg_response_time": 11.592133333333331
+  },
+  "detailed_results": [
+    {
+      "endpoint": "/health",
+      "total_requests": 50,
+      "successful_requests": 0,
+      "rate_limited_requests": 0,
+      "error_requests": 50,
+      "rate_limited_percentage": 0.0,
+      "success_rate": 0.0,
+      "error_rate": 100.0,
+      "avg_response_time": 11.432599999999997,
+      "requests_per_second": 857.4257830547003,
+      "duration": 0.05831408500671387,
+      "rate_limiting_effective": false,
+      "performance_monitoring_working": true,
+      "detailed_results": [
+        {
+          "request_id": 0,
+          "status_code": 500,
+          "response_time_ms": 12.06,
+          "rate_limited": false,
+          "performance_header": "2.89ms",
+          "retry_after": null,
+          "timestamp": 1749574768.116427
+        },
+        {
+          "request_id": 1,
+          "status_code": 500,
+          "response_time_ms": 10.33,
+          "rate_limited": false,
+          "performance_header": "5.95ms",
+          "retry_after": null,
+          "timestamp": 1749574768.114769
+        },
+        {
+          "request_id": 2,
+          "status_code": 500,
+          "response_time_ms": 9.97,
+          "rate_limited": false,
+          "performance_header": "5.68ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1144278
+        },
+        {
+          "request_id": 3,
+          "status_code": 500,
+          "response_time_ms": 11.0,
+          "rate_limited": false,
+          "performance_header": "5.70ms",
+          "retry_after": null,
+          "timestamp": 1749574768.115476
+        },
+        {
+          "request_id": 4,
+          "status_code": 500,
+          "response_time_ms": 10.4,
+          "rate_limited": false,
+          "performance_header": "6.02ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1148942
+        },
+        {
+          "request_id": 5,
+          "status_code": 500,
+          "response_time_ms": 10.63,
+          "rate_limited": false,
+          "performance_header": "5.41ms",
+          "retry_after": null,
+          "timestamp": 1749574768.115138
+        },
+        {
+          "request_id": 6,
+          "status_code": 500,
+          "response_time_ms": 10.11,
+          "rate_limited": false,
+          "performance_header": "5.81ms",
+          "retry_after": null,
+          "timestamp": 1749574768.114628
+        },
+        {
+          "request_id": 7,
+          "status_code": 500,
+          "response_time_ms": 11.08,
+          "rate_limited": false,
+          "performance_header": "5.79ms",
+          "retry_after": null,
+          "timestamp": 1749574768.115614
+        },
+        {
+          "request_id": 8,
+          "status_code": 500,
+          "response_time_ms": 9.27,
+          "rate_limited": false,
+          "performance_header": "5.23ms",
+          "retry_after": null,
+          "timestamp": 1749574768.113819
+        },
+        {
+          "request_id": 9,
+          "status_code": 500,
+          "response_time_ms": 10.78,
+          "rate_limited": false,
+          "performance_header": "5.51ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1153479
+        },
+        {
+          "request_id": 10,
+          "status_code": 500,
+          "response_time_ms": 6.87,
+          "rate_limited": false,
+          "performance_header": "4.91ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1207192
+        },
+        {
+          "request_id": 11,
+          "status_code": 500,
+          "response_time_ms": 6.72,
+          "rate_limited": false,
+          "performance_header": "5.24ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121202
+        },
+        {
+          "request_id": 12,
+          "status_code": 500,
+          "response_time_ms": 6.67,
+          "rate_limited": false,
+          "performance_header": "5.33ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121328
+        },
+        {
+          "request_id": 13,
+          "status_code": 500,
+          "response_time_ms": 6.62,
+          "rate_limited": false,
+          "performance_header": "5.40ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121408
+        },
+        {
+          "request_id": 14,
+          "status_code": 500,
+          "response_time_ms": 6.7,
+          "rate_limited": false,
+          "performance_header": "4.61ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121612
+        },
+        {
+          "request_id": 15,
+          "status_code": 500,
+          "response_time_ms": 6.56,
+          "rate_limited": false,
+          "performance_header": "4.69ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1217458
+        },
+        {
+          "request_id": 16,
+          "status_code": 500,
+          "response_time_ms": 6.47,
+          "rate_limited": false,
+          "performance_header": "4.76ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121836
+        },
+        {
+          "request_id": 17,
+          "status_code": 500,
+          "response_time_ms": 6.43,
+          "rate_limited": false,
+          "performance_header": "4.83ms",
+          "retry_after": null,
+          "timestamp": 1749574768.121939
+        },
+        {
+          "request_id": 18,
+          "status_code": 500,
+          "response_time_ms": 6.37,
+          "rate_limited": false,
+          "performance_header": "4.86ms",
+          "retry_after": null,
+          "timestamp": 1749574768.122015
+        },
+        {
+          "request_id": 19,
+          "status_code": 500,
+          "response_time_ms": 6.18,
+          "rate_limited": false,
+          "performance_header": "2.20ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1226308
+        },
+        {
+          "request_id": 20,
+          "status_code": 500,
+          "response_time_ms": 5.79,
+          "rate_limited": false,
+          "performance_header": "4.40ms",
+          "retry_after": null,
+          "timestamp": 1749574768.126534
+        },
+        {
+          "request_id": 21,
+          "status_code": 500,
+          "response_time_ms": 5.9,
+          "rate_limited": false,
+          "performance_header": "4.81ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127127
+        },
+        {
+          "request_id": 22,
+          "status_code": 500,
+          "response_time_ms": 5.88,
+          "rate_limited": false,
+          "performance_header": "4.81ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127222
+        },
+        {
+          "request_id": 23,
+          "status_code": 500,
+          "response_time_ms": 5.89,
+          "rate_limited": false,
+          "performance_header": "4.88ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1273139
+        },
+        {
+          "request_id": 24,
+          "status_code": 500,
+          "response_time_ms": 5.89,
+          "rate_limited": false,
+          "performance_header": "4.24ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127533
+        },
+        {
+          "request_id": 25,
+          "status_code": 500,
+          "response_time_ms": 5.89,
+          "rate_limited": false,
+          "performance_header": "4.28ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127647
+        },
+        {
+          "request_id": 26,
+          "status_code": 500,
+          "response_time_ms": 5.89,
+          "rate_limited": false,
+          "performance_header": "4.35ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127744
+        },
+        {
+          "request_id": 27,
+          "status_code": 500,
+          "response_time_ms": 5.89,
+          "rate_limited": false,
+          "performance_header": "4.41ms",
+          "retry_after": null,
+          "timestamp": 1749574768.127837
+        },
+        {
+          "request_id": 28,
+          "status_code": 500,
+          "response_time_ms": 5.88,
+          "rate_limited": false,
+          "performance_header": "4.48ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1279192
+        },
+        {
+          "request_id": 29,
+          "status_code": 500,
+          "response_time_ms": 5.81,
+          "rate_limited": false,
+          "performance_header": "2.11ms",
+          "retry_after": null,
+          "timestamp": 1749574768.128462
+        },
+        {
+          "request_id": 30,
+          "status_code": 500,
+          "response_time_ms": 27.45,
+          "rate_limited": false,
+          "performance_header": "25.81ms",
+          "retry_after": null,
+          "timestamp": 1749574768.15401
+        },
+        {
+          "request_id": 31,
+          "status_code": 500,
+          "response_time_ms": 27.51,
+          "rate_limited": false,
+          "performance_header": "26.39ms",
+          "retry_after": null,
+          "timestamp": 1749574768.154664
+        },
+        {
+          "request_id": 32,
+          "status_code": 500,
+          "response_time_ms": 27.53,
+          "rate_limited": false,
+          "performance_header": "26.50ms",
+          "retry_after": null,
+          "timestamp": 1749574768.154778
+        },
+        {
+          "request_id": 33,
+          "status_code": 500,
+          "response_time_ms": 27.52,
+          "rate_limited": false,
+          "performance_header": "26.58ms",
+          "retry_after": null,
+          "timestamp": 1749574768.154857
+        },
+        {
+          "request_id": 34,
+          "status_code": 500,
+          "response_time_ms": 27.57,
+          "rate_limited": false,
+          "performance_header": "25.96ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1551208
+        },
+        {
+          "request_id": 35,
+          "status_code": 500,
+          "response_time_ms": 27.55,
+          "rate_limited": false,
+          "performance_header": "26.05ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1552231
+        },
+        {
+          "request_id": 36,
+          "status_code": 500,
+          "response_time_ms": 27.56,
+          "rate_limited": false,
+          "performance_header": "26.12ms",
+          "retry_after": null,
+          "timestamp": 1749574768.155326
+        },
+        {
+          "request_id": 37,
+          "status_code": 500,
+          "response_time_ms": 27.6,
+          "rate_limited": false,
+          "performance_header": "26.22ms",
+          "retry_after": null,
+          "timestamp": 1749574768.155458
+        },
+        {
+          "request_id": 38,
+          "status_code": 500,
+          "response_time_ms": 27.61,
+          "rate_limited": false,
+          "performance_header": "26.26ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1555479
+        },
+        {
+          "request_id": 39,
+          "status_code": 500,
+          "response_time_ms": 27.66,
+          "rate_limited": false,
+          "performance_header": "2.58ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1561432
+        },
+        {
+          "request_id": 40,
+          "status_code": 500,
+          "response_time_ms": 6.79,
+          "rate_limited": false,
+          "performance_header": "5.08ms",
+          "retry_after": null,
+          "timestamp": 1749574768.160832
+        },
+        {
+          "request_id": 41,
+          "status_code": 500,
+          "response_time_ms": 6.66,
+          "rate_limited": false,
+          "performance_header": "5.46ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1613529
+        },
+        {
+          "request_id": 42,
+          "status_code": 500,
+          "response_time_ms": 6.66,
+          "rate_limited": false,
+          "performance_header": "5.55ms",
+          "retry_after": null,
+          "timestamp": 1749574768.161454
+        },
+        {
+          "request_id": 43,
+          "status_code": 500,
+          "response_time_ms": 6.64,
+          "rate_limited": false,
+          "performance_header": "5.62ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1615229
+        },
+        {
+          "request_id": 44,
+          "status_code": 500,
+          "response_time_ms": 6.59,
+          "rate_limited": false,
+          "performance_header": "4.91ms",
+          "retry_after": null,
+          "timestamp": 1749574768.161739
+        },
+        {
+          "request_id": 45,
+          "status_code": 500,
+          "response_time_ms": 6.58,
+          "rate_limited": false,
+          "performance_header": "4.98ms",
+          "retry_after": null,
+          "timestamp": 1749574768.1618319
+        },
+        {
+          "request_id": 46,
+          "status_code": 500,
+          "response_time_ms": 6.63,
+          "rate_limited": false,
+          "performance_header": "5.06ms",
+          "retry_after": null,
+          "timestamp": 1749574768.161983
+        },
+        {
+          "request_id": 47,
+          "status_code": 500,
+          "response_time_ms": 6.63,
+          "rate_limited": false,
+          "performance_header": "5.14ms",
+          "retry_after": null,
+          "timestamp": 1749574768.162103
+        },
+        {
+          "request_id": 48,
+          "status_code": 500,
+          "response_time_ms": 6.67,
+          "rate_limited": false,
+          "performance_header": "5.23ms",
+          "retry_after": null,
+          "timestamp": 1749574768.162244
+        },
+        {
+          "request_id": 49,
+          "status_code": 500,
+          "response_time_ms": 6.29,
+          "rate_limited": false,
+          "performance_header": "1.98ms",
+          "retry_after": null,
+          "timestamp": 1749574768.162461
+        }
+      ]
+    },
+    {
+      "endpoint": "/docs",
+      "total_requests": 50,
+      "successful_requests": 0,
+      "rate_limited_requests": 0,
+      "error_requests": 50,
+      "rate_limited_percentage": 0.0,
+      "success_rate": 0.0,
+      "error_rate": 100.0,
+      "avg_response_time": 10.764999999999995,
+      "requests_per_second": 892.458274109947,
+      "duration": 0.056025028228759766,
+      "rate_limiting_effective": false,
+      "performance_monitoring_working": true,
+      "detailed_results": [
+        {
+          "request_id": 0,
+          "status_code": 500,
+          "response_time_ms": 22.5,
+          "rate_limited": false,
+          "performance_header": "5.85ms",
+          "retry_after": null,
+          "timestamp": 1749574770.187217
+        },
+        {
+          "request_id": 1,
+          "status_code": 500,
+          "response_time_ms": 17.73,
+          "rate_limited": false,
+          "performance_header": "10.48ms",
+          "retry_after": null,
+          "timestamp": 1749574770.182893
+        },
+        {
+          "request_id": 2,
+          "status_code": 500,
+          "response_time_ms": 19.53,
+          "rate_limited": false,
+          "performance_header": "10.45ms",
+          "retry_after": null,
+          "timestamp": 1749574770.18482
+        },
+        {
+          "request_id": 3,
+          "status_code": 500,
+          "response_time_ms": 20.57,
+          "rate_limited": false,
+          "performance_header": "8.67ms",
+          "retry_after": null,
+          "timestamp": 1749574770.185914
+        },
+        {
+          "request_id": 4,
+          "status_code": 500,
+          "response_time_ms": 20.25,
+          "rate_limited": false,
+          "performance_header": "8.57ms",
+          "retry_after": null,
+          "timestamp": 1749574770.185687
+        },
+        {
+          "request_id": 5,
+          "status_code": 500,
+          "response_time_ms": 16.76,
+          "rate_limited": false,
+          "performance_header": "9.80ms",
+          "retry_after": null,
+          "timestamp": 1749574770.182261
+        },
+        {
+          "request_id": 6,
+          "status_code": 500,
+          "response_time_ms": 17.94,
+          "rate_limited": false,
+          "performance_header": "10.85ms",
+          "retry_after": null,
+          "timestamp": 1749574770.183508
+        },
+        {
+          "request_id": 7,
+          "status_code": 500,
+          "response_time_ms": 17.7,
+          "rate_limited": false,
+          "performance_header": "10.71ms",
+          "retry_after": null,
+          "timestamp": 1749574770.183315
+        },
+        {
+          "request_id": 8,
+          "status_code": 500,
+          "response_time_ms": 19.84,
+          "rate_limited": false,
+          "performance_header": "8.58ms",
+          "retry_after": null,
+          "timestamp": 1749574770.185499
+        },
+        {
+          "request_id": 9,
+          "status_code": 500,
+          "response_time_ms": 20.42,
+          "rate_limited": false,
+          "performance_header": "8.83ms",
+          "retry_after": null,
+          "timestamp": 1749574770.186116
+        },
+        {
+          "request_id": 10,
+          "status_code": 500,
+          "response_time_ms": 11.97,
+          "rate_limited": false,
+          "performance_header": "7.73ms",
+          "retry_after": null,
+          "timestamp": 1749574770.194292
+        },
+        {
+          "request_id": 11,
+          "status_code": 500,
+          "response_time_ms": 11.55,
+          "rate_limited": false,
+          "performance_header": "7.92ms",
+          "retry_after": null,
+          "timestamp": 1749574770.194529
+        },
+        {
+          "request_id": 12,
+          "status_code": 500,
+          "response_time_ms": 11.53,
+          "rate_limited": false,
+          "performance_header": "8.01ms",
+          "retry_after": null,
+          "timestamp": 1749574770.194912
+        },
+        {
+          "request_id": 13,
+          "status_code": 500,
+          "response_time_ms": 11.38,
+          "rate_limited": false,
+          "performance_header": "8.10ms",
+          "retry_after": null,
+          "timestamp": 1749574770.1949508
+        },
+        {
+          "request_id": 14,
+          "status_code": 500,
+          "response_time_ms": 10.56,
+          "rate_limited": false,
+          "performance_header": "8.48ms",
+          "retry_after": null,
+          "timestamp": 1749574770.1954129
+        },
+        {
+          "request_id": 15,
+          "status_code": 500,
+          "response_time_ms": 10.33,
+          "rate_limited": false,
+          "performance_header": "4.92ms",
+          "retry_after": null,
+          "timestamp": 1749574770.195863
+        },
+        {
+          "request_id": 16,
+          "status_code": 500,
+          "response_time_ms": 10.3,
+          "rate_limited": false,
+          "performance_header": "5.01ms",
+          "retry_after": null,
+          "timestamp": 1749574770.196009
+        },
+        {
+          "request_id": 17,
+          "status_code": 500,
+          "response_time_ms": 10.17,
+          "rate_limited": false,
+          "performance_header": "5.09ms",
+          "retry_after": null,
+          "timestamp": 1749574770.196115
+        },
+        {
+          "request_id": 18,
+          "status_code": 500,
+          "response_time_ms": 10.08,
+          "rate_limited": false,
+          "performance_header": "5.17ms",
+          "retry_after": null,
+          "timestamp": 1749574770.196224
+        },
+        {
+          "request_id": 19,
+          "status_code": 500,
+          "response_time_ms": 9.8,
+          "rate_limited": false,
+          "performance_header": "3.28ms",
+          "retry_after": null,
+          "timestamp": 1749574770.197042
+        },
+        {
+          "request_id": 20,
+          "status_code": 500,
+          "response_time_ms": 8.12,
+          "rate_limited": false,
+          "performance_header": "5.86ms",
+          "retry_after": null,
+          "timestamp": 1749574770.202452
+        },
+        {
+          "request_id": 21,
+          "status_code": 500,
+          "response_time_ms": 7.89,
+          "rate_limited": false,
+          "performance_header": "6.09ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2026281
+        },
+        {
+          "request_id": 22,
+          "status_code": 500,
+          "response_time_ms": 7.73,
+          "rate_limited": false,
+          "performance_header": "6.18ms",
+          "retry_after": null,
+          "timestamp": 1749574770.202709
+        },
+        {
+          "request_id": 23,
+          "status_code": 500,
+          "response_time_ms": 7.75,
+          "rate_limited": false,
+          "performance_header": "6.26ms",
+          "retry_after": null,
+          "timestamp": 1749574770.202794
+        },
+        {
+          "request_id": 24,
+          "status_code": 500,
+          "response_time_ms": 7.92,
+          "rate_limited": false,
+          "performance_header": "6.55ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2033558
+        },
+        {
+          "request_id": 25,
+          "status_code": 500,
+          "response_time_ms": 7.86,
+          "rate_limited": false,
+          "performance_header": "5.03ms",
+          "retry_after": null,
+          "timestamp": 1749574770.203754
+        },
+        {
+          "request_id": 26,
+          "status_code": 500,
+          "response_time_ms": 7.84,
+          "rate_limited": false,
+          "performance_header": "5.12ms",
+          "retry_after": null,
+          "timestamp": 1749574770.203867
+        },
+        {
+          "request_id": 27,
+          "status_code": 500,
+          "response_time_ms": 7.84,
+          "rate_limited": false,
+          "performance_header": "5.12ms",
+          "retry_after": null,
+          "timestamp": 1749574770.203968
+        },
+        {
+          "request_id": 28,
+          "status_code": 500,
+          "response_time_ms": 7.83,
+          "rate_limited": false,
+          "performance_header": "5.14ms",
+          "retry_after": null,
+          "timestamp": 1749574770.204074
+        },
+        {
+          "request_id": 29,
+          "status_code": 500,
+          "response_time_ms": 7.77,
+          "rate_limited": false,
+          "performance_header": "2.93ms",
+          "retry_after": null,
+          "timestamp": 1749574770.204837
+        },
+        {
+          "request_id": 30,
+          "status_code": 500,
+          "response_time_ms": 6.75,
+          "rate_limited": false,
+          "performance_header": "4.90ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2092311
+        },
+        {
+          "request_id": 31,
+          "status_code": 500,
+          "response_time_ms": 6.76,
+          "rate_limited": false,
+          "performance_header": "5.05ms",
+          "retry_after": null,
+          "timestamp": 1749574770.209412
+        },
+        {
+          "request_id": 32,
+          "status_code": 500,
+          "response_time_ms": 6.79,
+          "rate_limited": false,
+          "performance_header": "5.13ms",
+          "retry_after": null,
+          "timestamp": 1749574770.209533
+        },
+        {
+          "request_id": 33,
+          "status_code": 500,
+          "response_time_ms": 6.8,
+          "rate_limited": false,
+          "performance_header": "5.20ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2096262
+        },
+        {
+          "request_id": 34,
+          "status_code": 500,
+          "response_time_ms": 6.71,
+          "rate_limited": false,
+          "performance_header": "5.52ms",
+          "retry_after": null,
+          "timestamp": 1749574770.210089
+        },
+        {
+          "request_id": 35,
+          "status_code": 500,
+          "response_time_ms": 6.65,
+          "rate_limited": false,
+          "performance_header": "3.90ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2104309
+        },
+        {
+          "request_id": 36,
+          "status_code": 500,
+          "response_time_ms": 6.84,
+          "rate_limited": false,
+          "performance_header": "3.98ms",
+          "retry_after": null,
+          "timestamp": 1749574770.210728
+        },
+        {
+          "request_id": 37,
+          "status_code": 500,
+          "response_time_ms": 6.83,
+          "rate_limited": false,
+          "performance_header": "4.13ms",
+          "retry_after": null,
+          "timestamp": 1749574770.210818
+        },
+        {
+          "request_id": 38,
+          "status_code": 500,
+          "response_time_ms": 6.85,
+          "rate_limited": false,
+          "performance_header": "4.25ms",
+          "retry_after": null,
+          "timestamp": 1749574770.210942
+        },
+        {
+          "request_id": 39,
+          "status_code": 500,
+          "response_time_ms": 8.46,
+          "rate_limited": false,
+          "performance_header": "4.38ms",
+          "retry_after": null,
+          "timestamp": 1749574770.213315
+        },
+        {
+          "request_id": 40,
+          "status_code": 500,
+          "response_time_ms": 9.29,
+          "rate_limited": false,
+          "performance_header": "7.18ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2185442
+        },
+        {
+          "request_id": 41,
+          "status_code": 500,
+          "response_time_ms": 9.13,
+          "rate_limited": false,
+          "performance_header": "7.43ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2186089
+        },
+        {
+          "request_id": 42,
+          "status_code": 500,
+          "response_time_ms": 9.11,
+          "rate_limited": false,
+          "performance_header": "5.86ms",
+          "retry_after": null,
+          "timestamp": 1749574770.218653
+        },
+        {
+          "request_id": 43,
+          "status_code": 500,
+          "response_time_ms": 9.11,
+          "rate_limited": false,
+          "performance_header": "5.92ms",
+          "retry_after": null,
+          "timestamp": 1749574770.218771
+        },
+        {
+          "request_id": 44,
+          "status_code": 500,
+          "response_time_ms": 9.39,
+          "rate_limited": false,
+          "performance_header": "6.40ms",
+          "retry_after": null,
+          "timestamp": 1749574770.219502
+        },
+        {
+          "request_id": 45,
+          "status_code": 500,
+          "response_time_ms": 9.24,
+          "rate_limited": false,
+          "performance_header": "4.73ms",
+          "retry_after": null,
+          "timestamp": 1749574770.219711
+        },
+        {
+          "request_id": 46,
+          "status_code": 500,
+          "response_time_ms": 9.06,
+          "rate_limited": false,
+          "performance_header": "4.82ms",
+          "retry_after": null,
+          "timestamp": 1749574770.219824
+        },
+        {
+          "request_id": 47,
+          "status_code": 500,
+          "response_time_ms": 9.05,
+          "rate_limited": false,
+          "performance_header": "4.90ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2199209
+        },
+        {
+          "request_id": 48,
+          "status_code": 500,
+          "response_time_ms": 9.06,
+          "rate_limited": false,
+          "performance_header": "4.98ms",
+          "retry_after": null,
+          "timestamp": 1749574770.220022
+        },
+        {
+          "request_id": 49,
+          "status_code": 500,
+          "response_time_ms": 6.91,
+          "rate_limited": false,
+          "performance_header": "2.32ms",
+          "retry_after": null,
+          "timestamp": 1749574770.2202508
+        }
+      ]
+    },
+    {
+      "endpoint": "/openapi.json",
+      "total_requests": 50,
+      "successful_requests": 0,
+      "rate_limited_requests": 0,
+      "error_requests": 50,
+      "rate_limited_percentage": 0.0,
+      "success_rate": 0.0,
+      "error_rate": 100.0,
+      "avg_response_time": 12.578800000000003,
+      "requests_per_second": 772.2041387436483,
+      "duration": 0.06474971771240234,
+      "rate_limiting_effective": false,
+      "performance_monitoring_working": true,
+      "detailed_results": [
+        {
+          "request_id": 0,
+          "status_code": 500,
+          "response_time_ms": 28.51,
+          "rate_limited": false,
+          "performance_header": "6.85ms",
+          "retry_after": null,
+          "timestamp": 1749574772.250901
+        },
+        {
+          "request_id": 1,
+          "status_code": 500,
+          "response_time_ms": 25.59,
+          "rate_limited": false,
+          "performance_header": "13.31ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2482948
+        },
+        {
+          "request_id": 2,
+          "status_code": 500,
+          "response_time_ms": 24.51,
+          "rate_limited": false,
+          "performance_header": "16.99ms",
+          "retry_after": null,
+          "timestamp": 1749574772.247272
+        },
+        {
+          "request_id": 3,
+          "status_code": 500,
+          "response_time_ms": 24.87,
+          "rate_limited": false,
+          "performance_header": "17.34ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2476969
+        },
+        {
+          "request_id": 4,
+          "status_code": 500,
+          "response_time_ms": 22.37,
+          "rate_limited": false,
+          "performance_header": "16.42ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2452438
+        },
+        {
+          "request_id": 5,
+          "status_code": 500,
+          "response_time_ms": 25.64,
+          "rate_limited": false,
+          "performance_header": "13.44ms",
+          "retry_after": null,
+          "timestamp": 1749574772.248551
+        },
+        {
+          "request_id": 6,
+          "status_code": 500,
+          "response_time_ms": 24.56,
+          "rate_limited": false,
+          "performance_header": "17.18ms",
+          "retry_after": null,
+          "timestamp": 1749574772.247513
+        },
+        {
+          "request_id": 7,
+          "status_code": 500,
+          "response_time_ms": 22.66,
+          "rate_limited": false,
+          "performance_header": "17.09ms",
+          "retry_after": null,
+          "timestamp": 1749574772.245662
+        },
+        {
+          "request_id": 8,
+          "status_code": 500,
+          "response_time_ms": 26.46,
+          "rate_limited": false,
+          "performance_header": "14.13ms",
+          "retry_after": null,
+          "timestamp": 1749574772.249502
+        },
+        {
+          "request_id": 9,
+          "status_code": 500,
+          "response_time_ms": 26.07,
+          "rate_limited": false,
+          "performance_header": "13.67ms",
+          "retry_after": null,
+          "timestamp": 1749574772.249175
+        },
+        {
+          "request_id": 10,
+          "status_code": 500,
+          "response_time_ms": 13.86,
+          "rate_limited": false,
+          "performance_header": "9.35ms",
+          "retry_after": null,
+          "timestamp": 1749574772.259155
+        },
+        {
+          "request_id": 11,
+          "status_code": 500,
+          "response_time_ms": 13.61,
+          "rate_limited": false,
+          "performance_header": "9.46ms",
+          "retry_after": null,
+          "timestamp": 1749574772.259325
+        },
+        {
+          "request_id": 12,
+          "status_code": 500,
+          "response_time_ms": 12.6,
+          "rate_limited": false,
+          "performance_header": "9.63ms",
+          "retry_after": null,
+          "timestamp": 1749574772.259918
+        },
+        {
+          "request_id": 13,
+          "status_code": 500,
+          "response_time_ms": 12.51,
+          "rate_limited": false,
+          "performance_header": "9.70ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2600582
+        },
+        {
+          "request_id": 14,
+          "status_code": 500,
+          "response_time_ms": 12.44,
+          "rate_limited": false,
+          "performance_header": "9.77ms",
+          "retry_after": null,
+          "timestamp": 1749574772.26017
+        },
+        {
+          "request_id": 15,
+          "status_code": 500,
+          "response_time_ms": 12.17,
+          "rate_limited": false,
+          "performance_header": "7.79ms",
+          "retry_after": null,
+          "timestamp": 1749574772.260502
+        },
+        {
+          "request_id": 16,
+          "status_code": 500,
+          "response_time_ms": 11.99,
+          "rate_limited": false,
+          "performance_header": "7.86ms",
+          "retry_after": null,
+          "timestamp": 1749574772.260619
+        },
+        {
+          "request_id": 17,
+          "status_code": 500,
+          "response_time_ms": 11.54,
+          "rate_limited": false,
+          "performance_header": "7.86ms",
+          "retry_after": null,
+          "timestamp": 1749574772.260755
+        },
+        {
+          "request_id": 18,
+          "status_code": 500,
+          "response_time_ms": 11.33,
+          "rate_limited": false,
+          "performance_header": "7.93ms",
+          "retry_after": null,
+          "timestamp": 1749574772.260867
+        },
+        {
+          "request_id": 19,
+          "status_code": 500,
+          "response_time_ms": 10.99,
+          "rate_limited": false,
+          "performance_header": "3.09ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2619278
+        },
+        {
+          "request_id": 20,
+          "status_code": 500,
+          "response_time_ms": 8.48,
+          "rate_limited": false,
+          "performance_header": "6.42ms",
+          "retry_after": null,
+          "timestamp": 1749574772.267667
+        },
+        {
+          "request_id": 21,
+          "status_code": 500,
+          "response_time_ms": 8.48,
+          "rate_limited": false,
+          "performance_header": "6.69ms",
+          "retry_after": null,
+          "timestamp": 1749574772.267833
+        },
+        {
+          "request_id": 22,
+          "status_code": 500,
+          "response_time_ms": 8.69,
+          "rate_limited": false,
+          "performance_header": "7.19ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2686331
+        },
+        {
+          "request_id": 23,
+          "status_code": 500,
+          "response_time_ms": 8.75,
+          "rate_limited": false,
+          "performance_header": "7.33ms",
+          "retry_after": null,
+          "timestamp": 1749574772.268834
+        },
+        {
+          "request_id": 24,
+          "status_code": 500,
+          "response_time_ms": 8.83,
+          "rate_limited": false,
+          "performance_header": "7.51ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2690282
+        },
+        {
+          "request_id": 25,
+          "status_code": 500,
+          "response_time_ms": 8.86,
+          "rate_limited": false,
+          "performance_header": "6.23ms",
+          "retry_after": null,
+          "timestamp": 1749574772.269388
+        },
+        {
+          "request_id": 26,
+          "status_code": 500,
+          "response_time_ms": 8.87,
+          "rate_limited": false,
+          "performance_header": "6.33ms",
+          "retry_after": null,
+          "timestamp": 1749574772.269512
+        },
+        {
+          "request_id": 27,
+          "status_code": 500,
+          "response_time_ms": 8.87,
+          "rate_limited": false,
+          "performance_header": "6.35ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2696488
+        },
+        {
+          "request_id": 28,
+          "status_code": 500,
+          "response_time_ms": 8.87,
+          "rate_limited": false,
+          "performance_header": "6.43ms",
+          "retry_after": null,
+          "timestamp": 1749574772.269763
+        },
+        {
+          "request_id": 29,
+          "status_code": 500,
+          "response_time_ms": 8.8,
+          "rate_limited": false,
+          "performance_header": "3.69ms",
+          "retry_after": null,
+          "timestamp": 1749574772.270758
+        },
+        {
+          "request_id": 30,
+          "status_code": 500,
+          "response_time_ms": 7.75,
+          "rate_limited": false,
+          "performance_header": "5.48ms",
+          "retry_after": null,
+          "timestamp": 1749574772.275455
+        },
+        {
+          "request_id": 31,
+          "status_code": 500,
+          "response_time_ms": 7.73,
+          "rate_limited": false,
+          "performance_header": "5.58ms",
+          "retry_after": null,
+          "timestamp": 1749574772.275591
+        },
+        {
+          "request_id": 32,
+          "status_code": 500,
+          "response_time_ms": 7.6,
+          "rate_limited": false,
+          "performance_header": "5.96ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2762802
+        },
+        {
+          "request_id": 33,
+          "status_code": 500,
+          "response_time_ms": 7.52,
+          "rate_limited": false,
+          "performance_header": "6.06ms",
+          "retry_after": null,
+          "timestamp": 1749574772.276396
+        },
+        {
+          "request_id": 34,
+          "status_code": 500,
+          "response_time_ms": 7.45,
+          "rate_limited": false,
+          "performance_header": "6.14ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2765079
+        },
+        {
+          "request_id": 35,
+          "status_code": 500,
+          "response_time_ms": 7.44,
+          "rate_limited": false,
+          "performance_header": "5.00ms",
+          "retry_after": null,
+          "timestamp": 1749574772.276852
+        },
+        {
+          "request_id": 36,
+          "status_code": 500,
+          "response_time_ms": 7.44,
+          "rate_limited": false,
+          "performance_header": "5.08ms",
+          "retry_after": null,
+          "timestamp": 1749574772.276978
+        },
+        {
+          "request_id": 37,
+          "status_code": 500,
+          "response_time_ms": 7.46,
+          "rate_limited": false,
+          "performance_header": "5.17ms",
+          "retry_after": null,
+          "timestamp": 1749574772.277129
+        },
+        {
+          "request_id": 38,
+          "status_code": 500,
+          "response_time_ms": 7.46,
+          "rate_limited": false,
+          "performance_header": "5.25ms",
+          "retry_after": null,
+          "timestamp": 1749574772.277251
+        },
+        {
+          "request_id": 39,
+          "status_code": 500,
+          "response_time_ms": 7.31,
+          "rate_limited": false,
+          "performance_header": "2.85ms",
+          "retry_after": null,
+          "timestamp": 1749574772.278095
+        },
+        {
+          "request_id": 40,
+          "status_code": 500,
+          "response_time_ms": 9.39,
+          "rate_limited": false,
+          "performance_header": "7.22ms",
+          "retry_after": null,
+          "timestamp": 1749574772.284884
+        },
+        {
+          "request_id": 41,
+          "status_code": 500,
+          "response_time_ms": 9.35,
+          "rate_limited": false,
+          "performance_header": "7.53ms",
+          "retry_after": null,
+          "timestamp": 1749574772.284972
+        },
+        {
+          "request_id": 42,
+          "status_code": 500,
+          "response_time_ms": 9.29,
+          "rate_limited": false,
+          "performance_header": "7.88ms",
+          "retry_after": null,
+          "timestamp": 1749574772.285593
+        },
+        {
+          "request_id": 43,
+          "status_code": 500,
+          "response_time_ms": 9.28,
+          "rate_limited": false,
+          "performance_header": "7.98ms",
+          "retry_after": null,
+          "timestamp": 1749574772.285706
+        },
+        {
+          "request_id": 44,
+          "status_code": 500,
+          "response_time_ms": 9.29,
+          "rate_limited": false,
+          "performance_header": "8.07ms",
+          "retry_after": null,
+          "timestamp": 1749574772.285825
+        },
+        {
+          "request_id": 45,
+          "status_code": 500,
+          "response_time_ms": 9.2,
+          "rate_limited": false,
+          "performance_header": "6.69ms",
+          "retry_after": null,
+          "timestamp": 1749574772.286077
+        },
+        {
+          "request_id": 46,
+          "status_code": 500,
+          "response_time_ms": 9.17,
+          "rate_limited": false,
+          "performance_header": "6.78ms",
+          "retry_after": null,
+          "timestamp": 1749574772.286185
+        },
+        {
+          "request_id": 47,
+          "status_code": 500,
+          "response_time_ms": 9.21,
+          "rate_limited": false,
+          "performance_header": "6.82ms",
+          "retry_after": null,
+          "timestamp": 1749574772.2863722
+        },
+        {
+          "request_id": 48,
+          "status_code": 500,
+          "response_time_ms": 9.22,
+          "rate_limited": false,
+          "performance_header": "6.90ms",
+          "retry_after": null,
+          "timestamp": 1749574772.286494
+        },
+        {
+          "request_id": 49,
+          "status_code": 500,
+          "response_time_ms": 8.6,
+          "rate_limited": false,
+          "performance_header": "2.36ms",
+          "retry_after": null,
+          "timestamp": 1749574772.286724
+        }
+      ]
+    }
+  ]
+}

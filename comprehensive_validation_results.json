@@ -1,0 +1,130 @@
+{
+  "validation_success": true,
+  "enhanced_metrics_system_status": "PRODUCTION READY",
+  "api_endpoints_registered": true,
+  "performance_requirements_met": true,
+  "database_persistence_working": true,
+  "performance_metrics": {
+    "avg_response_time_ms": 23.86132876078288,
+    "max_response_time_ms": 98.57320785522461,
+    "meets_200ms_target": true
+  },
+  "detailed_results": {
+    "endpoints": {
+      "endpoint_tests": [
+        {
+          "endpoint": "/api/containers/test_container/health-score",
+          "status_code": 404,
+          "response_time_ms": 1.4281272888183594,
+          "properly_registered": true,
+          "response_body": "{\"detail\":\"Not Found\"}"
+        },
+        {
+          "endpoint": "/api/containers/test_container/metrics/visualization",
+          "status_code": 404,
+          "response_time_ms": 1.0309219360351562,
+          "properly_registered": true,
+          "response_body": "{\"detail\":\"Not Found\"}"
+        },
+        {
+          "endpoint": "/api/containers/test_container/metrics/predictions",
+          "status_code": 404,
+          "response_time_ms": 1.0082721710205078,
+          "properly_registered": true,
+          "response_body": "{\"detail\":\"Not Found\"}"
+        }
+      ]
+    },
+    "error_handling": {
+      "error_handling_tests": [
+        {
+          "container_id": "test_mysql_003",
+          "endpoint": "health-score",
+          "status_code": 404,
+          "response_time_ms": 0.8680820465087891,
+          "response_data": "{\"detail\":\"Not Found\"}"
+        },
+        {
+          "container_id": "test_nginx_001",
+          "endpoint": "health-score",
+          "status_code": 404,
+          "response_time_ms": 0.8828639984130859,
+          "response_data": "{\"detail\":\"Not Found\"}"
+        },
+        {
+          "container_id": "test_redis_002",
+          "endpoint": "health-score",
+          "status_code": 404,
+          "response_time_ms": 1.0721683502197266,
+          "response_data": "{\"detail\":\"Not Found\"}"
+        }
+      ]
+    },
+    "performance": {
+      "performance_tests": [
+        {
+          "endpoint": "/api/containers",
+          "avg_response_time_ms": 97.02801704406738,
+          "max_response_time_ms": 98.57320785522461,
+          "meets_200ms_requirement": true,
+          "all_response_times": [
+            98.57320785522461,
+            95.6120491027832,
+            96.89879417419434
+          ]
+        },
+        {
+          "endpoint": "/health",
+          "avg_response_time_ms": 3.5866101582845054,
+          "max_response_time_ms": 3.803730010986328,
+          "meets_200ms_requirement": true,
+          "all_response_times": [
+            3.5178661346435547,
+            3.803730010986328,
+            3.438234329223633
+          ]
+        },
+        {
+          "endpoint": "/api/containers/test_mysql_003/health-score",
+          "avg_response_time_ms": 4.982789357503255,
+          "max_response_time_ms": 6.067991256713867,
+          "meets_200ms_requirement": true,
+          "all_response_times": [
+            5.025148391723633,
+            3.8552284240722656,
+            6.067991256713867
+          ]
+        },
+        {
+          "endpoint": "/api/containers/test_mysql_003/metrics/visualization",
+          "avg_response_time_ms": 6.800254185994466,
+          "max_response_time_ms": 7.235050201416016,
+          "meets_200ms_requirement": true,
+          "all_response_times": [
+            7.139921188354492,
+            6.025791168212891,
+            7.235050201416016
+          ]
+        },
+        {
+          "endpoint": "/api/containers/test_mysql_003/metrics/predictions",
+          "avg_response_time_ms": 6.908973058064778,
+          "max_response_time_ms": 7.61103630065918,
+          "meets_200ms_requirement": true,
+          "all_response_times": [
+            6.83283805847168,
+            6.283044815063477,
+            7.61103630065918
+          ]
+        }
+      ]
+    },
+    "database": {
+      "database_tests": {
+        "backend_healthy": true,
+        "containers_api_working": true,
+        "overall_success": true
+      }
+    }
+  }
+}

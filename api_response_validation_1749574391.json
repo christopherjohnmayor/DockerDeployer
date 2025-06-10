@@ -1,0 +1,70 @@
+{
+  "timestamp": 1749574391,
+  "overall_status": "\u2705 EXCELLENT",
+  "overall_metrics": {
+    "avg_response_time": 3.25,
+    "success_rate": 100.0,
+    "under_200ms_percentage": 100.0,
+    "middleware_working_count": 3
+  },
+  "recommendation": "API response times meet production requirements",
+  "detailed_results": [
+    {
+      "url": "http://localhost:8000/docs",
+      "total_requests": 50,
+      "successful_requests": 50,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 0.9,
+        "max": 30.47,
+        "avg": 4.95,
+        "median": 2.98
+      },
+      "performance_analysis": {
+        "under_200ms": 50,
+        "under_200ms_percentage": 100.0,
+        "over_200ms": 0
+      },
+      "middleware_working": true
+    },
+    {
+      "url": "http://localhost:8000/openapi.json",
+      "total_requests": 50,
+      "successful_requests": 50,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 0.54,
+        "max": 4.45,
+        "avg": 2.38,
+        "median": 2.33
+      },
+      "performance_analysis": {
+        "under_200ms": 50,
+        "under_200ms_percentage": 100.0,
+        "over_200ms": 0
+      },
+      "middleware_working": true
+    },
+    {
+      "url": "http://localhost:8000/health",
+      "total_requests": 50,
+      "successful_requests": 50,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "response_times": {
+        "min": 0.57,
+        "max": 4.34,
+        "avg": 2.42,
+        "median": 2.47
+      },
+      "performance_analysis": {
+        "under_200ms": 50,
+        "under_200ms_percentage": 100.0,
+        "over_200ms": 0
+      },
+      "middleware_working": true
+    }
+  ]
+}

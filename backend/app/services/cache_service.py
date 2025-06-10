@@ -17,7 +17,7 @@ class CacheService:
     """Redis-based caching service with TTL support."""
 
     def __init__(
-        self, redis_url: str = "redis://localhost:6379", decode_responses: bool = True
+        self, redis_url: str = None, decode_responses: bool = True
     ):
         """
         Initialize cache service.
@@ -26,7 +26,8 @@ class CacheService:
             redis_url: Redis connection URL
             decode_responses: Whether to decode responses as strings
         """
-        self.redis_url = redis_url
+        import os
+        self.redis_url = redis_url or os.getenv("REDIS_URL", "redis://localhost:6379")
         self.decode_responses = decode_responses
         self._redis_client: Optional[redis.Redis] = None
         self._is_connected = False
@@ -298,7 +299,9 @@ async def get_cache_service() -> CacheService:
     """Get the global cache service instance."""
     global _cache_service
     if _cache_service is None:
-        _cache_service = CacheService()
+        import os
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+        _cache_service = CacheService(redis_url=redis_url)
         await _cache_service.connect()
     return _cache_service
 

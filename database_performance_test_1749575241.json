@@ -1,0 +1,324 @@
+{
+  "overall_status": "\u2705 EXCELLENT",
+  "recommendation": "Database performance meets production requirements",
+  "total_duration": 0.0035560131072998047,
+  "total_tests": 26,
+  "successful_tests": 26,
+  "success_rate": 100.0,
+  "overall_avg_time": 0.16,
+  "targets_met": 5,
+  "total_targets": 5,
+  "performance_targets": {
+    "avg_query_time_under_50ms": true,
+    "success_rate_over_90_percent": true,
+    "basic_queries_fast": true,
+    "search_queries_efficient": true,
+    "pagination_efficient": true
+  },
+  "test_suites": [
+    {
+      "test_type": "basic_queries",
+      "total_tests": 5,
+      "successful_tests": 5,
+      "avg_execution_time": 0.06,
+      "results": [
+        {
+          "test_name": "Count Users",
+          "execution_time_ms": 0.2,
+          "record_count": 103,
+          "success": true
+        },
+        {
+          "test_name": "Count Templates",
+          "execution_time_ms": 0.03,
+          "record_count": 1000,
+          "success": true
+        },
+        {
+          "test_name": "Count Reviews",
+          "execution_time_ms": 0.03,
+          "record_count": 5000,
+          "success": true
+        },
+        {
+          "test_name": "Count Categories",
+          "execution_time_ms": 0.01,
+          "record_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Count Template Versions",
+          "execution_time_ms": 0.02,
+          "record_count": 2037,
+          "success": true
+        }
+      ]
+    },
+    {
+      "test_type": "search_queries",
+      "total_tests": 5,
+      "successful_tests": 5,
+      "avg_execution_time": 0.35,
+      "results": [
+        {
+          "test_name": "Search Templates by Name",
+          "execution_time_ms": 0.1,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Filter by Category",
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Filter by Status",
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Complex Search with JOIN",
+          "execution_time_ms": 0.09,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Search with Reviews",
+          "execution_time_ms": 1.47,
+          "results_count": 10,
+          "success": true
+        }
+      ]
+    },
+    {
+      "test_type": "pagination_queries",
+      "total_tests": 16,
+      "successful_tests": 16,
+      "avg_execution_time": 0.07,
+      "results": [
+        {
+          "test_name": "Page 1 (size 10)",
+          "page_size": 10,
+          "page_number": 1,
+          "offset": 0,
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Page 5 (size 10)",
+          "page_size": 10,
+          "page_number": 5,
+          "offset": 40,
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Page 10 (size 10)",
+          "page_size": 10,
+          "page_number": 10,
+          "offset": 90,
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Page 20 (size 10)",
+          "page_size": 10,
+          "page_number": 20,
+          "offset": 190,
+          "execution_time_ms": 0.04,
+          "results_count": 10,
+          "success": true
+        },
+        {
+          "test_name": "Page 1 (size 25)",
+          "page_size": 25,
+          "page_number": 1,
+          "offset": 0,
+          "execution_time_ms": 0.06,
+          "results_count": 25,
+          "success": true
+        },
+        {
+          "test_name": "Page 5 (size 25)",
+          "page_size": 25,
+          "page_number": 5,
+          "offset": 100,
+          "execution_time_ms": 0.06,
+          "results_count": 25,
+          "success": true
+        },
+        {
+          "test_name": "Page 10 (size 25)",
+          "page_size": 25,
+          "page_number": 10,
+          "offset": 225,
+          "execution_time_ms": 0.06,
+          "results_count": 25,
+          "success": true
+        },
+        {
+          "test_name": "Page 20 (size 25)",
+          "page_size": 25,
+          "page_number": 20,
+          "offset": 475,
+          "execution_time_ms": 0.06,
+          "results_count": 25,
+          "success": true
+        },
+        {
+          "test_name": "Page 1 (size 50)",
+          "page_size": 50,
+          "page_number": 1,
+          "offset": 0,
+          "execution_time_ms": 0.08,
+          "results_count": 50,
+          "success": true
+        },
+        {
+          "test_name": "Page 5 (size 50)",
+          "page_size": 50,
+          "page_number": 5,
+          "offset": 200,
+          "execution_time_ms": 0.08,
+          "results_count": 50,
+          "success": true
+        },
+        {
+          "test_name": "Page 10 (size 50)",
+          "page_size": 50,
+          "page_number": 10,
+          "offset": 450,
+          "execution_time_ms": 0.08,
+          "results_count": 50,
+          "success": true
+        },
+        {
+          "test_name": "Page 20 (size 50)",
+          "page_size": 50,
+          "page_number": 20,
+          "offset": 950,
+          "execution_time_ms": 0.09,
+          "results_count": 50,
+          "success": true
+        },
+        {
+          "test_name": "Page 1 (size 100)",
+          "page_size": 100,
+          "page_number": 1,
+          "offset": 0,
+          "execution_time_ms": 0.17,
+          "results_count": 100,
+          "success": true
+        },
+        {
+          "test_name": "Page 5 (size 100)",
+          "page_size": 100,
+          "page_number": 5,
+          "offset": 400,
+          "execution_time_ms": 0.13,
+          "results_count": 100,
+          "success": true
+        },
+        {
+          "test_name": "Page 10 (size 100)",
+          "page_size": 100,
+          "page_number": 10,
+          "offset": 900,
+          "execution_time_ms": 0.13,
+          "results_count": 100,
+          "success": true
+        },
+        {
+          "test_name": "Page 20 (size 100)",
+          "page_size": 100,
+          "page_number": 20,
+          "offset": 1900,
+          "execution_time_ms": 0.03,
+          "results_count": 0,
+          "success": true
+        }
+      ]
+    },
+    {
+      "test_type": "index_effectiveness",
+      "execution_time_ms": 0.02,
+      "indexes_found": 17,
+      "index_details": [
+        [
+          "sqlite_autoindex_template_categories_1",
+          "template_categories"
+        ],
+        [
+          "sqlite_autoindex_template_reviews_1",
+          "template_reviews"
+        ],
+        [
+          "ix_template_categories_name",
+          "template_categories"
+        ],
+        [
+          "ix_template_categories_sort_order",
+          "template_categories"
+        ],
+        [
+          "ix_template_categories_is_active",
+          "template_categories"
+        ],
+        [
+          "ix_marketplace_templates_name",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_author_id",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_category_id",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_status",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_rating_avg",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_downloads",
+          "marketplace_templates"
+        ],
+        [
+          "ix_marketplace_templates_created_at",
+          "marketplace_templates"
+        ],
+        [
+          "ix_template_reviews_template_id",
+          "template_reviews"
+        ],
+        [
+          "ix_template_reviews_user_id",
+          "template_reviews"
+        ],
+        [
+          "ix_template_reviews_rating",
+          "template_reviews"
+        ],
+        [
+          "ix_template_versions_template_id",
+          "template_versions"
+        ],
+        [
+          "ix_template_versions_version_number",
+          "template_versions"
+        ]
+      ],
+      "success": true
+    }
+  ]
+}

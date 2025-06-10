@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rate Limiting Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 5px; }
+        .success { background-color: #d4edda; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; border: 1px solid #f5c6cb; }
+        .rate-limited { background-color: #fff3cd; border: 1px solid #ffeaa7; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>DockerDeployer Rate Limiting Test</h1>
+    <p>This test will verify if the container stats endpoint rate limiting is working.</p>
+    
+    <button onclick="testRateLimiting()">Test Rate Limiting</button>
+    <button onclick="clearResults()">Clear Results</button>
+    
+    <div id="results"></div>
+
+    <script>
+        async function testRateLimiting() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<h3>Testing Rate Limiting...</h3>';
+            
+            try {
+                // Step 1: Get authentication token
+                const loginResponse = await fetch('/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'admin', password: 'AdminPassword123' })
+                });
+                
+                if (!loginResponse.ok) {
+                    throw new Error(`Login failed: ${loginResponse.status}`);
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.access_token;
+                
+                resultsDiv.innerHTML += '<div class="result success">✅ Authentication successful</div>';
+                
+                // Step 2: Test the container stats endpoint
+                const headers = { 'Authorization': `Bearer ${token}` };
+                let successCount = 0;
+                let rateLimited = false;
+                
+                for (let i = 1; i <= 10; i++) {
+                    try {
+                        const response = await fetch('/api/containers/test-container/stats', { headers });
+                        
+                        const rateLimitHeaders = {
+                            limit: response.headers.get('X-RateLimit-Limit'),
+                            remaining: response.headers.get('X-RateLimit-Remaining'),
+                            reset: response.headers.get('X-RateLimit-Reset')
+                        };
+                        
+                        if (response.status === 429) {
+                            resultsDiv.innerHTML += `<div class="result rate-limited">⛔ Request ${i}: RATE LIMITED (429)<br>Headers: ${JSON.stringify(rateLimitHeaders)}</div>`;
+                            rateLimited = true;
+                            break;
+                        } else if (response.status === 404 || response.status === 200) {
+                            successCount++;
+                            resultsDiv.innerHTML += `<div class="result success">✅ Request ${i}: SUCCESS (${response.status}) - Remaining: ${rateLimitHeaders.remaining || 'N/A'}</div>`;
+                        } else {
+                            resultsDiv.innerHTML += `<div class="result error">❓ Request ${i}: UNEXPECTED (${response.status})</div>`;
+                        }
+                        
+                        // Small delay between requests
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        
+                    } catch (error) {
+                        resultsDiv.innerHTML += `<div class="result error">❌ Request ${i}: ERROR - ${error.message}</div>`;
+                        break;
+                    }
+                }
+                
+                // Step 3: Show final results
+                resultsDiv.innerHTML += '<h3>Final Results:</h3>';
+                resultsDiv.innerHTML += `<div class="result">✅ Successful requests: ${successCount}</div>`;
+                resultsDiv.innerHTML += `<div class="result">⛔ Rate limited: ${rateLimited ? 'YES' : 'NO'}</div>`;
+                
+                if (rateLimited) {
+                    resultsDiv.innerHTML += '<div class="result success"><h4>🎉 SUCCESS: Container stats endpoint rate limiting is WORKING!</h4><p>✅ Production deployment security requirement is MET!</p></div>';
+                } else {
+                    resultsDiv.innerHTML += '<div class="result error"><h4>❌ FAILURE: Container stats endpoint rate limiting is still BROKEN!</h4><p>🚫 Production deployment security requirement is NOT MET!</p></div>';
+                }
+                
+            } catch (error) {
+                resultsDiv.innerHTML += `<div class="result error">❌ Test failed: ${error.message}</div>`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

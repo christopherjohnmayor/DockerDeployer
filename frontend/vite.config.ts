@@ -23,7 +23,7 @@ export default defineConfig({
       "/api": {
         target: process.env.DOCKER_ENV
           ? "http://backend:8000"
-          : "http://localhost:8000",
+          : "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
         // rewrite: (path) => path.replace(/^\/api/, ''),
@@ -31,21 +31,21 @@ export default defineConfig({
       "/auth": {
         target: process.env.DOCKER_ENV
           ? "http://backend:8000"
-          : "http://localhost:8000",
+          : "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },
       "/nlp": {
         target: process.env.DOCKER_ENV
           ? "http://backend:8000"
-          : "http://localhost:8000",
+          : "http://127.0.0.1:8000",
         changeOrigin: true,
         secure: false,
       },
       "/ws": {
         target: process.env.DOCKER_ENV
           ? "ws://backend:8000"
-          : "ws://localhost:8000",
+          : "ws://127.0.0.1:8000",
         ws: true,
         changeOrigin: true,
       },

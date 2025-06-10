@@ -118,14 +118,65 @@ class DockerManager:
             container = self.client.containers.get(container_id)
 
             # Get container stats (non-streaming by default)
-            stats_generator = container.stats(stream=stream, decode=True)
-
             if stream:
+                # For streaming, return the generator
+                stats_generator = container.stats(stream=True, decode=True)
                 # Return the generator for streaming
                 return {"stats_stream": stats_generator}
             else:
-                # Get single stats snapshot
-                stats = next(stats_generator)
+                # For single snapshot, try different approaches based on Docker SDK version
+                try:
+                    # First try with stream=False (newer Docker SDK versions)
+                    raw_stats = container.stats(stream=False, decode=True)
+
+                    # If we get a dict directly, use it
+                    if isinstance(raw_stats, dict):
+                        stats = raw_stats
+                    # If we get bytes, parse JSON
+                    elif isinstance(raw_stats, bytes):
+                        import json
+                        stats = json.loads(raw_stats.decode('utf-8'))
+                    else:
+                        # If it's a generator or other iterable, get first result
+                        try:
+                            stats_result = next(iter(raw_stats))
+                            if isinstance(stats_result, bytes):
+                                import json
+                                stats = json.loads(stats_result.decode('utf-8'))
+                            else:
+                                stats = stats_result
+                        except (StopIteration, TypeError):
+                            return {"error": "No stats available for container"}
+
+                except Exception as stream_false_error:
+                    # Fallback to stream=True approach for older Docker SDK versions
+                    try:
+                        stats_generator = container.stats(stream=True, decode=True)
+
+                        # Check if it's actually a generator/iterator
+                        if hasattr(stats_generator, '__next__') or hasattr(stats_generator, 'next'):
+                            # It's a generator, get first result
+                            raw_stats = next(stats_generator)
+                            # Stop the generator to avoid hanging
+                            if hasattr(stats_generator, 'close'):
+                                stats_generator.close()
+                        else:
+                            # It's not a generator, use directly
+                            raw_stats = stats_generator
+
+                        # Parse JSON if it's bytes
+                        if isinstance(raw_stats, bytes):
+                            import json
+                            stats = json.loads(raw_stats.decode('utf-8'))
+                        else:
+                            stats = raw_stats
+
+                    except Exception as stream_true_error:
+                        logger.error(f"Both stream=False and stream=True failed for {container_id}. "
+                                   f"stream=False error: {stream_false_error}, "
+                                   f"stream=True error: {stream_true_error}")
+                        return {"error": f"Failed to get stats: {str(stream_true_error)}"}
+
                 return self._parse_container_stats(stats, container)
 
         except NotFound:
@@ -151,7 +202,14 @@ class DockerManager:
             container = self.client.containers.get(container_id)
             stats_generator = container.stats(stream=True, decode=True)
 
-            for stats in stats_generator:
+            for raw_stats in stats_generator:
+                # Parse JSON if it's bytes
+                if isinstance(raw_stats, bytes):
+                    import json
+                    stats = json.loads(raw_stats.decode('utf-8'))
+                else:
+                    stats = raw_stats
+
                 yield self._parse_container_stats(stats, container)
 
         except NotFound:

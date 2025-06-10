@@ -27,6 +27,8 @@ import ResetPassword from "./pages/ResetPassword";
 import UserManagement from "./pages/UserManagement";
 import Unauthorized from "./pages/Unauthorized";
 import MetricsVisualization from "./pages/MetricsVisualization";
+import Marketplace from "./pages/Marketplace";
+import MyTemplates from "./pages/MyTemplates";
 import AlertsManagement from "./components/AlertsManagement";
 import ProductionMonitoring from "./components/ProductionMonitoring";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -131,6 +133,26 @@ const App: React.FC = () => {
                     <ProtectedRoute>
                       <MainLayout>
                         <Templates />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/marketplace"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Marketplace />
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-templates"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <MyTemplates />
                       </MainLayout>
                     </ProtectedRoute>
                   }

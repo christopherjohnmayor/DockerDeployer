@@ -1,0 +1,125 @@
+{
+  "validation_success": true,
+  "performance_targets_met": false,
+  "rate_limiting_functional": false,
+  "security_score": 0.0,
+  "memory_optimization_stable": true,
+  "overall_production_ready": false,
+  "detailed_results": {
+    "load_testing": {
+      "concurrent_users": 5,
+      "total_requests": 60,
+      "successful_requests": 60,
+      "failed_requests": 0,
+      "success_rate": 100.0,
+      "total_time_seconds": 2.4724857807159424,
+      "requests_per_second": 24.267075858622803,
+      "response_times": {
+        "average_ms": 91.7356808980306,
+        "median_ms": 10.339021682739258,
+        "p95_ms": 460.4411005973816,
+        "max_ms": 464.3750190734863
+      },
+      "performance_targets": {
+        "avg_under_200ms": true,
+        "p95_under_200ms": false,
+        "max_under_200ms": false
+      }
+    },
+    "rate_limiting": {
+      "total_requests_made": 70,
+      "successful_requests": 70,
+      "rate_limited_requests": 0,
+      "rate_limiting_triggered": false,
+      "first_rate_limit_at_request": null
+    },
+    "security_headers": {
+      "/health": {
+        "status_code": 200,
+        "security_headers": {
+          "X-Content-Type-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-Frame-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-XSS-Protection": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Strict-Transport-Security": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Content-Security-Policy": {
+            "present": false,
+            "value": "Not Set"
+          }
+        },
+        "headers_score": 0
+      },
+      "/api/containers": {
+        "status_code": 200,
+        "security_headers": {
+          "X-Content-Type-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-Frame-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-XSS-Protection": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Strict-Transport-Security": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Content-Security-Policy": {
+            "present": false,
+            "value": "Not Set"
+          }
+        },
+        "headers_score": 0
+      },
+      "/api/containers/test_mysql_003/health-score": {
+        "status_code": 404,
+        "security_headers": {
+          "X-Content-Type-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-Frame-Options": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "X-XSS-Protection": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Strict-Transport-Security": {
+            "present": false,
+            "value": "Not Set"
+          },
+          "Content-Security-Policy": {
+            "present": false,
+            "value": "Not Set"
+          }
+        },
+        "headers_score": 0
+      }
+    },
+    "memory_optimization": {
+      "sustained_load_test": {
+        "total_requests": 20,
+        "average_response_time": 117.87439584732056,
+        "performance_degradation_percent": 6.338402608606013,
+        "memory_stable": true
+      }
+    }
+  }
+}

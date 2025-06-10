@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_admin_user, get_current_user
 from app.auth.router import router as auth_router
 from app.auth.user_management import router as user_management_router
+from app.marketplace.router import router as marketplace_router
+# from app.api.performance import router as performance_router
 from app.config.settings_manager import SettingsManager
 from app.db.database import get_db, init_db
 from app.db.models import User
@@ -27,6 +29,7 @@ from app.middleware.rate_limiting import (
     setup_rate_limiting,
 )
 from app.middleware.security import setup_security_middleware
+from app.middleware.performance_monitoring import PerformanceMonitoringMiddleware
 from app.services.metrics_service import MetricsService
 from app.services.container_metrics_visualization_service import ContainerMetricsVisualizationService
 from app.services.production_monitoring_service import ProductionMonitoringService
@@ -99,6 +102,14 @@ except Exception as e:
 # Set up security middleware
 setup_security_middleware(app)
 
+# Add performance monitoring middleware
+app.add_middleware(
+    PerformanceMonitoringMiddleware,
+    slow_request_threshold=200.0,  # 200ms threshold
+    collect_system_metrics=True,
+    system_metrics_interval=30.0  # Collect system metrics every 30 seconds
+)
+
 # Include routers
 app.include_router(
     auth_router,
@@ -119,6 +130,28 @@ app.include_router(
         403: {"description": "Forbidden - Admin privileges required"},
     },
 )
+
+app.include_router(
+    marketplace_router,
+    prefix="/api/marketplace",
+    tags=["Template Marketplace"],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden - Admin privileges required"},
+        429: {"description": "Rate limit exceeded"},
+    },
+)
+
+# app.include_router(
+#     performance_router,
+#     prefix="/api/performance",
+#     tags=["Performance Monitoring"],
+#     responses={
+#         401: {"description": "Unauthorized"},
+#         403: {"description": "Forbidden - Admin privileges required"},
+#         429: {"description": "Rate limit exceeded"},
+#     },
+# )
 
 
 # Custom Swagger UI with authentication support
@@ -1444,7 +1477,7 @@ async def get_enhanced_metrics_visualization(
                 detail=result["error"]
             )
 
-        return result
+        return JSONResponse(content=result)
 
     except HTTPException:
         raise
@@ -1500,7 +1533,7 @@ async def get_container_health_score(
                 detail=result["error"]
             )
 
-        return result
+        return JSONResponse(content=result)
 
     except Exception as e:
         raise HTTPException(
@@ -1558,7 +1591,7 @@ async def get_resource_usage_predictions(
                 detail=result["error"]
             )
 
-        return result
+        return JSONResponse(content=result)
 
     except HTTPException:
         raise
@@ -1604,7 +1637,7 @@ async def get_production_metrics(
                 detail=metrics["error"],
             )
 
-        return metrics
+        return JSONResponse(content=metrics)
 
     except HTTPException:
         raise
@@ -1647,7 +1680,7 @@ async def get_system_health_status(
                 detail=health_status.get("message", "Unknown error"),
             )
 
-        return health_status
+        return JSONResponse(content=health_status)
 
     except HTTPException:
         raise

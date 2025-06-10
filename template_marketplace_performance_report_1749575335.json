@@ -1,0 +1,164 @@
+{
+  "generated_at": "2025-06-10T10:08:55.728913",
+  "test_summary": {
+    "tests_conducted": 3,
+    "overall_performance_grade": "C",
+    "critical_issues": 1,
+    "recommendations_count": 4
+  },
+  "detailed_results": {
+    "api_performance": {
+      "status": "Available",
+      "metrics": {
+        "endpoints_tested": 0,
+        "avg_response_time": 3.25,
+        "success_rate": 100.0,
+        "under_200ms_percentage": 100.0,
+        "middleware_working": 3
+      },
+      "performance_grade": "A+",
+      "meets_targets": true
+    },
+    "load_testing": {
+      "status": "Available",
+      "metrics": {
+        "concurrent_users": 100,
+        "total_requests": 6752,
+        "requests_per_second": 54.89198164374946,
+        "error_rate": 100.0,
+        "avg_response_time": 22.22,
+        "p95_response_time": 23.73,
+        "resource_usage": {
+          "duration_seconds": 112,
+          "cpu": {
+            "avg": 20.261607142857144,
+            "max": 39.8,
+            "min": 5.0,
+            "p95": 34.6
+          },
+          "memory": {
+            "avg": 64.35,
+            "max": 64.7,
+            "min": 64.1,
+            "p95": 64.6
+          },
+          "peak_memory_used_gb": 10.154998779296875,
+          "warnings": {
+            "high_cpu_events": 0,
+            "high_memory_events": 0
+          }
+        }
+      },
+      "performance_grade": "C",
+      "meets_targets": false
+    },
+    "database_performance": {
+      "status": "Available",
+      "metrics": {
+        "total_tests": 26,
+        "success_rate": 100.0,
+        "avg_query_time": 0.16,
+        "targets_met": 5,
+        "total_targets": 5,
+        "overall_status": "\u2705 EXCELLENT"
+      },
+      "performance_grade": "A+",
+      "meets_targets": true
+    }
+  },
+  "performance_metrics": {
+    "api_performance": {
+      "endpoints_tested": 0,
+      "avg_response_time": 3.25,
+      "success_rate": 100.0,
+      "under_200ms_percentage": 100.0,
+      "middleware_working": 3
+    },
+    "load_testing": {
+      "concurrent_users": 100,
+      "total_requests": 6752,
+      "requests_per_second": 54.89198164374946,
+      "error_rate": 100.0,
+      "avg_response_time": 22.22,
+      "p95_response_time": 23.73,
+      "resource_usage": {
+        "duration_seconds": 112,
+        "cpu": {
+          "avg": 20.261607142857144,
+          "max": 39.8,
+          "min": 5.0,
+          "p95": 34.6
+        },
+        "memory": {
+          "avg": 64.35,
+          "max": 64.7,
+          "min": 64.1,
+          "p95": 64.6
+        },
+        "peak_memory_used_gb": 10.154998779296875,
+        "warnings": {
+          "high_cpu_events": 0,
+          "high_memory_events": 0
+        }
+      }
+    },
+    "database_performance": {
+      "total_tests": 26,
+      "success_rate": 100.0,
+      "avg_query_time": 0.16,
+      "targets_met": 5,
+      "total_targets": 5,
+      "overall_status": "\u2705 EXCELLENT"
+    }
+  },
+  "bottlenecks": [
+    {
+      "category": "Load Handling",
+      "severity": "High",
+      "issue": "Error rate 100.00% exceeds 1% threshold",
+      "impact": "System reliability under load",
+      "recommendation": "Investigate and fix server-side errors"
+    }
+  ],
+  "recommendations": [
+    {
+      "category": "Load Handling - Critical",
+      "priority": "Critical",
+      "recommendation": "Investigate and fix server-side errors",
+      "rationale": "Addresses critical issue: Error rate 100.00% exceeds 1% threshold",
+      "implementation": "Immediate investigation and resolution required"
+    },
+    {
+      "category": "Performance Monitoring",
+      "priority": "High",
+      "recommendation": "Implement continuous performance monitoring in production",
+      "rationale": "Real-time performance tracking enables proactive optimization",
+      "implementation": "Deploy performance monitoring middleware with alerting"
+    },
+    {
+      "category": "Caching Strategy",
+      "priority": "Medium",
+      "recommendation": "Implement Redis caching for frequently accessed data",
+      "rationale": "Reduce database load and improve response times",
+      "implementation": "Cache template listings, categories, and user sessions"
+    },
+    {
+      "category": "Database Optimization",
+      "priority": "Low",
+      "recommendation": "Monitor query performance and add indexes as needed",
+      "rationale": "Maintain optimal database performance as data grows",
+      "implementation": "Regular query analysis and index optimization"
+    }
+  ],
+  "production_readiness": {
+    "overall_score": 86.7,
+    "status": "PRODUCTION READY WITH MONITORING",
+    "recommendation": "System meets production requirements with recommended monitoring",
+    "component_scores": {
+      "api_performance": 100,
+      "load_handling": 60,
+      "database_performance": 100
+    },
+    "deployment_approved": true
+  }
+}

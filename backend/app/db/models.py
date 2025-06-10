@@ -14,8 +14,10 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Table,
+    Text,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -60,6 +62,8 @@ class User(Base):
     owned_teams = relationship("Team", back_populates="owner")
     tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")
     deployment_history = relationship("DeploymentHistory", back_populates="user")
+    authored_templates = relationship("MarketplaceTemplate", foreign_keys="MarketplaceTemplate.author_id", back_populates="author")
+    template_reviews = relationship("TemplateReview", back_populates="user")
 
 
 class Team(Base):
@@ -341,3 +345,109 @@ class ContainerPrediction(Base):
 
     # Status
     is_validated = Column(Boolean, default=False, nullable=False)
+
+
+class TemplateStatus(str, Enum):
+    """Template status enum for marketplace templates."""
+
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class MarketplaceTemplate(Base):
+    """Marketplace template model for storing community-contributed templates."""
+
+    __tablename__ = "marketplace_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    description = Column(Text, nullable=False)
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    category_id = Column(Integer, ForeignKey("template_categories.id"), nullable=False)
+    version = Column(String, default="1.0.0", nullable=False)
+    docker_compose_yaml = Column(Text, nullable=False)
+    status = Column(String, default=TemplateStatus.PENDING, nullable=False)
+    downloads = Column(Integer, default=0, nullable=False)
+    rating_avg = Column(Float, default=0.0, nullable=False)
+    rating_count = Column(Integer, default=0, nullable=False)
+    tags = Column(JSON, nullable=True)  # Array of tags as JSON
+
+    # Approval metadata
+    approved_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    rejection_reason = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    author = relationship("User", foreign_keys=[author_id], back_populates="authored_templates")
+    approver = relationship("User", foreign_keys=[approved_by])
+    category = relationship("TemplateCategory", back_populates="templates")
+    reviews = relationship("TemplateReview", back_populates="template", cascade="all, delete-orphan")
+    versions = relationship("TemplateVersion", back_populates="template", cascade="all, delete-orphan")
+
+
+class TemplateCategory(Base):
+    """Template category model for organizing marketplace templates."""
+
+    __tablename__ = "template_categories"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String, nullable=True)  # Icon name or URL
+    sort_order = Column(Integer, default=0, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    templates = relationship("MarketplaceTemplate", back_populates="category")
+
+
+class TemplateReview(Base):
+    """Template review model for user ratings and comments."""
+
+    __tablename__ = "template_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("marketplace_templates.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    rating = Column(Integer, nullable=False)  # 1-5 stars
+    comment = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    # Relationships
+    template = relationship("MarketplaceTemplate", back_populates="reviews")
+    user = relationship("User", back_populates="template_reviews")
+
+    # Constraints: One review per user per template
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
+
+
+class TemplateVersion(Base):
+    """Template version model for storing version history of marketplace templates."""
+
+    __tablename__ = "template_versions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    template_id = Column(Integer, ForeignKey("marketplace_templates.id"), nullable=False)
+    version_number = Column(String, nullable=False)
+    docker_compose_yaml = Column(Text, nullable=False)
+    changelog = Column(Text, nullable=True)
+
+    # Timestamps
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    # Relationships
+    template = relationship("MarketplaceTemplate", back_populates="versions")

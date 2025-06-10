@@ -378,6 +378,59 @@ def mock_git_manager():
     return mock_manager
 
 
+@pytest.fixture(scope="session", autouse=True)
+def global_docker_manager_patch():
+    """
+    Global patch for Docker manager to prevent real Docker daemon connections during tests.
+    This patches the DockerManager class itself, not just the dependency function.
+    """
+    from unittest.mock import patch, MagicMock
+
+    # Create a comprehensive mock Docker manager
+    def create_mock_docker_manager():
+        mock_manager = MagicMock()
+
+        # Setup mock container data
+        mock_container = {
+            "id": "test_container_id",
+            "name": "test_container",
+            "status": "running",
+            "image": ["test_image:latest"],
+            "ports": {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]},
+            "labels": {"app": "test"},
+        }
+
+        # Setup mock methods with comprehensive responses
+        mock_manager.list_containers.return_value = [mock_container]
+        mock_manager.start_container.return_value = {"status": "started", "id": "test_container_id"}
+        mock_manager.stop_container.return_value = {"status": "stopped", "id": "test_container_id"}
+        mock_manager.restart_container.return_value = {"status": "restarted", "id": "test_container_id"}
+        mock_manager.get_logs.return_value = {"id": "test_container_id", "logs": "Test logs output"}
+        mock_manager.health_check.return_value = {"status": "healthy"}
+        mock_manager.get_container_stats.return_value = {
+            "container_id": "test_container",
+            "container_name": "test_container_name",
+            "cpu_percent": 25.0,
+            "memory_usage": 134217728,  # 128MB
+            "memory_limit": 536870912,  # 512MB
+            "memory_percent": 25.0,
+            "network_rx": 1024,
+            "network_tx": 2048,
+            "block_read": 4096,
+            "block_write": 8192,
+            "timestamp": "2024-01-01T12:00:00",
+        }
+
+        return mock_manager
+
+    # Patch the DockerManager class constructor
+    with patch('docker_manager.manager.DockerManager', side_effect=create_mock_docker_manager):
+        yield
+
+
+
+
+
 def docker_available():
     """
     Check if Docker is available for testing.

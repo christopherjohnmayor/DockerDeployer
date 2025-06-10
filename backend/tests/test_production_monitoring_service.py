@@ -154,17 +154,31 @@ class TestProductionMonitoringService:
             assert "85.0%" in memory_alerts[0]["message"]
 
     @pytest.mark.asyncio
-    async def test_get_recent_alerts_with_slow_api(self, monitoring_service):
+    async def test_get_recent_alerts_with_slow_api(self, monitoring_service, mock_docker_manager):
         """Test alert generation for slow API responses."""
         # Set up slow response times
         monitoring_service.performance_cache["response_times"] = [600, 700, 800]  # Above 500ms threshold
 
-        alerts = await monitoring_service._get_recent_alerts()
+        # Mock the API performance metrics to return proper values
+        with patch.object(monitoring_service, '_get_api_performance_metrics') as mock_api_metrics, \
+             patch.object(monitoring_service, '_get_system_health_metrics') as mock_system_metrics, \
+             patch.object(monitoring_service, 'docker_manager', mock_docker_manager):
 
-        # Should have API response time alert
-        api_alerts = [alert for alert in alerts if "API response" in alert["message"]]
-        assert len(api_alerts) > 0
-        assert api_alerts[0]["type"] == "warning"
+            mock_api_metrics.return_value = {
+                "avg_response_time": 700.0,  # Above threshold
+                "error_rate": 2.0
+            }
+            mock_system_metrics.return_value = {
+                "cpu_usage": 50.0,
+                "memory_usage": 60.0
+            }
+
+            alerts = await monitoring_service._get_recent_alerts()
+
+            # Should have API response time alert
+            api_alerts = [alert for alert in alerts if "API response" in alert["message"]]
+            assert len(api_alerts) > 0
+            assert api_alerts[0]["type"] == "warning"
 
     def test_calculate_health_score_excellent(self, monitoring_service):
         """Test health score calculation for excellent performance."""

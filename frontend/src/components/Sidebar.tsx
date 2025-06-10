@@ -20,6 +20,8 @@ import SettingsIcon from "@mui/icons-material/Settings";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import MonitorHeartIcon from "@mui/icons-material/MonitorHeart";
+import StoreIcon from "@mui/icons-material/Store";
+import FolderIcon from "@mui/icons-material/Folder";
 import { useAuth } from "../hooks/useAuth";
 
 const drawerWidth = 220;
@@ -34,6 +36,8 @@ const Sidebar: React.FC = () => {
     { text: "Dashboard", icon: <DashboardIcon />, path: "/" },
     { text: "Containers", icon: <StorageIcon />, path: "/containers" },
     { text: "Templates", icon: <ListAltIcon />, path: "/templates" },
+    { text: "Marketplace", icon: <StoreIcon />, path: "/marketplace" },
+    { text: "My Templates", icon: <FolderIcon />, path: "/my-templates" },
     { text: "Logs", icon: <LayersIcon />, path: "/logs" },
     { text: "Metrics", icon: <AssessmentIcon />, path: "/metrics" },
     { text: "Alerts", icon: <NotificationsActiveIcon />, path: "/alerts" },

@@ -24,26 +24,36 @@ def get_user_id_or_ip(request: Request) -> str:
     Returns:
         User identifier for rate limiting
     """
+    print(f"DEBUG: get_user_id_or_ip called for {request.url.path}")
     try:
         # Try to get user ID from JWT token
         auth_header = request.headers.get("authorization")
+        print(f"DEBUG: Auth header present: {bool(auth_header)}")
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header[7:]
+            print(f"DEBUG: Token extracted: {token[:50]}...")
             # Import here to avoid circular imports
             from app.auth.jwt import decode_token
 
             try:
                 payload = decode_token(token)
                 user_id = payload.get("sub")
+                print(f"DEBUG: Decoded user_id: {user_id}")
                 if user_id:
-                    return f"user:{user_id}"
-            except Exception:
+                    rate_limit_key = f"user:{user_id}"
+                    print(f"DEBUG: Rate limit key: {rate_limit_key}")
+                    return rate_limit_key
+            except Exception as e:
+                print(f"DEBUG: Token decode failed: {e}")
                 pass  # Fall back to IP address
-    except Exception:
+    except Exception as e:
+        print(f"DEBUG: Auth header processing failed: {e}")
         pass
 
     # Fall back to IP address
-    return get_remote_address(request)
+    ip_address = get_remote_address(request)
+    print(f"DEBUG: Falling back to IP address: {ip_address}")
+    return ip_address
 
 
 def get_api_key_or_ip(request: Request) -> str:
@@ -78,6 +88,8 @@ limiter = Limiter(
     key_func=get_user_id_or_ip,
     storage_uri=storage_uri,
     default_limits=["1000/hour"],  # Default rate limit
+    headers_enabled=True,  # Enable rate limiting headers
+    swallow_errors=False,  # Don't swallow rate limiting errors
 )
 
 # Create API-specific limiter
@@ -101,20 +113,35 @@ def custom_rate_limit_exceeded_handler(
     Returns:
         HTTP response with rate limit information
     """
+    print(f"DEBUG: Rate limit exceeded handler called!")
+    print(f"DEBUG: User: {get_user_id_or_ip(request)}, Path: {request.url.path}")
+    print(f"DEBUG: Exception details: {exc.detail}")
     logger.warning(
         f"Rate limit exceeded for {get_user_id_or_ip(request)} "
         f"on {request.url.path}: {exc.detail}"
     )
+
+    # Extract available attributes from the exception
+    retry_after = getattr(exc, 'retry_after', 60)
+    # Ensure retry_after is not None
+    if retry_after is None:
+        retry_after = 60
+    limit = getattr(exc, 'limit', 'unknown')
+    remaining = getattr(exc, 'remaining', 0)
+    reset_time = getattr(exc, 'reset_time', '')
+    # Ensure reset_time is not None
+    if reset_time is None:
+        reset_time = ''
 
     response = Response(
         content=f'{{"detail": "Rate limit exceeded: {exc.detail}"}}',
         status_code=status.HTTP_429_TOO_MANY_REQUESTS,
         headers={
             "Content-Type": "application/json",
-            "Retry-After": str(exc.retry_after) if exc.retry_after else "60",
-            "X-RateLimit-Limit": str(exc.limit),
-            "X-RateLimit-Remaining": str(exc.remaining),
-            "X-RateLimit-Reset": str(exc.reset_time) if exc.reset_time else "",
+            "Retry-After": str(retry_after),
+            "X-RateLimit-Limit": str(limit),
+            "X-RateLimit-Remaining": str(remaining),
+            "X-RateLimit-Reset": str(reset_time),
         },
     )
 
@@ -134,7 +161,10 @@ def rate_limit_api(limit: str = "100/minute"):
 
 def rate_limit_metrics(limit: str = "60/minute"):
     """Rate limit for metrics endpoints (more frequent access expected)."""
-    return limiter.limit(limit)
+    print(f"DEBUG: rate_limit_metrics called with limit: {limit}")
+    decorator = limiter.limit(limit)
+    print(f"DEBUG: Created rate limit decorator: {decorator}")
+    return decorator
 
 
 def rate_limit_websocket(limit: str = "5/minute"):
@@ -241,12 +271,44 @@ def setup_rate_limiting(app):
     Args:
         app: FastAPI application instance
     """
-    # Add SlowAPI middleware
-    app.state.limiter = limiter
-    app.add_middleware(SlowAPIMiddleware)
-    app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+    # Write debug info to file for verification
+    with open("/tmp/rate_limiting_debug.log", "w") as f:
+        f.write(f"Rate limiting setup called at {os.getenv('HOSTNAME', 'unknown')}\n")
+        f.write(f"Storage URI: {storage_uri}\n")
+        f.write(f"TESTING env var: {os.getenv('TESTING')}\n")
+        f.write(f"DISABLE_RATE_LIMITING env var: {os.getenv('DISABLE_RATE_LIMITING')}\n")
+        f.write(f"Limiter object: {limiter}\n")
+        f.write(f"Limiter storage: {limiter._storage}\n")
 
-    logger.info("Rate limiting middleware configured")
+    print("DEBUG: Setting up rate limiting middleware")
+    print(f"DEBUG: Storage URI: {storage_uri}")
+    print(f"DEBUG: TESTING env var: {os.getenv('TESTING')}")
+    print(f"DEBUG: DISABLE_RATE_LIMITING env var: {os.getenv('DISABLE_RATE_LIMITING')}")
+    print(f"DEBUG: Limiter object: {limiter}")
+    print(f"DEBUG: Limiter storage: {limiter._storage}")
+
+    try:
+        # Add SlowAPI middleware - CRITICAL: This must be added BEFORE other middleware
+        app.state.limiter = limiter
+
+        # Add SlowAPI middleware with debug logging
+        app.add_middleware(SlowAPIMiddleware)
+
+        # Add debug logging by patching the middleware after it's added
+        print("DEBUG: SlowAPI middleware added to app")
+        app.add_exception_handler(RateLimitExceeded, custom_rate_limit_exceeded_handler)
+
+        print("DEBUG: Rate limiting middleware added successfully")
+        print(f"DEBUG: App state limiter: {app.state.limiter}")
+        logger.info("Rate limiting middleware configured")
+
+        with open("/tmp/rate_limiting_debug.log", "a") as f:
+            f.write("Rate limiting middleware setup completed successfully\n")
+    except Exception as e:
+        print(f"DEBUG: Error setting up rate limiting: {e}")
+        logger.error(f"Error setting up rate limiting: {e}")
+        with open("/tmp/rate_limiting_debug.log", "a") as f:
+            f.write(f"Error setting up rate limiting: {e}\n")
 
 
 # Utility functions for dynamic rate limiting

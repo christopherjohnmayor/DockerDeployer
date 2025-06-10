@@ -9,6 +9,8 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
     restart: unless-stopped
+    networks:
+      - dockerdeployer-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -24,6 +26,7 @@ services:
     container_name: dockerdeployer-backend
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:rw
+      - ./backend:/app:rw # Mount source code for hot reloading
       - db_data:/app/data
       - config_data:/app/config_repo
     env_file:
