@@ -17,7 +17,7 @@ import {
   Add as AddIcon,
 } from "@mui/icons-material";
 import { useApiCall } from "../../hooks/useApiCall";
-import { LoadingState } from "../LoadingState";
+import LoadingState from "../LoadingState";
 import ErrorDisplay from "../ErrorDisplay";
 import TemplateCard from "./TemplateCard";
 import TemplateSearch from "./TemplateSearch";
@@ -35,10 +35,10 @@ import { useAuth } from "../../hooks/useAuth";
 
 /**
  * Marketplace Home Component
- * 
+ *
  * Main browsing interface for the Template Marketplace.
  * Provides search, filtering, and browsing capabilities.
- * 
+ *
  * Features:
  * - Template search and filtering
  * - Grid/List view toggle
@@ -57,7 +57,9 @@ const MarketplaceHome: React.FC = () => {
     sort_by: "created_at",
     sort_order: "desc",
   });
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(
+    null
+  );
   const [showSubmissionForm, setShowSubmissionForm] = useState(false);
 
   // API calls
@@ -85,7 +87,7 @@ const MarketplaceHome: React.FC = () => {
   }, [loadTemplates, searchParams]);
 
   const handleSearch = (params: SearchParams) => {
-    setSearchParams(prev => ({
+    setSearchParams((prev) => ({
       ...prev,
       ...params,
       page: 1, // Reset to first page
@@ -93,7 +95,7 @@ const MarketplaceHome: React.FC = () => {
   };
 
   const handlePageChange = (_: React.ChangeEvent<unknown>, page: number) => {
-    setSearchParams(prev => ({
+    setSearchParams((prev) => ({
       ...prev,
       page,
     }));
@@ -143,7 +145,12 @@ const MarketplaceHome: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             Template Marketplace
@@ -152,7 +159,7 @@ const MarketplaceHome: React.FC = () => {
             Discover and share Docker Compose templates for quick deployments
           </Typography>
         </Box>
-        
+
         {user && (
           <Button
             variant="contained"
@@ -174,15 +181,18 @@ const MarketplaceHome: React.FC = () => {
       />
 
       {/* View controls and results info */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Typography variant="body2" color="text.secondary">
-          {templateData ? (
-            `Showing ${templateData.templates.length} of ${templateData.total} templates`
-          ) : (
-            "Loading templates..."
-          )}
+          {templateData
+            ? `Showing ${templateData.templates.length} of ${templateData.total} templates`
+            : "Loading templates..."}
         </Typography>
-        
+
         <ToggleButtonGroup
           value={viewMode}
           exclusive
@@ -246,7 +256,8 @@ const MarketplaceHome: React.FC = () => {
         </>
       ) : (
         <Alert severity="info" sx={{ mt: 3 }}>
-          No templates found matching your criteria. Try adjusting your search filters.
+          No templates found matching your criteria. Try adjusting your search
+          filters.
         </Alert>
       )}
 

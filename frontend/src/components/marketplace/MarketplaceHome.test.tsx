@@ -437,7 +437,10 @@ describe("MarketplaceHome", () => {
 
       renderMarketplaceHome();
 
-      fireEvent.click(screen.getByRole("button", { name: /submit template/i }));
+      const submitButtons = screen.getAllByRole("button", {
+        name: /submit template/i,
+      });
+      fireEvent.click(submitButtons[0]);
 
       await waitFor(() => {
         expect(
