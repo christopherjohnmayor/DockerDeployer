@@ -113,8 +113,8 @@ describe("AdminMarketplaceStats", () => {
       expect(screen.getByText("Total Reviews")).toBeInTheDocument();
       expect(screen.getByText("4.3")).toBeInTheDocument();
       expect(screen.getByText("Average Rating")).toBeInTheDocument();
-      expect(screen.getByText("2.5k")).toBeInTheDocument();
-      expect(screen.getByText("Total Downloads")).toBeInTheDocument();
+      expect(screen.getAllByText("2.5k")).toHaveLength(2); // Appears in both h4 and h5
+      expect(screen.getAllByText("Total Downloads")).toHaveLength(2); // Appears in both card and engagement section
     });
 
     it("renders template status overview", () => {
@@ -128,9 +128,9 @@ describe("AdminMarketplaceStats", () => {
       expect(screen.getByText("Template Status Overview")).toBeInTheDocument();
       expect(screen.getByText("Approval Rate")).toBeInTheDocument();
       expect(screen.getByText("80%")).toBeInTheDocument(); // 120/150 = 80%
-      expect(screen.getByText("120")).toBeInTheDocument(); // Approved
-      expect(screen.getByText("Approved")).toBeInTheDocument();
-      expect(screen.getByText("20")).toBeInTheDocument(); // Pending
+      expect(screen.getAllByText("120")).toHaveLength(2); // Approved (appears in both h4 and h6)
+      expect(screen.getAllByText("Approved")).toHaveLength(2); // Appears in both card and status section
+      expect(screen.getAllByText("20")).toHaveLength(2); // Pending (appears in both h4 and h6)
       expect(screen.getByText("Pending")).toBeInTheDocument();
       expect(screen.getByText("10")).toBeInTheDocument(); // Rejected
       expect(screen.getByText("Rejected")).toBeInTheDocument();
@@ -289,7 +289,7 @@ describe("AdminMarketplaceStats", () => {
       renderWithTheme(<AdminMarketplaceStats />);
 
       expect(screen.getByText("1.5k")).toBeInTheDocument(); // total_templates
-      expect(screen.getByText("25.0k")).toBeInTheDocument(); // total_downloads
+      expect(screen.getAllByText("25.0k")).toHaveLength(2); // total_downloads appears in both h4 and h5
       expect(screen.getByText("4.5k")).toBeInTheDocument(); // total_reviews
     });
 
@@ -309,8 +309,8 @@ describe("AdminMarketplaceStats", () => {
       renderWithTheme(<AdminMarketplaceStats />);
 
       expect(screen.getByText("50")).toBeInTheDocument(); // total_templates
-      expect(screen.getByText("250")).toBeInTheDocument(); // total_downloads
-      expect(screen.getByText("45")).toBeInTheDocument(); // total_reviews
+      expect(screen.getAllByText("250")).toHaveLength(2); // total_downloads appears in both h4 and h5
+      expect(screen.getAllByText("45")).toHaveLength(2); // total_reviews appears in both h5 and chip
     });
 
     it("formats average rating correctly", () => {
@@ -371,7 +371,7 @@ describe("AdminMarketplaceStats", () => {
 
       renderWithTheme(<AdminMarketplaceStats />);
 
-      expect(screen.getByText("0%")).toBeInTheDocument(); // Approval rate
+      expect(screen.getAllByText("0%")).toHaveLength(2); // Approval rate and pending rate both 0%
     });
 
     it("handles 100% approval rate", () => {
@@ -469,8 +469,9 @@ describe("AdminMarketplaceStats", () => {
 
       renderWithTheme(<AdminMarketplaceStats />);
 
-      expect(screen.getByText("1000.0k")).toBeInTheDocument(); // total_templates
-      expect(screen.getByText("1500.0k")).toBeInTheDocument(); // total_downloads
+      // Use getAllByText for numbers that appear multiple times
+      expect(screen.getAllByText("1000.0k")).toHaveLength(1); // total_templates
+      expect(screen.getAllByText("1500.0k")).toHaveLength(2); // total_downloads appears in both h4 and h5
     });
 
     it("handles single category", () => {
@@ -532,8 +533,8 @@ describe("AdminMarketplaceStats", () => {
 
       renderWithTheme(<AdminMarketplaceStats />);
 
-      // Check for pending rate display
-      expect(screen.getByText("Pending Rate")).toBeInTheDocument();
+      // Check for pending review display (appears in both card and progress section)
+      expect(screen.getAllByText("Pending Review")).toHaveLength(2);
       expect(screen.getByText("13%")).toBeInTheDocument();
     });
   });

@@ -26,10 +26,10 @@ import { fetchMarketplaceStats, MarketplaceStats } from "../../api/marketplace";
 
 /**
  * Admin Marketplace Stats Component
- * 
+ *
  * Displays comprehensive marketplace analytics and statistics for administrators.
  * Provides insights into template submissions, approvals, and user engagement.
- * 
+ *
  * Features:
  * - Key metrics overview (templates, reviews, downloads)
  * - Category distribution analysis
@@ -115,7 +115,11 @@ const AdminMarketplaceStats: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography variant="h4" color="primary">
                     {formatNumber(stats.total_templates)}
@@ -133,7 +137,11 @@ const AdminMarketplaceStats: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography variant="h4" color="success.main">
                     {formatNumber(stats.approved_templates)}
@@ -151,7 +159,11 @@ const AdminMarketplaceStats: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography variant="h4" color="warning.main">
                     {formatNumber(stats.pending_templates)}
@@ -169,7 +181,11 @@ const AdminMarketplaceStats: React.FC = () => {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography variant="h4" color="info.main">
                     {formatNumber(stats.total_downloads)}
@@ -192,9 +208,14 @@ const AdminMarketplaceStats: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Template Status Overview
             </Typography>
-            
+
             <Box mb={3}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+              >
                 <Typography variant="body2">Approval Rate</Typography>
                 <Typography variant="body2" fontWeight="bold">
                   {getApprovalRate()}%
@@ -209,7 +230,12 @@ const AdminMarketplaceStats: React.FC = () => {
             </Box>
 
             <Box mb={3}>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+              <Box
+                display="flex"
+                justifyContent="space-between"
+                alignItems="center"
+                mb={1}
+              >
                 <Typography variant="body2">Pending Review</Typography>
                 <Typography variant="body2" fontWeight="bold">
                   {getPendingRate()}%
@@ -258,7 +284,7 @@ const AdminMarketplaceStats: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               User Engagement
             </Typography>
-            
+
             <Box display="flex" alignItems="center" gap={2} mb={2}>
               <StarIcon color="warning" />
               <Box>
@@ -297,7 +323,7 @@ const AdminMarketplaceStats: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Popular Categories
             </Typography>
-            
+
             {stats.top_categories.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 No categories data available
@@ -329,7 +355,7 @@ const AdminMarketplaceStats: React.FC = () => {
             <Typography variant="h6" gutterBottom>
               Recent Activity
             </Typography>
-            
+
             {stats.recent_activity.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
                 No recent activity
@@ -341,7 +367,13 @@ const AdminMarketplaceStats: React.FC = () => {
                     <ListItemText
                       primary={activity.template_name}
                       secondary={
-                        <Box display="flex" alignItems="center" gap={1}>
+                        <span
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
                           <Chip
                             label={activity.action}
                             size="small"
@@ -349,14 +381,14 @@ const AdminMarketplaceStats: React.FC = () => {
                               activity.action === "approved"
                                 ? "success"
                                 : activity.action === "rejected"
-                                ? "error"
-                                : "default"
+                                  ? "error"
+                                  : "default"
                             }
                           />
-                          <Typography variant="caption">
+                          <Typography variant="caption" component="span">
                             {formatDate(activity.timestamp)}
                           </Typography>
-                        </Box>
+                        </span>
                       }
                     />
                   </ListItem>
