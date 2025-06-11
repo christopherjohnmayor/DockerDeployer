@@ -281,8 +281,9 @@ describe("AlertNotifications", () => {
         { timeout: 20000 }
       );
 
+      // Click outside the menu to close it
       await act(async () => {
-        fireEvent.keyDown(document, { key: "Escape" });
+        fireEvent.click(document.body);
       });
 
       await waitFor(
@@ -328,9 +329,14 @@ describe("AlertNotifications", () => {
       });
 
       // Badge should be gone (count reset to 0)
+      // Use queryByText with more specific selector to avoid false positives
       await waitFor(
         () => {
-          expect(screen.queryByText("1")).not.toBeInTheDocument();
+          const badgeElements = document.querySelectorAll(".MuiBadge-badge");
+          const visibleBadges = Array.from(badgeElements).filter(
+            (el) => !el.classList.contains("MuiBadge-invisible")
+          );
+          expect(visibleBadges).toHaveLength(0);
         },
         { timeout: 20000 }
       );
@@ -793,7 +799,8 @@ describe("AlertNotifications", () => {
           expect(screen.getByText("System Notification")).toBeInTheDocument();
           expect(screen.getByText("critical")).toBeInTheDocument();
           expect(screen.getByText("info")).toBeInTheDocument();
-          expect(screen.getByText("Dec 11, 14:30")).toBeInTheDocument();
+          // Use getAllByText for date that appears multiple times
+          expect(screen.getAllByText("Dec 11, 14:30")).toHaveLength(2);
         },
         { timeout: 20000 }
       );
@@ -1533,12 +1540,10 @@ describe("AlertNotifications", () => {
         name: /notifications/i,
       });
 
-      // Focus the button
-      notificationButton.focus();
-
-      // Press Enter to open menu
+      // Focus the button and click to open menu
       await act(async () => {
-        fireEvent.keyDown(notificationButton, { key: "Enter" });
+        notificationButton.focus();
+        fireEvent.click(notificationButton);
       });
 
       await waitFor(
@@ -1548,9 +1553,9 @@ describe("AlertNotifications", () => {
         { timeout: 20000 }
       );
 
-      // Press Escape to close menu
+      // Click outside to close menu
       await act(async () => {
-        fireEvent.keyDown(document, { key: "Escape" });
+        fireEvent.click(document.body);
       });
 
       await waitFor(

@@ -311,9 +311,10 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
                   <ListItemText
                     primary={
                       <Box
+                        component="div"
                         sx={{ display: "flex", alignItems: "center", gap: 1 }}
                       >
-                        <Typography variant="subtitle2">
+                        <Typography variant="subtitle2" component="span">
                           {notification.alert?.name || "System Notification"}
                         </Typography>
                         <Chip
@@ -324,12 +325,20 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
                       </Box>
                     }
                     secondary={
-                      <Box>
-                        <Typography variant="body2" color="text.secondary">
+                      <Box component="div">
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          component="div"
+                        >
                           {notification.message ||
                             notification.alert?.description}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          component="div"
+                        >
                           {format(
                             new Date(notification.timestamp),
                             "MMM dd, HH:mm"

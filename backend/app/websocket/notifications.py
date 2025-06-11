@@ -91,7 +91,7 @@ async def websocket_notifications_endpoint(
         logger.error(f"WebSocket connection error: {e}")
     finally:
         await connection_manager.disconnect(websocket)
-        if redis_client:
+        if 'redis_client' in locals() and redis_client:
             await redis_client.close()
 
 
