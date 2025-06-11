@@ -57,7 +57,16 @@ global.URL.createObjectURL = jest.fn(() => "mock-blob-url");
 global.URL.revokeObjectURL = jest.fn();
 
 const renderWithTheme = (component: React.ReactElement) => {
-  return render(<ThemeProvider theme={theme}>{component}</ThemeProvider>);
+  // Create a proper DOM container for React 18 createRoot
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+
+  const result = render(
+    <ThemeProvider theme={theme}>{component}</ThemeProvider>,
+    { container }
+  );
+
+  return result;
 };
 
 const mockTemplate = {
@@ -104,20 +113,44 @@ describe("AdminTemplateQueue", () => {
     jest.clearAllMocks();
     mockUseApiCall.mockReturnValue(mockApiCallReturn);
 
-    // Mock document methods
+    // Mock document methods for download functionality
+    const originalCreateElement = document.createElement.bind(document);
+    const originalAppendChild = document.body.appendChild.bind(document.body);
+    const originalRemoveChild = document.body.removeChild.bind(document.body);
+
     document.createElement = jest.fn().mockImplementation((tagName) => {
-      const element = {
-        tagName: tagName.toUpperCase(),
-        href: "",
-        download: "",
-        click: jest.fn(),
-        style: {},
-      };
-      return element;
+      if (tagName === "a") {
+        // Return a proper DOM element for downloads
+        const element = originalCreateElement("a");
+        element.click = jest.fn();
+        return element;
+      }
+      // Use real createElement for other elements
+      return originalCreateElement(tagName);
     });
 
-    document.body.appendChild = jest.fn();
-    document.body.removeChild = jest.fn();
+    // Mock appendChild and removeChild to handle download elements
+    document.body.appendChild = jest.fn().mockImplementation((node) => {
+      if (node.tagName === "A") {
+        // Don't actually append download links to avoid DOM issues
+        return node;
+      }
+      return originalAppendChild(node);
+    });
+
+    document.body.removeChild = jest.fn().mockImplementation((node) => {
+      if (node.tagName === "A") {
+        // Don't actually remove download links to avoid DOM issues
+        return node;
+      }
+      return originalRemoveChild(node);
+    });
+  });
+
+  afterEach(() => {
+    // Clean up any DOM containers created during tests
+    document.body.innerHTML = "";
+    jest.restoreAllMocks();
   });
 
   describe("Component Rendering", () => {
@@ -1004,7 +1037,11 @@ describe("AdminTemplateQueue", () => {
         fireEvent.change(reasonInput, { target: { value: "   " } });
       });
 
-      const rejectTemplateButton = screen.getByText("Reject Template");
+      // Use getAllByText since "Reject Template" appears in both dialog title and button
+      const rejectTemplateElements = screen.getAllByText("Reject Template");
+      const rejectTemplateButton = rejectTemplateElements.find(
+        (el) => el.tagName === "BUTTON"
+      );
       expect(rejectTemplateButton).toBeDisabled();
     });
 
