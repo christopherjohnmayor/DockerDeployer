@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -72,6 +72,13 @@ const TemplateSubmissionForm: React.FC<TemplateSubmissionFormProps> = ({
     tags: [],
     version: "1.0.0",
   });
+
+  // Set default category when categories are available
+  useEffect(() => {
+    if (categories.length > 0 && formData.category_id === 0) {
+      setFormData((prev) => ({ ...prev, category_id: categories[0].id }));
+    }
+  }, [categories, formData.category_id]);
   const [newTag, setNewTag] = useState("");
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
@@ -304,6 +311,7 @@ const TemplateSubmissionForm: React.FC<TemplateSubmissionFormProps> = ({
               fullWidth
               multiline
               rows={20}
+              label="Docker Compose YAML"
               value={formData.docker_compose_yaml}
               onChange={(e) =>
                 setFormData((prev) => ({

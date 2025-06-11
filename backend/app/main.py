@@ -102,14 +102,13 @@ except Exception as e:
 # Set up security middleware
 setup_security_middleware(app)
 
-# Add performance monitoring middleware (disabled in testing)
-if not os.getenv("TESTING") == "true":
-    app.add_middleware(
-        PerformanceMonitoringMiddleware,
-        slow_request_threshold=200.0,  # 200ms threshold
-        collect_system_metrics=True,
-        system_metrics_interval=30.0  # Collect system metrics every 30 seconds
-    )
+# Add performance monitoring middleware
+app.add_middleware(
+    PerformanceMonitoringMiddleware,
+    slow_request_threshold=200.0,  # 200ms threshold
+    collect_system_metrics=True,
+    system_metrics_interval=30.0  # Collect system metrics every 30 seconds
+)
 
 # Include routers
 app.include_router(
@@ -1108,7 +1107,7 @@ async def get_container_details(
         503: {"description": "Docker service unavailable"},
     },
 )
-@rate_limit_metrics("60/minute")
+@rate_limit_metrics("30/minute")
 async def get_container_stats(
     request: Request,
     response: Response,
@@ -2470,3 +2469,261 @@ async def websocket_multiple_metrics_stream(
             pass
         finally:
             await websocket.close()
+
+
+@app.websocket("/ws/metrics/enhanced/{container_id}")
+async def websocket_enhanced_metrics_stream(
+    websocket: WebSocket,
+    container_id: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Enhanced WebSocket endpoint for real-time container metrics streaming with health scores and predictions.
+
+    Connect to this endpoint to receive enhanced real-time metrics updates including:
+    - Real-time CPU, memory, network, and disk I/O metrics
+    - Container health scores (0-100 scale)
+    - Performance trend analysis
+    - Resource usage predictions
+    - Alert notifications
+
+    Authentication is required via token in query parameters:
+    ws://localhost:8000/ws/metrics/enhanced/{container_id}?token=your_jwt_token
+    """
+    import json
+    import asyncio
+    from app.auth.dependencies import get_current_user_websocket
+
+    try:
+        # Authenticate user
+        user = await get_current_user_websocket(websocket, db)
+        if not user:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        await websocket.accept()
+
+        # Send connection confirmation
+        await websocket.send_text(
+            json.dumps({
+                "type": "connection_established",
+                "container_id": container_id,
+                "timestamp": datetime.utcnow().isoformat(),
+                "message": f"Connected to enhanced metrics stream for container {container_id}",
+                "features": ["real_time_metrics", "health_scores", "predictions", "alerts"]
+            })
+        )
+
+        # Get services
+        metrics_service = get_metrics_service(db)
+        visualization_service = get_visualization_service(db)
+
+        # Start real-time collection
+        await metrics_service.start_real_time_collection(container_id, interval_seconds=3)
+
+        # Stream enhanced metrics
+        while True:
+            try:
+                # Get current metrics
+                current_metrics = metrics_service.get_current_metrics(container_id)
+
+                # Get health score
+                health_score = visualization_service.calculate_health_score(container_id, hours=1)
+
+                # Get predictions (if enough data available)
+                predictions = visualization_service.predict_resource_usage(container_id, hours=6, prediction_hours=1)
+
+                # Prepare enhanced metrics payload
+                enhanced_data = {
+                    "type": "enhanced_metrics_update",
+                    "container_id": container_id,
+                    "timestamp": datetime.utcnow().isoformat(),
+                    "current_metrics": current_metrics if "error" not in current_metrics else None,
+                    "health_score": health_score if "error" not in health_score else None,
+                    "predictions": predictions if "error" not in predictions else None,
+                    "status": "healthy" if "error" not in current_metrics else "error"
+                }
+
+                # Send enhanced metrics update
+                await websocket.send_text(json.dumps(enhanced_data))
+
+                # Wait before next update (3 seconds for enhanced stream)
+                await asyncio.sleep(3)
+
+            except Exception as e:
+                await websocket.send_text(
+                    json.dumps({
+                        "type": "error",
+                        "container_id": container_id,
+                        "timestamp": datetime.utcnow().isoformat(),
+                        "message": f"Error getting enhanced metrics: {str(e)}",
+                    })
+                )
+                await asyncio.sleep(5)
+
+    except Exception as e:
+        try:
+            await websocket.send_text(
+                json.dumps({
+                    "type": "connection_error",
+                    "message": f"Enhanced metrics connection error: {str(e)}",
+                })
+            )
+        except:
+            pass
+    finally:
+        # Stop real-time collection
+        try:
+            metrics_service = get_metrics_service(db)
+            await metrics_service.stop_real_time_collection(container_id)
+        except:
+            pass
+        try:
+            await websocket.close()
+        except:
+            pass
+
+
+# --- Real-time Metrics Collection Endpoints ---
+
+
+@app.post(
+    "/api/containers/{container_id}/metrics/real-time/start",
+    tags=["Metrics"],
+    summary="Start real-time metrics collection",
+    description="Start real-time metrics collection for a specific container with configurable interval.",
+    responses={
+        200: {"description": "Real-time collection started successfully"},
+        400: {"description": "Invalid request or collection already active"},
+        401: {"description": "Unauthorized - Authentication required"},
+        404: {"description": "Container not found"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("10/minute")
+async def start_real_time_metrics_collection(
+    request: Request,
+    container_id: str,
+    interval_seconds: int = Query(5, description="Collection interval in seconds (1-60)", ge=1, le=60),
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Start real-time metrics collection for a container.
+
+    This endpoint initiates continuous metrics collection at the specified interval.
+    Useful for monitoring critical containers or during troubleshooting.
+
+    Args:
+        container_id: Container ID or name
+        interval_seconds: Collection interval in seconds (1-60, default: 5)
+
+    Requires authentication.
+    """
+    try:
+        result = await metrics_service.start_real_time_collection(container_id, interval_seconds)
+
+        if "error" in result:
+            if "already active" in result["error"]:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=result["error"]
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=result["error"]
+                )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to start real-time collection: {str(e)}",
+        )
+
+
+@app.post(
+    "/api/containers/{container_id}/metrics/real-time/stop",
+    tags=["Metrics"],
+    summary="Stop real-time metrics collection",
+    description="Stop real-time metrics collection for a specific container.",
+    responses={
+        200: {"description": "Real-time collection stopped successfully"},
+        400: {"description": "No active collection for container"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("10/minute")
+async def stop_real_time_metrics_collection(
+    request: Request,
+    container_id: str,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Stop real-time metrics collection for a container.
+
+    Args:
+        container_id: Container ID or name
+
+    Requires authentication.
+    """
+    try:
+        result = await metrics_service.stop_real_time_collection(container_id)
+
+        if "error" in result:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=result["error"]
+            )
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to stop real-time collection: {str(e)}",
+        )
+
+
+@app.get(
+    "/api/metrics/real-time/status",
+    tags=["Metrics"],
+    summary="Get real-time collection status",
+    description="Get status of all active real-time metrics collection streams.",
+    responses={
+        200: {"description": "Real-time collection status"},
+        401: {"description": "Unauthorized - Authentication required"},
+        500: {"description": "Internal server error"},
+    },
+)
+@rate_limit_metrics("30/minute")
+async def get_real_time_collection_status(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    metrics_service: MetricsService = Depends(get_metrics_service),
+):
+    """
+    Get status of all active real-time metrics collection streams.
+
+    Returns information about active streams, their intervals, and status.
+    Useful for monitoring and debugging real-time collection.
+
+    Requires authentication.
+    """
+    try:
+        status_info = metrics_service.get_real_time_streams_status()
+        return status_info
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get real-time collection status: {str(e)}",
+        )

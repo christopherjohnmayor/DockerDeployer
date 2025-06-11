@@ -37,7 +37,21 @@ import { useWebSocket } from "../hooks/useWebSocket";
 import MetricsChart from "./MetricsChart";
 import RealTimeMetrics from "./RealTimeMetrics";
 import MetricsHistory from "./MetricsHistory";
+import ContainerHealthScoreVisualization from "./ContainerHealthScoreVisualization";
+import PerformancePredictionCharts from "./PerformancePredictionCharts";
+import RealTimeMetricsGrid from "./RealTimeMetricsGrid";
+import HistoricalTrendsVisualization from "./HistoricalTrendsVisualization";
+import MultiContainerComparisonView from "./MultiContainerComparisonView";
 import { formatBytes, formatPercentage } from "../utils/formatters";
+import { getEnhancedMetricsWebSocketUrl } from "../utils/websocket";
+import {
+  EnhancedMetricsData,
+  HealthScore,
+  PredictionData,
+  ContainerMetrics,
+  TimeRange,
+} from "../types/enhancedMetrics";
+import { EnhancedMetricsWebSocketHandler } from "../utils/enhancedWebSocket";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -108,8 +122,24 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
   const theme = useTheme();
   const [activeTab, setActiveTab] = useState(0);
   const [realTimeEnabled, setRealTimeEnabled] = useState(autoRefresh);
-  const [selectedTimeRange, setSelectedTimeRange] = useState("1h");
+  const [selectedTimeRange, setSelectedTimeRange] = useState<TimeRange>("24h");
   const [selectedMetric, setSelectedMetric] = useState("cpu_percent");
+  const [selectedContainers, setSelectedContainers] = useState<string[]>(
+    containerId ? [containerId] : []
+  );
+
+  // Enhanced metrics state
+  const [enhancedMetricsData, setEnhancedMetricsData] =
+    useState<EnhancedMetricsData | null>(null);
+  const [healthScore, setHealthScore] = useState<HealthScore | null>(null);
+  const [predictionData, setPredictionData] = useState<PredictionData | null>(
+    null
+  );
+  const [currentMetrics, setCurrentMetrics] = useState<ContainerMetrics | null>(
+    null
+  );
+  const [enhancedLoading, setEnhancedLoading] = useState(false);
+  const [enhancedError, setEnhancedError] = useState<string | null>(null);
 
   // API calls
   const {
@@ -145,6 +175,57 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
     },
     onError: (error) => {
       console.error("Dashboard WebSocket error:", error);
+    },
+  });
+
+  // Enhanced WebSocket for container-specific metrics
+  const enhancedWsUrl =
+    realTimeEnabled && containerId
+      ? getEnhancedMetricsWebSocketUrl(
+          containerId,
+          localStorage.getItem("token") || ""
+        )
+      : null;
+
+  const { isConnected: enhancedConnected } = useWebSocket(enhancedWsUrl, {
+    onMessage: (event) => {
+      try {
+        const messageHandler = new EnhancedMetricsWebSocketHandler({
+          onMetricsUpdate: (data: EnhancedMetricsData) => {
+            setEnhancedMetricsData(data);
+            setCurrentMetrics(data.current_metrics);
+            setEnhancedError(null);
+          },
+          onHealthScoreUpdate: (data: HealthScore) => {
+            setHealthScore(data);
+          },
+          onPredictionUpdate: (data: PredictionData) => {
+            setPredictionData(data);
+          },
+          onAlertTriggered: (data: any) => {
+            console.log("Alert triggered:", data);
+          },
+          onConnectionStatus: (status: string) => {
+            console.log("Enhanced WebSocket status:", status);
+          },
+          onError: (error: string) => {
+            setEnhancedError(error);
+          },
+        });
+        messageHandler.handleMessage(event);
+      } catch (error) {
+        console.error("Error parsing enhanced WebSocket message:", error);
+        setEnhancedError("WebSocket communication error");
+      }
+    },
+    onConnect: () => {
+      console.log("Connected to enhanced metrics WebSocket");
+      setEnhancedLoading(false);
+    },
+    onError: (error) => {
+      console.error("Enhanced WebSocket error:", error);
+      setEnhancedError("Failed to connect to enhanced metrics");
+      setEnhancedLoading(false);
     },
   });
 
@@ -310,7 +391,8 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
           value={activeTab}
           onChange={handleTabChange}
           aria-label="metrics dashboard tabs"
-          variant="fullWidth"
+          variant="scrollable"
+          scrollButtons="auto"
         >
           <Tab
             icon={<DashboardIcon />}
@@ -329,6 +411,24 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
             label="History"
             id="metrics-tab-2"
             aria-controls="metrics-tabpanel-2"
+          />
+          <Tab
+            icon={<SettingsIcon />}
+            label="Health Score"
+            id="metrics-tab-3"
+            aria-controls="metrics-tabpanel-3"
+          />
+          <Tab
+            icon={<TimelineIcon />}
+            label="Predictions"
+            id="metrics-tab-4"
+            aria-controls="metrics-tabpanel-4"
+          />
+          <Tab
+            icon={<AssessmentIcon />}
+            label="Comparison"
+            id="metrics-tab-5"
+            aria-controls="metrics-tabpanel-5"
           />
         </Tabs>
       </Paper>
@@ -426,11 +526,16 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
       <TabPanel value={activeTab} index={1}>
         {/* Real-time Tab */}
         {containerId ? (
-          <RealTimeMetrics
+          <RealTimeMetricsGrid
             containerId={containerId}
             containerName={containerName}
+            metricsData={currentMetrics}
             autoRefresh={realTimeEnabled}
-            refreshInterval={5000}
+            refreshInterval={3000}
+            onRefresh={handleRefresh}
+            onAutoRefreshToggle={setRealTimeEnabled}
+            loading={enhancedLoading}
+            error={enhancedError}
           />
         ) : (
           <Alert severity="info">
@@ -442,17 +547,132 @@ const MetricsDashboard: React.FC<MetricsDashboardProps> = ({
       <TabPanel value={activeTab} index={2}>
         {/* History Tab */}
         {containerId ? (
-          <MetricsHistory
+          <HistoricalTrendsVisualization
             containerId={containerId}
             containerName={containerName}
-            timeRange={selectedTimeRange}
-            autoRefresh={realTimeEnabled}
+            initialTimeRange={selectedTimeRange}
+            onTimeRangeChange={setSelectedTimeRange}
+            height={500}
+            showBrush={true}
+            showThresholds={true}
           />
         ) : (
           <Alert severity="info">
             Select a container to view historical metrics.
           </Alert>
         )}
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={3}>
+        {/* Health Score Tab */}
+        {containerId ? (
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <ContainerHealthScoreVisualization
+                healthScore={healthScore}
+                loading={enhancedLoading}
+                error={enhancedError}
+                showRecommendations={true}
+                showComponentBreakdown={true}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              {enhancedMetricsData && (
+                <Paper elevation={2} sx={{ p: 2, height: 400 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Health Trends
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Health score trends and analysis will be displayed here.
+                    This could include historical health score data over time.
+                  </Typography>
+                </Paper>
+              )}
+            </Grid>
+          </Grid>
+        ) : (
+          <Alert severity="info">
+            Select a container to view health score analysis.
+          </Alert>
+        )}
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={4}>
+        {/* Predictions Tab */}
+        {containerId ? (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <PerformancePredictionCharts
+                predictionData={predictionData}
+                loading={enhancedLoading}
+                error={enhancedError}
+                showConfidenceIntervals={true}
+                showThresholds={true}
+                height={400}
+              />
+            </Grid>
+            {predictionData && (
+              <Grid item xs={12}>
+                <Paper elevation={2} sx={{ p: 2 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Prediction Summary
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">
+                        Prediction Horizon
+                      </Typography>
+                      <Typography variant="h6">
+                        {predictionData.prediction_horizon_hours}h
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">
+                        Confidence Level
+                      </Typography>
+                      <Typography variant="h6">
+                        {Math.round(predictionData.confidence_level * 100)}%
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">
+                        Model Accuracy
+                      </Typography>
+                      <Typography variant="h6">
+                        {Math.round(predictionData.model_accuracy * 100)}%
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Typography variant="body2" color="text.secondary">
+                        Last Updated
+                      </Typography>
+                      <Typography variant="body2">
+                        {new Date(
+                          predictionData.prediction_timestamp
+                        ).toLocaleTimeString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </Paper>
+              </Grid>
+            )}
+          </Grid>
+        ) : (
+          <Alert severity="info">
+            Select a container to view performance predictions.
+          </Alert>
+        )}
+      </TabPanel>
+
+      <TabPanel value={activeTab} index={5}>
+        {/* Comparison Tab */}
+        <MultiContainerComparisonView
+          selectedContainers={selectedContainers}
+          onContainerSelectionChange={setSelectedContainers}
+          height={600}
+          showRanking={true}
+          showRadarChart={true}
+        />
       </TabPanel>
     </Box>
   );

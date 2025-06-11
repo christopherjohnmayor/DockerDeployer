@@ -64,3 +64,16 @@ export const getNotificationWebSocketUrl = (
 export const getMetricsWebSocketUrl = (token: string): string => {
   return getWebSocketUrl("/ws/metrics/multiple", token);
 };
+
+/**
+ * Get WebSocket URL for enhanced metrics with health scores and predictions
+ * @param containerId - Container ID for enhanced metrics
+ * @param token - Authentication token
+ * @returns WebSocket URL for enhanced metrics
+ */
+export const getEnhancedMetricsWebSocketUrl = (
+  containerId: string,
+  token: string
+): string => {
+  return getWebSocketUrl(`/ws/metrics/enhanced/${containerId}`, token);
+};

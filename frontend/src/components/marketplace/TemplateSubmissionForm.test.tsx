@@ -499,7 +499,7 @@ describe("TemplateSubmissionForm", () => {
     fireEvent.click(nextButton);
 
     await waitFor(() => {
-      expect(screen.getByText(/Docker Compose YAML/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Docker Compose YAML/)[0]).toBeInTheDocument();
     });
   }
 

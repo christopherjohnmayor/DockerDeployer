@@ -9,13 +9,15 @@ This service handles:
 """
 
 import logging
+import asyncio
+import json
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from app.db.models import ContainerMetrics, MetricsAlert, User
+from app.db.models import ContainerMetrics, MetricsAlert, User, ContainerMetricsHistory, ContainerHealthScore, ContainerPrediction
 from docker_manager.manager import DockerManager
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,7 @@ class MetricsService:
     def __init__(self, db: Session, docker_manager: DockerManager):
         self.db = db
         self.docker_manager = docker_manager
+        self._real_time_streams = {}  # Track active real-time streams
 
     def collect_and_store_metrics(self, container_id: str) -> Dict[str, Any]:
         """
@@ -813,3 +816,131 @@ class MetricsService:
 
         except Exception as e:
             logger.error(f"Error in alert notification system: {e}")
+
+    # --- Real-time Data Collection Methods ---
+
+    async def start_real_time_collection(self, container_id: str, interval_seconds: int = 5) -> Dict[str, Any]:
+        """
+        Start real-time metrics collection for a container.
+
+        Args:
+            container_id: Container ID or name
+            interval_seconds: Collection interval in seconds (default: 5)
+
+        Returns:
+            Dictionary containing stream information or error
+        """
+        try:
+            if container_id in self._real_time_streams:
+                return {"error": f"Real-time collection already active for container {container_id}"}
+
+            # Create collection task
+            task = asyncio.create_task(
+                self._real_time_collection_loop(container_id, interval_seconds)
+            )
+
+            self._real_time_streams[container_id] = {
+                "task": task,
+                "interval": interval_seconds,
+                "started_at": datetime.utcnow().isoformat(),
+                "status": "active"
+            }
+
+            logger.info(f"Started real-time collection for container {container_id}")
+            return {
+                "container_id": container_id,
+                "status": "started",
+                "interval_seconds": interval_seconds,
+                "started_at": self._real_time_streams[container_id]["started_at"]
+            }
+
+        except Exception as e:
+            logger.error(f"Error starting real-time collection for container {container_id}: {e}")
+            return {"error": f"Failed to start real-time collection: {str(e)}"}
+
+    async def stop_real_time_collection(self, container_id: str) -> Dict[str, Any]:
+        """
+        Stop real-time metrics collection for a container.
+
+        Args:
+            container_id: Container ID or name
+
+        Returns:
+            Dictionary containing stop information or error
+        """
+        try:
+            if container_id not in self._real_time_streams:
+                return {"error": f"No active real-time collection for container {container_id}"}
+
+            # Cancel the task
+            stream_info = self._real_time_streams[container_id]
+            stream_info["task"].cancel()
+
+            try:
+                await stream_info["task"]
+            except asyncio.CancelledError:
+                pass
+
+            # Remove from active streams
+            del self._real_time_streams[container_id]
+
+            logger.info(f"Stopped real-time collection for container {container_id}")
+            return {
+                "container_id": container_id,
+                "status": "stopped",
+                "stopped_at": datetime.utcnow().isoformat()
+            }
+
+        except Exception as e:
+            logger.error(f"Error stopping real-time collection for container {container_id}: {e}")
+            return {"error": f"Failed to stop real-time collection: {str(e)}"}
+
+    async def _real_time_collection_loop(self, container_id: str, interval_seconds: int):
+        """
+        Internal loop for real-time metrics collection.
+
+        Args:
+            container_id: Container ID or name
+            interval_seconds: Collection interval in seconds
+        """
+        try:
+            while True:
+                # Collect and store metrics
+                result = self.collect_and_store_metrics(container_id)
+
+                if "error" in result:
+                    logger.warning(f"Error collecting metrics for {container_id}: {result['error']}")
+
+                # Wait for next collection
+                await asyncio.sleep(interval_seconds)
+
+        except asyncio.CancelledError:
+            logger.info(f"Real-time collection cancelled for container {container_id}")
+            raise
+        except Exception as e:
+            logger.error(f"Error in real-time collection loop for container {container_id}: {e}")
+            # Mark stream as failed
+            if container_id in self._real_time_streams:
+                self._real_time_streams[container_id]["status"] = "failed"
+                self._real_time_streams[container_id]["error"] = str(e)
+
+    def get_real_time_streams_status(self) -> Dict[str, Any]:
+        """
+        Get status of all active real-time streams.
+
+        Returns:
+            Dictionary containing stream status information
+        """
+        return {
+            "active_streams": len(self._real_time_streams),
+            "streams": {
+                container_id: {
+                    "interval": info["interval"],
+                    "started_at": info["started_at"],
+                    "status": info["status"],
+                    "error": info.get("error")
+                }
+                for container_id, info in self._real_time_streams.items()
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
