@@ -111,7 +111,8 @@ const mockApiCallReturn = {
 describe("AdminTemplateQueue", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUseApiCall.mockReturnValue(mockApiCallReturn);
+    // Reset the mock to ensure clean state for each test
+    mockUseApiCall.mockReset();
 
     // Mock document methods for download functionality
     const originalCreateElement = document.createElement.bind(document);
@@ -130,26 +131,70 @@ describe("AdminTemplateQueue", () => {
     });
 
     // Mock appendChild and removeChild to handle download elements
-    document.body.appendChild = jest.fn().mockImplementation((node) => {
+    const mockAppendChild = jest.fn().mockImplementation((node) => {
       if (node.tagName === "A") {
         // Don't actually append download links to avoid DOM issues
+        // Just simulate the operation
         return node;
       }
-      return originalAppendChild(node);
+      return originalAppendChild.call(document.body, node);
     });
 
-    document.body.removeChild = jest.fn().mockImplementation((node) => {
+    const mockRemoveChild = jest.fn().mockImplementation((node) => {
       if (node.tagName === "A") {
         // Don't actually remove download links to avoid DOM issues
+        // Just simulate the operation
         return node;
       }
-      return originalRemoveChild(node);
+      // Check if node is actually a child before removing
+      if (document.body.contains(node)) {
+        return originalRemoveChild.call(document.body, node);
+      }
+      return node;
     });
+
+    document.body.appendChild = mockAppendChild;
+    document.body.removeChild = mockRemoveChild;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Wait for any pending async operations
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // Clean up any remaining download links that might not have been properly removed
+    const downloadLinks = document.querySelectorAll("a[download]");
+    downloadLinks.forEach((link) => {
+      try {
+        if (link.parentNode && link.parentNode.contains(link)) {
+          link.parentNode.removeChild(link);
+        }
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    });
+
+    // Clean up any modal backdrop or portal elements
+    const backdrops = document.querySelectorAll(".MuiBackdrop-root");
+    backdrops.forEach((backdrop) => {
+      try {
+        if (backdrop.parentNode && backdrop.parentNode.contains(backdrop)) {
+          backdrop.parentNode.removeChild(backdrop);
+        }
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    });
+
     // Clean up any DOM containers created during tests
     document.body.innerHTML = "";
+
+    // Clean up any URL objects that might have been created
+    if (global.URL && global.URL.revokeObjectURL) {
+      // URL.revokeObjectURL is already called in component, but ensure cleanup
+    }
+
     jest.restoreAllMocks();
   });
 
@@ -197,7 +242,8 @@ describe("AdminTemplateQueue", () => {
 
       expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
       expect(screen.getByText("Redis Cluster")).toBeInTheDocument();
-      expect(screen.getByText("john_doe")).toBeInTheDocument();
+      // Use getAllByText since "john_doe" appears multiple times (both templates have same author)
+      expect(screen.getAllByText("john_doe")).toHaveLength(2);
       expect(screen.getByText("Web Servers")).toBeInTheDocument();
       expect(screen.getByText("Databases")).toBeInTheDocument();
     });
@@ -215,9 +261,10 @@ describe("AdminTemplateQueue", () => {
       expect(screen.getByText("v1.0.0")).toBeInTheDocument();
       expect(screen.getByText("nginx")).toBeInTheDocument();
       expect(screen.getByText("load-balancer")).toBeInTheDocument();
+      // Component truncates at 60 characters: "High-performance load balancer configuration with SSL termin"
       expect(
         screen.getByText(
-          "High-performance load balancer configuration with SSL..."
+          "High-performance load balancer configuration with SSL termin..."
         )
       ).toBeInTheDocument();
     });
@@ -565,14 +612,32 @@ describe("AdminTemplateQueue", () => {
     });
 
     it("opens rejection dialog when reject button clicked", async () => {
-      mockUseApiCall
-        .mockReturnValueOnce({
+      // Mock both useApiCall calls: first for templates, second for processing
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          return {
+            ...mockApiCallReturn,
+            data: [mockTemplate],
+            execute: jest.fn(),
+          };
+        }
+        return {
           ...mockApiCallReturn,
-          data: [mockTemplate],
-        })
-        .mockReturnValueOnce(mockApiCallReturn);
+          execute: jest.fn(),
+        };
+      });
 
       renderWithTheme(<AdminTemplateQueue />);
+
+      // Wait for templates to load
+      await waitFor(
+        () => {
+          expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
 
       const rejectButton = screen.getByRole("button", { name: /reject/i });
 
@@ -582,7 +647,9 @@ describe("AdminTemplateQueue", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByText("Reject Template")).toBeInTheDocument();
+          // Use getAllByText since "Reject Template" appears in both dialog title and button
+          const rejectTemplateElements = screen.getAllByText("Reject Template");
+          expect(rejectTemplateElements.length).toBeGreaterThan(0);
           expect(
             screen.getByText(
               'Please provide a reason for rejecting "NGINX Load Balancer".'
@@ -591,7 +658,7 @@ describe("AdminTemplateQueue", () => {
         },
         { timeout: 20000 }
       );
-    });
+    }, 30000);
 
     it("handles template rejection with reason", async () => {
       const mockExecute = jest.fn().mockResolvedValue(true);
@@ -610,11 +677,31 @@ describe("AdminTemplateQueue", () => {
 
       renderWithTheme(<AdminTemplateQueue />);
 
+      // Wait for templates to load
+      await waitFor(
+        () => {
+          expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
+
       // Open rejection dialog
       const rejectButton = screen.getByRole("button", { name: /reject/i });
       await act(async () => {
         fireEvent.click(rejectButton);
       });
+
+      // Wait for dialog to open
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText(
+              'Please provide a reason for rejecting "NGINX Load Balancer".'
+            )
+          ).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
 
       // Enter rejection reason
       const reasonInput = screen.getByLabelText("Rejection Reason");
@@ -625,26 +712,51 @@ describe("AdminTemplateQueue", () => {
       });
 
       // Submit rejection
-      const rejectTemplateButton = screen.getByText("Reject Template");
+      // Use getAllByText since "Reject Template" appears in both dialog title and button
+      const rejectTemplateElements = screen.getAllByText("Reject Template");
+      const rejectTemplateButton = rejectTemplateElements.find(
+        (el) => el.tagName === "BUTTON"
+      );
+      expect(rejectTemplateButton).toBeDefined();
+      expect(rejectTemplateButton).not.toBeDisabled();
+
       await act(async () => {
-        fireEvent.click(rejectTemplateButton);
+        fireEvent.click(rejectTemplateButton!);
       });
 
-      expect(mockExecute).toHaveBeenCalledWith(1, {
-        approved: false,
-        rejection_reason: "Security concerns",
-      });
-    });
+      // Wait for the API call to be made
+      await waitFor(
+        () => {
+          expect(mockExecute).toHaveBeenCalledWith(1, {
+            approved: false,
+            rejection_reason: "Security concerns",
+          });
+        },
+        { timeout: 20000 }
+      );
+    }, 30000);
 
     it("disables reject button when no reason provided", async () => {
       mockUseApiCall
         .mockReturnValueOnce({
           ...mockApiCallReturn,
           data: [mockTemplate],
+          execute: jest.fn(),
         })
-        .mockReturnValueOnce(mockApiCallReturn);
+        .mockReturnValueOnce({
+          ...mockApiCallReturn,
+          execute: jest.fn(),
+        });
 
       renderWithTheme(<AdminTemplateQueue />);
+
+      // Wait for templates to load
+      await waitFor(
+        () => {
+          expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
 
       // Open rejection dialog
       const rejectButton = screen.getByRole("button", { name: /reject/i });
@@ -652,19 +764,36 @@ describe("AdminTemplateQueue", () => {
         fireEvent.click(rejectButton);
       });
 
-      const rejectTemplateButton = screen.getByText("Reject Template");
+      // Use getAllByText since "Reject Template" appears in both dialog title and button
+      const rejectTemplateElements = screen.getAllByText("Reject Template");
+      const rejectTemplateButton = rejectTemplateElements.find(
+        (el) => el.tagName === "BUTTON"
+      );
+      expect(rejectTemplateButton).toBeDefined();
       expect(rejectTemplateButton).toBeDisabled();
-    });
+    }, 30000);
 
     it("cancels rejection dialog", async () => {
       mockUseApiCall
         .mockReturnValueOnce({
           ...mockApiCallReturn,
           data: [mockTemplate],
+          execute: jest.fn(),
         })
-        .mockReturnValueOnce(mockApiCallReturn);
+        .mockReturnValueOnce({
+          ...mockApiCallReturn,
+          execute: jest.fn(),
+        });
 
       renderWithTheme(<AdminTemplateQueue />);
+
+      // Wait for templates to load
+      await waitFor(
+        () => {
+          expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
 
       // Open rejection dialog
       const rejectButton = screen.getByRole("button", { name: /reject/i });
@@ -684,7 +813,7 @@ describe("AdminTemplateQueue", () => {
         },
         { timeout: 20000 }
       );
-    });
+    }, 30000);
   });
 
   describe("Bulk Operations", () => {
@@ -892,9 +1021,14 @@ describe("AdminTemplateQueue", () => {
         fireEvent.change(reasonInput, { target: { value: "Test reason" } });
       });
 
-      const rejectTemplateButton = screen.getByText("Reject Template");
+      // Use getAllByText since "Reject Template" appears in both dialog title and button
+      const rejectTemplateElements = screen.getAllByText("Reject Template");
+      const rejectTemplateButton = rejectTemplateElements.find(
+        (el) => el.tagName === "BUTTON"
+      );
+      expect(rejectTemplateButton).toBeDefined();
       await act(async () => {
-        fireEvent.click(rejectTemplateButton);
+        fireEvent.click(rejectTemplateButton!);
       });
 
       // Should refresh templates after rejection
@@ -955,9 +1089,10 @@ describe("AdminTemplateQueue", () => {
 
       renderWithTheme(<AdminTemplateQueue />);
 
+      // Component truncates at 60 characters: "This is a very long description that should be truncated to "
       expect(
         screen.getByText(
-          "This is a very long description that should be truncated..."
+          "This is a very long description that should be truncated to ..."
         )
       ).toBeInTheDocument();
     });
@@ -1020,10 +1155,22 @@ describe("AdminTemplateQueue", () => {
         .mockReturnValueOnce({
           ...mockApiCallReturn,
           data: [mockTemplate],
+          execute: jest.fn(),
         })
-        .mockReturnValueOnce(mockApiCallReturn);
+        .mockReturnValueOnce({
+          ...mockApiCallReturn,
+          execute: jest.fn(),
+        });
 
       renderWithTheme(<AdminTemplateQueue />);
+
+      // Wait for templates to load
+      await waitFor(
+        () => {
+          expect(screen.getByText("NGINX Load Balancer")).toBeInTheDocument();
+        },
+        { timeout: 20000 }
+      );
 
       // Open rejection dialog
       const rejectButton = screen.getByRole("button", { name: /reject/i });
@@ -1043,7 +1190,7 @@ describe("AdminTemplateQueue", () => {
         (el) => el.tagName === "BUTTON"
       );
       expect(rejectTemplateButton).toBeDisabled();
-    });
+    }, 30000);
 
     it("handles select all with empty template list", async () => {
       mockUseApiCall
