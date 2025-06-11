@@ -224,7 +224,7 @@ const TemplateSubmissionForm: React.FC<TemplateSubmissionFormProps> = ({
             <FormControl fullWidth error={!!validationErrors.category_id}>
               <InputLabel>Category *</InputLabel>
               <Select
-                value={formData.category_id}
+                value={formData.category_id || ""}
                 label="Category *"
                 onChange={(e) =>
                   setFormData((prev) => ({

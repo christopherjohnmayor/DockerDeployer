@@ -105,18 +105,18 @@ describe("TemplateSubmissionForm", () => {
 
       expect(screen.getByLabelText(/template name/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toBeInTheDocument(); // Category select
       expect(screen.getByLabelText(/version/i)).toBeInTheDocument();
     });
 
     test("renders category options", async () => {
       renderTemplateSubmissionForm();
 
-      const categorySelect = screen.getByLabelText(/category/i);
+      const categorySelect = screen.getByRole("combobox");
       fireEvent.mouseDown(categorySelect);
 
       await waitFor(() => {
-        expect(screen.getByText("Web Servers")).toBeInTheDocument();
+        expect(screen.getAllByText("Web Servers")).toHaveLength(2); // Select value + menu item
         expect(screen.getByText("Databases")).toBeInTheDocument();
       });
     });
@@ -195,7 +195,8 @@ describe("TemplateSubmissionForm", () => {
     });
 
     test("shows validation error for missing category", async () => {
-      renderTemplateSubmissionForm();
+      // Render with empty categories to test validation
+      renderTemplateSubmissionForm({ categories: [] });
 
       const nameInput = screen.getByLabelText(/template name/i);
       fireEvent.change(nameInput, { target: { value: "Test Template" } });
@@ -231,7 +232,9 @@ describe("TemplateSubmissionForm", () => {
       fireEvent.mouseDown(categorySelect);
 
       await waitFor(() => {
-        fireEvent.click(screen.getByText("Web Servers"));
+        // Use getAllByText and click the menu item (not the select value)
+        const webServerOptions = screen.getAllByText("Web Servers");
+        fireEvent.click(webServerOptions[webServerOptions.length - 1]);
       });
 
       const versionInput = screen.getByLabelText(/version/i);
@@ -476,27 +479,32 @@ describe("TemplateSubmissionForm", () => {
 
   // Helper functions
   async function fillBasicInfoAndProceed() {
-    const nameInput = screen.getByLabelText(/template name/i);
-    fireEvent.change(nameInput, { target: { value: "Test Template" } });
+    await act(async () => {
+      const nameInput = screen.getByLabelText(/template name/i);
+      fireEvent.change(nameInput, { target: { value: "Test Template" } });
 
-    const descInput = screen.getByLabelText(/description/i);
-    fireEvent.change(descInput, {
-      target: { value: "A test template description" },
+      const descInput = screen.getByLabelText(/description/i);
+      fireEvent.change(descInput, {
+        target: { value: "A test template description" },
+      });
+
+      // Find the category select by its role (there's only one combobox)
+      const categorySelect = screen.getByRole("combobox");
+      fireEvent.mouseDown(categorySelect);
+
+      await waitFor(() => {
+        // Use getAllByText and click the menu item (not the select value)
+        const webServerOptions = screen.getAllByText("Web Servers");
+        // Click the menu item (usually the last one in the list)
+        fireEvent.click(webServerOptions[webServerOptions.length - 1]);
+      });
+
+      const versionInput = screen.getByLabelText(/version/i);
+      fireEvent.change(versionInput, { target: { value: "1.0.0" } });
+
+      const nextButton = screen.getByRole("button", { name: /next/i });
+      fireEvent.click(nextButton);
     });
-
-    // Find the category select by its role (there's only one combobox)
-    const categorySelect = screen.getByRole("combobox");
-    fireEvent.mouseDown(categorySelect);
-
-    await waitFor(() => {
-      fireEvent.click(screen.getByText("Web Servers"));
-    });
-
-    const versionInput = screen.getByLabelText(/version/i);
-    fireEvent.change(versionInput, { target: { value: "1.0.0" } });
-
-    const nextButton = screen.getByRole("button", { name: /next/i });
-    fireEvent.click(nextButton);
 
     await waitFor(() => {
       expect(screen.getAllByText(/Docker Compose YAML/)[0]).toBeInTheDocument();
@@ -504,15 +512,19 @@ describe("TemplateSubmissionForm", () => {
   }
 
   async function fillDockerComposeAndProceed() {
-    const yamlInput = screen.getByRole("textbox", {
-      name: /docker compose yaml/i,
-    });
-    fireEvent.change(yamlInput, {
-      target: { value: "version: '3.8'\nservices:\n  app:\n    image: nginx" },
-    });
+    await act(async () => {
+      const yamlInput = screen.getByRole("textbox", {
+        name: /docker compose yaml/i,
+      });
+      fireEvent.change(yamlInput, {
+        target: {
+          value: "version: '3.8'\nservices:\n  app:\n    image: nginx",
+        },
+      });
 
-    const nextButton = screen.getByRole("button", { name: /next/i });
-    fireEvent.click(nextButton);
+      const nextButton = screen.getByRole("button", { name: /next/i });
+      fireEvent.click(nextButton);
+    });
 
     await waitFor(() => {
       expect(screen.getByText("Review Your Template")).toBeInTheDocument();

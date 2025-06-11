@@ -248,11 +248,12 @@ describe("TemplateCard", () => {
     test("formats creation date correctly", () => {
       renderTemplateCard();
 
-      // Check that a date is displayed (more flexible pattern to handle different locales)
-      // The date should contain "2023" and some form of "1" for January 1st
-      const datePattern = /2023|1\/1|Jan.*1|1.*Jan/;
-      const dateElements = screen.getAllByText(datePattern);
-      expect(dateElements.length).toBeGreaterThan(0);
+      // Check that a date is displayed by looking for the formatted date
+      // The date "2023-01-01T00:00:00Z" should be formatted and displayed
+      const expectedDate = new Date(
+        "2023-01-01T00:00:00Z"
+      ).toLocaleDateString();
+      expect(screen.getByText(expectedDate)).toBeInTheDocument();
     });
   });
 
