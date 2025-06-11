@@ -281,9 +281,12 @@ describe("AlertNotifications", () => {
         { timeout: 20000 }
       );
 
-      // Click outside the menu to close it
+      // Click on the backdrop to close menu
+      const backdrop = document.querySelector(".MuiBackdrop-root");
       await act(async () => {
-        fireEvent.click(document.body);
+        if (backdrop) {
+          fireEvent.click(backdrop);
+        }
       });
 
       await waitFor(
@@ -1553,9 +1556,12 @@ describe("AlertNotifications", () => {
         { timeout: 20000 }
       );
 
-      // Click outside to close menu
+      // Click on the backdrop to close menu (simulating outside click)
+      const backdrop = document.querySelector(".MuiBackdrop-root");
       await act(async () => {
-        fireEvent.click(document.body);
+        if (backdrop) {
+          fireEvent.click(backdrop);
+        }
       });
 
       await waitFor(

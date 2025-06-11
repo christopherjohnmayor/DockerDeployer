@@ -309,6 +309,8 @@ const AlertNotifications: React.FC<AlertNotificationsProps> = ({
                     {getSeverityIcon(notification.severity)}
                   </ListItemIcon>
                   <ListItemText
+                    primaryTypographyProps={{ component: "div" }}
+                    secondaryTypographyProps={{ component: "div" }}
                     primary={
                       <Box
                         component="div"
