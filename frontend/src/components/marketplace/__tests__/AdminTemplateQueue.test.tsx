@@ -616,22 +616,21 @@ describe("AdminTemplateQueue", () => {
     });
 
     it("opens rejection dialog when reject button clicked", async () => {
-      // Mock both useApiCall calls: first for templates, second for processing
-      let callCount = 0;
-      mockUseApiCall.mockImplementation(() => {
-        callCount++;
-        if (callCount === 1) {
-          return {
-            ...mockApiCallReturn,
-            data: [mockTemplate],
-            execute: jest.fn(),
-          };
-        }
-        return {
+      // Clear any existing mock implementation and set up fresh mocks
+      mockUseApiCall.mockReset();
+
+      mockUseApiCall
+        .mockReturnValueOnce({
+          ...mockApiCallReturn,
+          data: [mockTemplate],
+          execute: jest.fn(),
+        })
+        .mockReturnValueOnce({
           ...mockApiCallReturn,
           execute: jest.fn(),
-        };
-      });
+        })
+        // Provide fallback for any additional calls
+        .mockReturnValue(mockApiCallReturn);
 
       renderWithTheme(<AdminTemplateQueue />);
 

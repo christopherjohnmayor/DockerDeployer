@@ -40,10 +40,10 @@ import {
 
 /**
  * Admin Template Queue Component
- * 
+ *
  * Administrative interface for reviewing and approving pending templates.
  * Provides bulk operations and individual template management.
- * 
+ *
  * Features:
  * - Pending templates list with metadata
  * - Individual approve/reject actions
@@ -53,9 +53,13 @@ import {
  * - Real-time status updates
  */
 const AdminTemplateQueue: React.FC = () => {
-  const [selectedTemplates, setSelectedTemplates] = useState<Set<number>>(new Set());
+  const [selectedTemplates, setSelectedTemplates] = useState<Set<number>>(
+    new Set()
+  );
   const [viewingTemplate, setViewingTemplate] = useState<Template | null>(null);
-  const [rejectingTemplate, setRejectingTemplate] = useState<Template | null>(null);
+  const [rejectingTemplate, setRejectingTemplate] = useState<Template | null>(
+    null
+  );
   const [rejectionReason, setRejectionReason] = useState("");
 
   // API calls
@@ -91,11 +95,11 @@ const AdminTemplateQueue: React.FC = () => {
 
   const handleSelectAll = () => {
     if (!pendingTemplates) return;
-    
+
     if (selectedTemplates.size === pendingTemplates.length) {
       setSelectedTemplates(new Set());
     } else {
-      setSelectedTemplates(new Set(pendingTemplates.map(t => t.id)));
+      setSelectedTemplates(new Set(pendingTemplates.map((t) => t.id)));
     }
   };
 
@@ -104,7 +108,7 @@ const AdminTemplateQueue: React.FC = () => {
     const result = await processTemplate(templateId, approval);
     if (result) {
       loadPendingTemplates(); // Refresh list
-      setSelectedTemplates(prev => {
+      setSelectedTemplates((prev) => {
         const newSet = new Set(prev);
         newSet.delete(templateId);
         return newSet;
@@ -119,11 +123,11 @@ const AdminTemplateQueue: React.FC = () => {
       approved: false,
       rejection_reason: rejectionReason.trim(),
     };
-    
+
     const result = await processTemplate(rejectingTemplate.id, approval);
     if (result) {
       loadPendingTemplates(); // Refresh list
-      setSelectedTemplates(prev => {
+      setSelectedTemplates((prev) => {
         const newSet = new Set(prev);
         newSet.delete(rejectingTemplate.id);
         return newSet;
@@ -136,12 +140,12 @@ const AdminTemplateQueue: React.FC = () => {
   const handleBulkApprove = async () => {
     const templateIds = Array.from(selectedTemplates);
     const approval: TemplateApproval = { approved: true };
-    
+
     // Process templates sequentially to avoid rate limiting
     for (const templateId of templateIds) {
       await processTemplate(templateId, approval);
     }
-    
+
     loadPendingTemplates();
     setSelectedTemplates(new Set());
   };
@@ -192,7 +196,12 @@ const AdminTemplateQueue: React.FC = () => {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h5" gutterBottom>
             Template Approval Queue
@@ -201,7 +210,7 @@ const AdminTemplateQueue: React.FC = () => {
             {templates.length} templates pending review
           </Typography>
         </Box>
-        
+
         {hasSelected && (
           <Box display="flex" gap={2}>
             <Button
@@ -237,8 +246,13 @@ const AdminTemplateQueue: React.FC = () => {
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    indeterminate={hasSelected && selectedTemplates.size < templates.length}
-                    checked={templates.length > 0 && selectedTemplates.size === templates.length}
+                    indeterminate={
+                      hasSelected && selectedTemplates.size < templates.length
+                    }
+                    checked={
+                      templates.length > 0 &&
+                      selectedTemplates.size === templates.length
+                    }
                     onChange={handleSelectAll}
                   />
                 </TableCell>
@@ -308,24 +322,30 @@ const AdminTemplateQueue: React.FC = () => {
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Approve">
-                        <IconButton
-                          size="small"
-                          color="success"
-                          onClick={() => handleApproveTemplate(template.id)}
-                          disabled={processingTemplate}
-                        >
-                          <ApproveIcon />
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="success"
+                            onClick={() => handleApproveTemplate(template.id)}
+                            disabled={processingTemplate}
+                            aria-label="Approve"
+                          >
+                            <ApproveIcon />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                       <Tooltip title="Reject">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setRejectingTemplate(template)}
-                          disabled={processingTemplate}
-                        >
-                          <RejectIcon />
-                        </IconButton>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setRejectingTemplate(template)}
+                            disabled={processingTemplate}
+                            aria-label="Reject"
+                          >
+                            <RejectIcon />
+                          </IconButton>
+                        </span>
                       </Tooltip>
                     </Box>
                   </TableCell>
