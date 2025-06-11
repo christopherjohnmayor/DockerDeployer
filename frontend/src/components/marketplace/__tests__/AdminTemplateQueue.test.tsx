@@ -616,9 +616,6 @@ describe("AdminTemplateQueue", () => {
     });
 
     it("opens rejection dialog when reject button clicked", async () => {
-      // Clear any existing mock implementation and set up fresh mocks
-      mockUseApiCall.mockReset();
-
       mockUseApiCall
         .mockReturnValueOnce({
           ...mockApiCallReturn,
@@ -628,9 +625,7 @@ describe("AdminTemplateQueue", () => {
         .mockReturnValueOnce({
           ...mockApiCallReturn,
           execute: jest.fn(),
-        })
-        // Provide fallback for any additional calls
-        .mockReturnValue(mockApiCallReturn);
+        });
 
       renderWithTheme(<AdminTemplateQueue />);
 
