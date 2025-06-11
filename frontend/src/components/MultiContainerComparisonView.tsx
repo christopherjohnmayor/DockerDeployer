@@ -130,24 +130,35 @@ const MultiContainerComparisonView: React.FC<
     if (!comparisonData || !comparisonData.metrics_comparison) return [];
 
     return Object.entries(comparisonData.metrics_comparison).map(
-      ([containerId, data]) => ({
-        container: data.container_name,
-        containerId,
-        cpu_percent: data.current_metrics.cpu_percent,
-        memory_percent: data.current_metrics.memory_percent,
-        network_io:
-          (data.current_metrics.network_rx_bytes +
-            data.current_metrics.network_tx_bytes) /
-          1024 /
-          1024,
-        disk_io:
-          (data.current_metrics.block_read_bytes +
-            data.current_metrics.block_write_bytes) /
-          1024 /
-          1024,
-        health_score: data.health_score,
-        performance_rank: data.performance_rank,
-      })
+      ([containerId, data]) => {
+        // Handle null or undefined current_metrics gracefully
+        const metrics = data?.current_metrics || {};
+
+        return {
+          container: data?.container_name || containerId,
+          containerId,
+          cpu_percent: metrics.cpu_percent || 0,
+          memory_percent: metrics.memory_percent || 0,
+          network_io:
+            metrics.network_rx_bytes && metrics.network_tx_bytes
+              ? (metrics.network_rx_bytes + metrics.network_tx_bytes) /
+                1024 /
+                1024
+              : 0, // Convert to MB or default to 0
+          disk_io:
+            metrics.block_read_bytes && metrics.block_write_bytes
+              ? (metrics.block_read_bytes + metrics.block_write_bytes) /
+                1024 /
+                1024
+              : 0, // Convert to MB or default to 0
+          health_score:
+            typeof data?.health_score === "number" ? data.health_score : 0,
+          performance_rank:
+            typeof data?.performance_rank === "number"
+              ? data.performance_rank
+              : 999,
+        };
+      }
     );
   };
 
@@ -406,84 +417,92 @@ const MultiContainerComparisonView: React.FC<
           )}
 
           {/* Performance Ranking Table */}
-          {showRanking && comparisonData && (
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" gutterBottom>
-                Performance Ranking
-              </Typography>
-              <TableContainer>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Rank</TableCell>
-                      <TableCell>Container</TableCell>
-                      <TableCell align="right">CPU %</TableCell>
-                      <TableCell align="right">Memory %</TableCell>
-                      <TableCell align="right">Network I/O</TableCell>
-                      <TableCell align="right">Disk I/O</TableCell>
-                      <TableCell align="right">Health Score</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {chartData
-                      .sort((a, b) => a.performance_rank - b.performance_rank)
-                      .map((container) => (
-                        <TableRow key={container.containerId}>
-                          <TableCell>
-                            <Box sx={{ display: "flex", alignItems: "center" }}>
-                              <Avatar
-                                sx={{
-                                  width: 24,
-                                  height: 24,
-                                  bgcolor: getRankColor(
-                                    container.performance_rank
-                                  ),
-                                  fontSize: "0.8rem",
-                                }}
+          {showRanking &&
+            comparisonData &&
+            comparisonData.metrics_comparison && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Performance Ranking
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Rank</TableCell>
+                        <TableCell>Container</TableCell>
+                        <TableCell align="right">CPU %</TableCell>
+                        <TableCell align="right">Memory %</TableCell>
+                        <TableCell align="right">Network I/O</TableCell>
+                        <TableCell align="right">Disk I/O</TableCell>
+                        <TableCell align="right">Health Score</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {chartData
+                        .sort((a, b) => a.performance_rank - b.performance_rank)
+                        .map((container) => (
+                          <TableRow key={container.containerId}>
+                            <TableCell>
+                              <Box
+                                sx={{ display: "flex", alignItems: "center" }}
                               >
-                                {container.performance_rank}
-                              </Avatar>
-                              {container.performance_rank === 1 && (
-                                <StarIcon
-                                  fontSize="small"
-                                  sx={{ ml: 0.5, color: "gold" }}
-                                />
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell>{container.container}</TableCell>
-                          <TableCell align="right">
-                            {formatPercentage(container.cpu_percent)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatPercentage(container.memory_percent)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatBytes(container.network_io * 1024 * 1024)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatBytes(container.disk_io * 1024 * 1024)}
-                          </TableCell>
-                          <TableCell align="right">
-                            <Chip
-                              label={container.health_score.toFixed(1)}
-                              size="small"
-                              color={
-                                container.health_score >= 80
-                                  ? "success"
-                                  : container.health_score >= 60
-                                    ? "warning"
-                                    : "error"
-                              }
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Grid>
-          )}
+                                <Avatar
+                                  sx={{
+                                    width: 24,
+                                    height: 24,
+                                    bgcolor: getRankColor(
+                                      container.performance_rank
+                                    ),
+                                    fontSize: "0.8rem",
+                                  }}
+                                >
+                                  {container.performance_rank}
+                                </Avatar>
+                                {container.performance_rank === 1 && (
+                                  <StarIcon
+                                    fontSize="small"
+                                    sx={{ ml: 0.5, color: "gold" }}
+                                  />
+                                )}
+                              </Box>
+                            </TableCell>
+                            <TableCell>{container.container}</TableCell>
+                            <TableCell align="right">
+                              {formatPercentage(container.cpu_percent)}
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatPercentage(container.memory_percent)}
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatBytes(container.network_io * 1024 * 1024)}
+                            </TableCell>
+                            <TableCell align="right">
+                              {formatBytes(container.disk_io * 1024 * 1024)}
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={
+                                  typeof container.health_score === "number"
+                                    ? container.health_score.toFixed(1)
+                                    : "0.0"
+                                }
+                                size="small"
+                                color={
+                                  container.health_score >= 80
+                                    ? "success"
+                                    : container.health_score >= 60
+                                      ? "warning"
+                                      : "error"
+                                }
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Grid>
+            )}
 
           {/* Aggregate Statistics */}
           {comparisonData && comparisonData.aggregated_stats && (

@@ -9,15 +9,17 @@
  * @returns Formatted string with appropriate unit
  */
 export const formatBytes = (bytes: number, decimals: number = 2): string => {
-  if (bytes === 0) return '0 Bytes';
+  // Handle non-number values gracefully
+  const numBytes = typeof bytes === "number" ? bytes : parseFloat(bytes) || 0;
+  if (numBytes === 0) return "0 Bytes";
 
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  const sizes = ["Bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
 
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  const i = Math.floor(Math.log(numBytes) / Math.log(k));
 
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return parseFloat((numBytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
 };
 
 /**
@@ -26,8 +28,13 @@ export const formatBytes = (bytes: number, decimals: number = 2): string => {
  * @param decimals - Number of decimal places (default: 1)
  * @returns Formatted percentage string
  */
-export const formatPercentage = (value: number, decimals: number = 1): string => {
-  return `${value.toFixed(decimals)}%`;
+export const formatPercentage = (
+  value: number,
+  decimals: number = 1
+): string => {
+  // Handle non-number values gracefully
+  const numValue = typeof value === "number" ? value : parseFloat(value) || 0;
+  return `${numValue.toFixed(decimals)}%`;
 };
 
 /**
@@ -53,11 +60,11 @@ export const formatRelativeTime = (timestamp: string | Date): string => {
   const time = new Date(timestamp);
   const diffMs = now.getTime() - time.getTime();
 
-  if (diffMs < 60000) return 'Just now';
+  if (diffMs < 60000) return "Just now";
   if (diffMs < 3600000) return `${Math.floor(diffMs / 60000)} minutes ago`;
   if (diffMs < 86400000) return `${Math.floor(diffMs / 3600000)} hours ago`;
   if (diffMs < 604800000) return `${Math.floor(diffMs / 86400000)} days ago`;
-  
+
   return time.toLocaleDateString();
 };
 
@@ -68,11 +75,11 @@ export const formatRelativeTime = (timestamp: string | Date): string => {
  * @returns Formatted number string
  */
 export const formatNumber = (num: number, decimals: number = 1): string => {
-  if (num === 0) return '0';
-  
+  if (num === 0) return "0";
+
   const k = 1000;
   const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['', 'K', 'M', 'B', 'T'];
+  const sizes = ["", "K", "M", "B", "T"];
 
   const i = Math.floor(Math.log(Math.abs(num)) / Math.log(k));
 
@@ -88,11 +95,11 @@ export const formatNumber = (num: number, decimals: number = 1): string => {
  */
 export const formatCpuUsage = (cpuPercent: number) => {
   const formatted = formatPercentage(cpuPercent);
-  let color = 'success';
-  
-  if (cpuPercent > 80) color = 'error';
-  else if (cpuPercent > 60) color = 'warning';
-  
+  let color = "success";
+
+  if (cpuPercent > 80) color = "error";
+  else if (cpuPercent > 60) color = "warning";
+
   return { value: formatted, color };
 };
 
@@ -103,11 +110,11 @@ export const formatCpuUsage = (cpuPercent: number) => {
  */
 export const formatMemoryUsage = (memoryPercent: number) => {
   const formatted = formatPercentage(memoryPercent);
-  let color = 'success';
-  
-  if (memoryPercent > 85) color = 'error';
-  else if (memoryPercent > 70) color = 'warning';
-  
+  let color = "success";
+
+  if (memoryPercent > 85) color = "error";
+  else if (memoryPercent > 70) color = "warning";
+
   return { value: formatted, color };
 };
 
@@ -142,28 +149,28 @@ export const formatUptime = (uptimeSeconds: number): string => {
  */
 export const formatContainerStatus = (status: string) => {
   const statusLower = status.toLowerCase();
-  
-  let color = 'default';
+
+  let color = "default";
   let label = status;
-  
+
   switch (statusLower) {
-    case 'running':
-      color = 'success';
+    case "running":
+      color = "success";
       break;
-    case 'stopped':
-    case 'exited':
-      color = 'error';
+    case "stopped":
+    case "exited":
+      color = "error";
       break;
-    case 'paused':
-      color = 'warning';
+    case "paused":
+      color = "warning";
       break;
-    case 'restarting':
-      color = 'info';
+    case "restarting":
+      color = "info";
       break;
     default:
-      color = 'default';
+      color = "default";
   }
-  
+
   return { label, color };
 };
 
@@ -173,17 +180,17 @@ export const formatContainerStatus = (status: string) => {
  * @returns Object with formatted score, color, and description
  */
 export const formatHealthScore = (score: number) => {
-  let color = 'success';
-  let description = 'Healthy';
-  
+  let color = "success";
+  let description = "Healthy";
+
   if (score < 60) {
-    color = 'error';
-    description = 'Critical';
+    color = "error";
+    description = "Critical";
   } else if (score < 80) {
-    color = 'warning';
-    description = 'Warning';
+    color = "warning";
+    description = "Warning";
   }
-  
+
   return {
     value: score.toString(),
     color,
@@ -198,23 +205,23 @@ export const formatHealthScore = (score: number) => {
  * @returns Object with icon, color, and description
  */
 export const formatTrendDirection = (direction: string, strength: string) => {
-  let color = 'info';
-  let description = 'Stable';
-  
+  let color = "info";
+  let description = "Stable";
+
   switch (direction) {
-    case 'increasing':
-      color = 'error';
+    case "increasing":
+      color = "error";
       description = `Increasing (${strength})`;
       break;
-    case 'decreasing':
-      color = 'success';
+    case "decreasing":
+      color = "success";
       description = `Decreasing (${strength})`;
       break;
     default:
-      color = 'info';
+      color = "info";
       description = `Stable (${strength})`;
   }
-  
+
   return { color, description };
 };
 
@@ -224,13 +231,16 @@ export const formatTrendDirection = (direction: string, strength: string) => {
  * @param includeTime - Whether to include time (default: true)
  * @returns Formatted timestamp string
  */
-export const formatTimestamp = (timestamp: string, includeTime: boolean = true): string => {
+export const formatTimestamp = (
+  timestamp: string,
+  includeTime: boolean = true
+): string => {
   const date = new Date(timestamp);
-  
+
   if (includeTime) {
     return date.toLocaleString();
   }
-  
+
   return date.toLocaleDateString();
 };
 
@@ -241,9 +251,16 @@ export const formatTimestamp = (timestamp: string, includeTime: boolean = true):
  * @param metricType - Type of metric
  * @returns Formatted condition string
  */
-export const formatAlertCondition = (operator: string, value: number, metricType: string): string => {
-  const unit = metricType.includes('percent') ? '%' : 
-               metricType.includes('bytes') ? ' bytes' : '';
-  
+export const formatAlertCondition = (
+  operator: string,
+  value: number,
+  metricType: string
+): string => {
+  const unit = metricType.includes("percent")
+    ? "%"
+    : metricType.includes("bytes")
+      ? " bytes"
+      : "";
+
   return `${operator} ${value}${unit}`;
 };
