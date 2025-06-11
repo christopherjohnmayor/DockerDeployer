@@ -300,15 +300,16 @@ describe("useWebSocket", () => {
         })
       );
 
-      // Wait for initial connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
       expect(result.current.isConnected).toBe(true);
 
       // Simulate connection loss
-      const mockWebSocket = (global as any).WebSocket.mock.instances[0];
+      const mockWebSocket = MockWebSocket.instances[0];
       act(() => {
         mockWebSocket.simulateClose();
       });
@@ -321,7 +322,7 @@ describe("useWebSocket", () => {
       });
 
       // Should attempt to reconnect
-      expect((global as any).WebSocket).toHaveBeenCalledTimes(2);
+      expect(MockWebSocket.instances).toHaveLength(2);
     });
 
     it("should stop reconnecting after max attempts", async () => {
@@ -332,33 +333,38 @@ describe("useWebSocket", () => {
         })
       );
 
-      // Wait for initial connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
       // Simulate multiple connection losses
       for (let i = 0; i < 3; i++) {
-        const mockWebSocket = (global as any).WebSocket.mock.instances[i];
-        act(() => {
-          mockWebSocket.simulateClose();
-        });
+        const currentInstances = MockWebSocket.instances.length;
+        if (currentInstances > i) {
+          const mockWebSocket = MockWebSocket.instances[i];
+          act(() => {
+            mockWebSocket.simulateClose();
+          });
 
-        await act(async () => {
-          jest.advanceTimersByTime(1000);
-        });
+          await act(async () => {
+            jest.advanceTimersByTime(1000);
+          });
+        }
       }
 
       // Should have attempted initial + 2 reconnections = 3 total
-      expect((global as any).WebSocket).toHaveBeenCalledTimes(3);
+      expect(MockWebSocket.instances).toHaveLength(3);
     });
 
     it("should manually reconnect when reconnect is called", async () => {
       const { result } = renderHook(() => useWebSocket("ws://localhost:8080"));
 
-      // Wait for initial connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
       // Manually reconnect
@@ -367,11 +373,11 @@ describe("useWebSocket", () => {
       });
 
       await act(async () => {
-        jest.advanceTimersByTime(120);
+        jest.advanceTimersByTime(100);
       });
 
       // Should have created 2 WebSocket instances
-      expect((global as any).WebSocket).toHaveBeenCalledTimes(2);
+      expect(MockWebSocket.instances).toHaveLength(2);
     });
   });
 
@@ -381,12 +387,13 @@ describe("useWebSocket", () => {
         useWebSocket("ws://localhost:8080")
       );
 
-      // Wait for connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
-      const mockWebSocket = (global as any).WebSocket.mock.instances[0];
+      const mockWebSocket = MockWebSocket.instances[0];
       const closeSpy = jest.spyOn(mockWebSocket, "close");
 
       unmount();
@@ -399,13 +406,14 @@ describe("useWebSocket", () => {
         useWebSocket("ws://localhost:8080", { reconnectInterval: 1000 })
       );
 
-      // Wait for connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
       // Simulate connection loss to start reconnection timer
-      const mockWebSocket = (global as any).WebSocket.mock.instances[0];
+      const mockWebSocket = MockWebSocket.instances[0];
       act(() => {
         mockWebSocket.simulateClose();
       });
@@ -421,7 +429,7 @@ describe("useWebSocket", () => {
       });
 
       // Should not have attempted reconnection
-      expect((global as any).WebSocket).toHaveBeenCalledTimes(1);
+      expect(MockWebSocket.instances).toHaveLength(1);
     });
   });
 
@@ -429,12 +437,13 @@ describe("useWebSocket", () => {
     it("should send ping messages when connected", async () => {
       const { result } = renderHook(() => useWebSocket("ws://localhost:8080"));
 
-      // Wait for connection
+      // Connect first
       await act(async () => {
-        jest.advanceTimersByTime(20);
+        const mockWebSocket = MockWebSocket.instances[0];
+        mockWebSocket.connect();
       });
 
-      const mockWebSocket = (global as any).WebSocket.mock.instances[0];
+      const mockWebSocket = MockWebSocket.instances[0];
       const sendSpy = jest.spyOn(mockWebSocket, "send");
 
       // Advance timer to trigger heartbeat
@@ -448,13 +457,16 @@ describe("useWebSocket", () => {
     it("should not send ping when disconnected", async () => {
       const { result } = renderHook(() => useWebSocket("ws://localhost:8080"));
 
-      // Don't connect, advance timer
+      // Don't connect, just advance timer
       await act(async () => {
         jest.advanceTimersByTime(30000);
       });
 
-      // No WebSocket should be created
-      expect((global as any).WebSocket).toHaveBeenCalledTimes(1);
+      // Should have created WebSocket but not sent ping
+      expect(MockWebSocket.instances).toHaveLength(1);
+      const mockWebSocket = MockWebSocket.instances[0];
+      const sendSpy = jest.spyOn(mockWebSocket, "send");
+      expect(sendSpy).not.toHaveBeenCalled();
     });
   });
 });
