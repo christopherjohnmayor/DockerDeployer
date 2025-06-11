@@ -142,20 +142,31 @@ describe("MarketplaceHome", () => {
       user: { id: 1, username: "testuser", role: "user" },
     });
 
-    // Mock useApiCall for templates
-    mockUseApiCall
-      .mockReturnValueOnce({
-        data: mockTemplateList,
-        loading: false,
-        error: null,
-        execute: jest.fn(),
-      })
-      .mockReturnValueOnce({
-        data: [mockCategory],
-        loading: false,
-        error: null,
-        execute: jest.fn(),
-      });
+    // Reset mock completely for each test
+    mockUseApiCall.mockReset();
+
+    // Use mockImplementation to handle multiple useApiCall calls
+    let callCount = 0;
+    mockUseApiCall.mockImplementation(() => {
+      callCount++;
+      if (callCount === 1) {
+        // First call - templates
+        return {
+          data: mockTemplateList,
+          loading: false,
+          error: null,
+          execute: jest.fn(),
+        };
+      } else {
+        // Second call - categories
+        return {
+          data: [mockCategory],
+          loading: false,
+          error: null,
+          execute: jest.fn(),
+        };
+      }
+    });
   });
 
   describe("Rendering", () => {
@@ -176,20 +187,31 @@ describe("MarketplaceHome", () => {
     test("does not render submit template button for unauthenticated users", () => {
       mockUseAuth.mockReturnValue({ user: null });
 
-      // Reset useApiCall mocks for this test
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: mockTemplateList,
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates
+          return {
+            data: mockTemplateList,
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -235,19 +257,31 @@ describe("MarketplaceHome", () => {
         pages: 3,
       };
 
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: multiPageTemplateList,
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates
+          return {
+            data: multiPageTemplateList,
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -259,19 +293,31 @@ describe("MarketplaceHome", () => {
 
   describe("Loading states", () => {
     test.skip("shows loading state when categories are loading", () => {
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: null,
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: null,
-          loading: true,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates
+          return {
+            data: null,
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories (loading)
+          return {
+            data: null,
+            loading: true,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -279,19 +325,31 @@ describe("MarketplaceHome", () => {
     });
 
     test.skip("shows skeleton loading for templates", () => {
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: null,
-          loading: true,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates (loading)
+          return {
+            data: null,
+            loading: true,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -304,19 +362,31 @@ describe("MarketplaceHome", () => {
     test.skip("shows error when categories fail to load", () => {
       const error = new Error("Failed to load categories");
 
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: null,
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: null,
-          loading: false,
-          error,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates
+          return {
+            data: null,
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories (error)
+          return {
+            data: null,
+            loading: false,
+            error,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -328,19 +398,31 @@ describe("MarketplaceHome", () => {
     test.skip("shows error when templates fail to load", () => {
       const error = new Error("Failed to load templates");
 
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: null,
-          loading: false,
-          error,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates (error)
+          return {
+            data: null,
+            loading: false,
+            error,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -356,19 +438,31 @@ describe("MarketplaceHome", () => {
         total: 0,
       };
 
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: emptyTemplateList,
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates (empty)
+          return {
+            data: emptyTemplateList,
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 
@@ -408,19 +502,31 @@ describe("MarketplaceHome", () => {
     test.skip("closes submission form and refreshes templates when submitted", async () => {
       const mockExecute = jest.fn();
 
-      mockUseApiCall
-        .mockReturnValueOnce({
-          data: mockTemplateList,
-          loading: false,
-          error: null,
-          execute: mockExecute,
-        })
-        .mockReturnValueOnce({
-          data: [mockCategory],
-          loading: false,
-          error: null,
-          execute: jest.fn(),
-        });
+      // Reset mock completely for this test
+      mockUseApiCall.mockReset();
+
+      // Use mockImplementation to handle multiple useApiCall calls
+      let callCount = 0;
+      mockUseApiCall.mockImplementation(() => {
+        callCount++;
+        if (callCount === 1) {
+          // First call - templates
+          return {
+            data: mockTemplateList,
+            loading: false,
+            error: null,
+            execute: mockExecute,
+          };
+        } else {
+          // Second call - categories
+          return {
+            data: [mockCategory],
+            loading: false,
+            error: null,
+            execute: jest.fn(),
+          };
+        }
+      });
 
       renderMarketplaceHome();
 

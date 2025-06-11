@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -30,7 +30,7 @@ import {
   Card,
   CardContent,
   Divider,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -41,10 +41,10 @@ import {
   Error as ErrorIcon,
   Info as InfoIcon,
   CheckCircle as CheckCircleIcon,
-} from '@mui/icons-material';
-import { useTheme } from '@mui/material/styles';
-import { useApiCall } from '../hooks/useApiCall';
-import { useWebSocket } from '../hooks/useWebSocket';
+} from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { useApiCall } from "../hooks/useApiCall";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 interface Alert {
   id: number;
@@ -91,12 +91,12 @@ const AlertForm: React.FC<AlertFormProps> = ({
   loading = false,
 }) => {
   const [formData, setFormData] = useState<AlertFormData>({
-    name: '',
-    description: '',
-    container_id: '',
-    metric_type: 'cpu_percent',
+    name: "",
+    description: "",
+    container_id: "",
+    metric_type: "cpu_percent",
     threshold_value: 80,
-    comparison_operator: '>',
+    comparison_operator: ">",
     is_active: true,
   });
 
@@ -104,7 +104,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
     if (alert) {
       setFormData({
         name: alert.name,
-        description: alert.description || '',
+        description: alert.description || "",
         container_id: alert.container_id,
         metric_type: alert.metric_type,
         threshold_value: alert.threshold_value,
@@ -113,12 +113,12 @@ const AlertForm: React.FC<AlertFormProps> = ({
       });
     } else {
       setFormData({
-        name: '',
-        description: '',
-        container_id: '',
-        metric_type: 'cpu_percent',
+        name: "",
+        description: "",
+        container_id: "",
+        metric_type: "cpu_percent",
         threshold_value: 80,
-        comparison_operator: '>',
+        comparison_operator: ">",
         is_active: true,
       });
     }
@@ -129,39 +129,37 @@ const AlertForm: React.FC<AlertFormProps> = ({
     onSubmit(formData);
   };
 
-  const handleChange = (field: keyof AlertFormData) => (
-    event: React.ChangeEvent<HTMLInputElement | { value: unknown }>
-  ) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: event.target.value,
-    }));
-  };
+  const handleChange =
+    (field: keyof AlertFormData) =>
+    (event: React.ChangeEvent<HTMLInputElement | { value: unknown }>) => {
+      setFormData((prev) => ({
+        ...prev,
+        [field]: event.target.value,
+      }));
+    };
 
   const metricTypes = [
-    { value: 'cpu_percent', label: 'CPU Usage (%)' },
-    { value: 'memory_percent', label: 'Memory Usage (%)' },
-    { value: 'network_rx_bytes', label: 'Network RX (bytes)' },
-    { value: 'network_tx_bytes', label: 'Network TX (bytes)' },
-    { value: 'block_read_bytes', label: 'Disk Read (bytes)' },
-    { value: 'block_write_bytes', label: 'Disk Write (bytes)' },
+    { value: "cpu_percent", label: "CPU Usage (%)" },
+    { value: "memory_percent", label: "Memory Usage (%)" },
+    { value: "network_rx_bytes", label: "Network RX (bytes)" },
+    { value: "network_tx_bytes", label: "Network TX (bytes)" },
+    { value: "block_read_bytes", label: "Disk Read (bytes)" },
+    { value: "block_write_bytes", label: "Disk Write (bytes)" },
   ];
 
   const operators = [
-    { value: '>', label: 'Greater than (>)' },
-    { value: '<', label: 'Less than (<)' },
-    { value: '>=', label: 'Greater than or equal (>=)' },
-    { value: '<=', label: 'Less than or equal (<=)' },
-    { value: '==', label: 'Equal to (==)' },
-    { value: '!=', label: 'Not equal to (!=)' },
+    { value: ">", label: "Greater than (>)" },
+    { value: "<", label: "Less than (<)" },
+    { value: ">=", label: "Greater than or equal (>=)" },
+    { value: "<=", label: "Less than or equal (<=)" },
+    { value: "==", label: "Equal to (==)" },
+    { value: "!=", label: "Not equal to (!=)" },
   ];
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>
-          {alert ? 'Edit Alert' : 'Create New Alert'}
-        </DialogTitle>
+        <DialogTitle>{alert ? "Edit Alert" : "Create New Alert"}</DialogTitle>
         <DialogContent>
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid item xs={12}>
@@ -169,7 +167,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 fullWidth
                 label="Alert Name"
                 value={formData.name}
-                onChange={handleChange('name')}
+                onChange={handleChange("name")}
                 required
               />
             </Grid>
@@ -178,7 +176,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 fullWidth
                 label="Description"
                 value={formData.description}
-                onChange={handleChange('description')}
+                onChange={handleChange("description")}
                 multiline
                 rows={2}
               />
@@ -189,7 +187,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 <Select
                   value={formData.container_id}
                   label="Container"
-                  onChange={handleChange('container_id')}
+                  onChange={handleChange("container_id")}
                 >
                   {containers.map((container) => (
                     <MenuItem key={container.id} value={container.id}>
@@ -205,7 +203,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 <Select
                   value={formData.metric_type}
                   label="Metric Type"
-                  onChange={handleChange('metric_type')}
+                  onChange={handleChange("metric_type")}
                 >
                   {metricTypes.map((metric) => (
                     <MenuItem key={metric.value} value={metric.value}>
@@ -221,7 +219,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 <Select
                   value={formData.comparison_operator}
                   label="Operator"
-                  onChange={handleChange('comparison_operator')}
+                  onChange={handleChange("comparison_operator")}
                 >
                   {operators.map((operator) => (
                     <MenuItem key={operator.value} value={operator.value}>
@@ -237,7 +235,7 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 label="Threshold Value"
                 type="number"
                 value={formData.threshold_value}
-                onChange={handleChange('threshold_value')}
+                onChange={handleChange("threshold_value")}
                 required
                 inputProps={{ min: 0, step: 0.1 }}
               />
@@ -247,7 +245,12 @@ const AlertForm: React.FC<AlertFormProps> = ({
                 control={
                   <Switch
                     checked={formData.is_active}
-                    onChange={(e) => setFormData(prev => ({ ...prev, is_active: e.target.checked }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        is_active: e.target.checked,
+                      }))
+                    }
                   />
                 }
                 label="Active"
@@ -258,7 +261,13 @@ const AlertForm: React.FC<AlertFormProps> = ({
         <DialogActions>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="submit" variant="contained" disabled={loading}>
-            {loading ? <CircularProgress size={20} /> : (alert ? 'Update' : 'Create')}
+            {loading ? (
+              <CircularProgress size={20} />
+            ) : alert ? (
+              "Update"
+            ) : (
+              "Create"
+            )}
           </Button>
         </DialogActions>
       </form>
@@ -269,40 +278,50 @@ const AlertForm: React.FC<AlertFormProps> = ({
 const AlertsManagement: React.FC = () => {
   const theme = useTheme();
   const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [containers, setContainers] = useState<Array<{ id: string; name: string }>>([]);
+  const [containers, setContainers] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [formOpen, setFormOpen] = useState(false);
   const [editingAlert, setEditingAlert] = useState<Alert | undefined>();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [alertToDelete, setAlertToDelete] = useState<Alert | undefined>();
 
   // API calls
-  const { data: alertsData, loading: alertsLoading, execute: fetchAlerts } = useApiCall();
-  const { data: containersData, loading: containersLoading, execute: fetchContainers } = useApiCall();
+  const {
+    data: alertsData,
+    loading: alertsLoading,
+    execute: fetchAlerts,
+  } = useApiCall();
+  const {
+    data: containersData,
+    loading: containersLoading,
+    execute: fetchContainers,
+  } = useApiCall();
   const { loading: createLoading, execute: createAlert } = useApiCall();
   const { loading: updateLoading, execute: updateAlert } = useApiCall();
   const { loading: deleteLoading, execute: deleteAlert } = useApiCall();
 
   // WebSocket for real-time alert updates
-  const wsUrl = `ws://localhost:8000/ws/notifications/${localStorage.getItem('userId')}?token=${localStorage.getItem('token')}`;
+  const wsUrl = `ws://localhost:8000/ws/notifications/${localStorage.getItem("userId")}?token=${localStorage.getItem("token")}`;
 
   const { isConnected } = useWebSocket(wsUrl, {
     onMessage: (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === 'alert_triggered' || data.type === 'alert_updated') {
+        if (data.type === "alert_triggered" || data.type === "alert_updated") {
           // Refresh alerts when receiving updates
-          fetchAlerts('/api/alerts');
+          fetchAlerts("/api/alerts");
         }
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
+        console.error("Error parsing WebSocket message:", error);
       }
     },
   });
 
   // Fetch initial data
   useEffect(() => {
-    fetchAlerts('/api/alerts');
-    fetchContainers('/api/containers');
+    fetchAlerts("/api/alerts");
+    fetchContainers("/api/containers");
   }, []);
 
   // Update state when data is fetched
@@ -314,51 +333,59 @@ const AlertsManagement: React.FC = () => {
 
   useEffect(() => {
     if (containersData) {
-      setContainers(containersData.map((c: any) => ({ id: c.id, name: c.name })));
+      setContainers(
+        containersData.map((c: any) => ({ id: c.id, name: c.name }))
+      );
     }
   }, [containersData]);
 
-  const handleCreateAlert = useCallback(async (data: AlertFormData) => {
-    try {
-      await createAlert('/api/alerts', {
-        method: 'POST',
-        data,
-      });
-      setFormOpen(false);
-      fetchAlerts('/api/alerts');
-    } catch (error) {
-      console.error('Error creating alert:', error);
-    }
-  }, [createAlert, fetchAlerts]);
+  const handleCreateAlert = useCallback(
+    async (data: AlertFormData) => {
+      try {
+        await createAlert("/api/alerts", {
+          method: "POST",
+          data,
+        });
+        setFormOpen(false);
+        fetchAlerts("/api/alerts");
+      } catch (error) {
+        console.error("Error creating alert:", error);
+      }
+    },
+    [createAlert, fetchAlerts]
+  );
 
-  const handleUpdateAlert = useCallback(async (data: AlertFormData) => {
-    if (!editingAlert) return;
+  const handleUpdateAlert = useCallback(
+    async (data: AlertFormData) => {
+      if (!editingAlert) return;
 
-    try {
-      await updateAlert(`/api/alerts/${editingAlert.id}`, {
-        method: 'PUT',
-        data,
-      });
-      setFormOpen(false);
-      setEditingAlert(undefined);
-      fetchAlerts('/api/alerts');
-    } catch (error) {
-      console.error('Error updating alert:', error);
-    }
-  }, [editingAlert, updateAlert, fetchAlerts]);
+      try {
+        await updateAlert(`/api/alerts/${editingAlert.id}`, {
+          method: "PUT",
+          data,
+        });
+        setFormOpen(false);
+        setEditingAlert(undefined);
+        fetchAlerts("/api/alerts");
+      } catch (error) {
+        console.error("Error updating alert:", error);
+      }
+    },
+    [editingAlert, updateAlert, fetchAlerts]
+  );
 
   const handleDeleteAlert = useCallback(async () => {
     if (!alertToDelete) return;
 
     try {
       await deleteAlert(`/api/alerts/${alertToDelete.id}`, {
-        method: 'DELETE',
+        method: "DELETE",
       });
       setDeleteConfirmOpen(false);
       setAlertToDelete(undefined);
-      fetchAlerts('/api/alerts');
+      fetchAlerts("/api/alerts");
     } catch (error) {
-      console.error('Error deleting alert:', error);
+      console.error("Error deleting alert:", error);
     }
   }, [alertToDelete, deleteAlert, fetchAlerts]);
 
@@ -373,15 +400,15 @@ const AlertsManagement: React.FC = () => {
   };
 
   const getAlertStatusColor = (alert: Alert) => {
-    if (!alert.is_active) return 'default';
-    if (alert.is_triggered) return 'error';
-    return 'success';
+    if (!alert.is_active) return "default";
+    if (alert.is_triggered) return "error";
+    return "success";
   };
 
   const getAlertStatusLabel = (alert: Alert) => {
-    if (!alert.is_active) return 'Inactive';
-    if (alert.is_triggered) return 'Triggered';
-    return 'Active';
+    if (!alert.is_active) return "Inactive";
+    if (alert.is_triggered) return "Triggered";
+    return "Active";
   };
 
   return (
@@ -389,9 +416,7 @@ const AlertsManagement: React.FC = () => {
       {/* Header */}
       <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h4">
-            Alerts Management
-          </Typography>
+          <Typography variant="h4">Alerts Management</Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
@@ -402,7 +427,8 @@ const AlertsManagement: React.FC = () => {
           </Button>
         </Box>
         <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-          Configure and manage container metrics alerts with real-time notifications.
+          Configure and manage container metrics alerts with real-time
+          notifications.
         </Typography>
       </Paper>
 
@@ -414,9 +440,7 @@ const AlertsManagement: React.FC = () => {
               <Typography variant="h4" color="primary">
                 {alerts.length}
               </Typography>
-              <Typography color="textSecondary">
-                Total Alerts
-              </Typography>
+              <Typography color="textSecondary">Total Alerts</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -424,11 +448,9 @@ const AlertsManagement: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h4" color="success.main">
-                {alerts.filter(a => a.is_active && !a.is_triggered).length}
+                {alerts.filter((a) => a.is_active && !a.is_triggered).length}
               </Typography>
-              <Typography color="textSecondary">
-                Active
-              </Typography>
+              <Typography color="textSecondary">Active</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -436,11 +458,9 @@ const AlertsManagement: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h4" color="error.main">
-                {alerts.filter(a => a.is_triggered).length}
+                {alerts.filter((a) => a.is_triggered).length}
               </Typography>
-              <Typography color="textSecondary">
-                Triggered
-              </Typography>
+              <Typography color="textSecondary">Triggered</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -448,11 +468,9 @@ const AlertsManagement: React.FC = () => {
           <Card>
             <CardContent>
               <Typography variant="h4" color="text.disabled">
-                {alerts.filter(a => !a.is_active).length}
+                {alerts.filter((a) => !a.is_active).length}
               </Typography>
-              <Typography color="textSecondary">
-                Inactive
-              </Typography>
+              <Typography color="textSecondary">Inactive</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -510,9 +528,7 @@ const AlertsManagement: React.FC = () => {
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Typography variant="subtitle2">
-                        {alert.name}
-                      </Typography>
+                      <Typography variant="subtitle2">{alert.name}</Typography>
                       {alert.description && (
                         <Typography variant="caption" color="textSecondary">
                           {alert.description}
@@ -526,13 +542,14 @@ const AlertsManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {alert.metric_type.replace('_', ' ')}
+                        {alert.metric_type?.replace("_", " ") ||
+                          "Unknown Metric"}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
                         {alert.comparison_operator} {alert.threshold_value}
-                        {alert.metric_type.includes('percent') ? '%' : ''}
+                        {alert.metric_type?.includes("percent") ? "%" : ""}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -541,7 +558,8 @@ const AlertsManagement: React.FC = () => {
                       </Typography>
                       {alert.last_triggered_at && (
                         <Typography variant="caption" color="textSecondary">
-                          Last: {new Date(alert.last_triggered_at).toLocaleString()}
+                          Last:{" "}
+                          {new Date(alert.last_triggered_at).toLocaleString()}
                         </Typography>
                       )}
                     </TableCell>
@@ -593,7 +611,10 @@ const AlertsManagement: React.FC = () => {
       />
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+      >
         <DialogTitle>Delete Alert</DialogTitle>
         <DialogContent>
           <Typography>
@@ -609,7 +630,7 @@ const AlertsManagement: React.FC = () => {
             variant="contained"
             disabled={deleteLoading}
           >
-            {deleteLoading ? <CircularProgress size={20} /> : 'Delete'}
+            {deleteLoading ? <CircularProgress size={20} /> : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
