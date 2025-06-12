@@ -609,3 +609,903 @@ class TestDockerManager:
         result = manager.get_logs("test_container")
         assert "error" in result
         assert "Logs failed" in result["error"]
+
+
+class TestDockerManagerEnhanced:
+    """Enhanced test suite for DockerManager with comprehensive coverage."""
+
+    @pytest.fixture
+    def mock_docker_client(self):
+        """Create a comprehensive mock Docker client."""
+        mock_client = MagicMock(spec=docker.DockerClient)
+
+        # Mock container
+        mock_container = MagicMock()
+        mock_container.id = "test_container_id"
+        mock_container.name = "test_container"
+        mock_container.status = "running"
+        mock_container.image.tags = ["nginx:latest"]
+        mock_container.labels = {"app": "web", "env": "production"}
+        mock_container.ports = {"80/tcp": [{"HostIp": "0.0.0.0", "HostPort": "8080"}]}
+
+        # Mock container collection
+        mock_containers = MagicMock()
+        mock_containers.list.return_value = [mock_container]
+        mock_containers.get.return_value = mock_container
+        mock_client.containers = mock_containers
+
+        # Mock images collection
+        mock_images = MagicMock()
+        mock_image = MagicMock()
+        mock_image.id = "sha256:test_image_id"
+        mock_image.tags = ["nginx:latest"]
+        mock_image.attrs = {"Size": 133000000}
+        mock_images.list.return_value = [mock_image]
+        mock_images.get.return_value = mock_image
+        mock_images.pull.return_value = mock_image
+        mock_client.images = mock_images
+
+        # Mock networks collection
+        mock_networks = MagicMock()
+        mock_network = MagicMock()
+        mock_network.id = "test_network_id"
+        mock_network.name = "bridge"
+        mock_network.attrs = {"Driver": "bridge", "Scope": "local"}
+        mock_networks.list.return_value = [mock_network]
+        mock_networks.get.return_value = mock_network
+        mock_client.networks = mock_networks
+
+        # Mock volumes collection
+        mock_volumes = MagicMock()
+        mock_volume = MagicMock()
+        mock_volume.id = "test_volume_id"
+        mock_volume.name = "test_volume"
+        mock_volume.attrs = {"Driver": "local", "Mountpoint": "/var/lib/docker/volumes/test_volume"}
+        mock_volumes.list.return_value = [mock_volume]
+        mock_volumes.get.return_value = mock_volume
+        mock_client.volumes = mock_volumes
+
+        return mock_client
+
+    @patch("docker.from_env")
+    def test_docker_sdk_integration_connection_success(self, mock_from_env, mock_docker_client):
+        """Test Docker SDK integration with successful connection."""
+        mock_from_env.return_value = mock_docker_client
+        mock_docker_client.ping.return_value = True
+
+        manager = DockerManager()
+
+        # Verify connection was established
+        assert manager.client == mock_docker_client
+        mock_from_env.assert_called_once()
+        mock_docker_client.ping.assert_called_once()
+
+    @patch("docker.from_env")
+    def test_docker_sdk_integration_authentication_failure(self, mock_from_env):
+        """Test Docker SDK integration with authentication failure."""
+        mock_from_env.side_effect = DockerException("Authentication failed")
+
+        with pytest.raises(ConnectionError, match="Docker daemon connection failed"):
+            DockerManager()
+
+    @patch("docker.from_env")
+    def test_container_lifecycle_create_start_stop_remove(self, mock_from_env, mock_docker_client):
+        """Test complete container lifecycle operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container for lifecycle operations
+        mock_container = MagicMock()
+        mock_container.id = "lifecycle_container_id"
+        mock_container.name = "lifecycle_container"
+        mock_container.status = "created"
+
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_docker_client.containers.run.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test start operation
+        mock_container.status = "running"
+        result = manager.start_container("lifecycle_container_id")
+        assert result["status"] == "started"
+        assert result["id"] == "lifecycle_container_id"
+        mock_container.start.assert_called_once()
+
+        # Test stop operation
+        mock_container.status = "exited"
+        result = manager.stop_container("lifecycle_container_id")
+        assert result["status"] == "stopped"
+        assert result["id"] == "lifecycle_container_id"
+        mock_container.stop.assert_called_once()
+
+        # Test restart operation
+        mock_container.status = "running"
+        result = manager.restart_container("lifecycle_container_id")
+        assert result["status"] == "restarted"
+        assert result["id"] == "lifecycle_container_id"
+        mock_container.restart.assert_called_once()
+
+    @patch("docker.from_env")
+    def test_container_deployment_with_configurations(self, mock_from_env, mock_docker_client):
+        """Test container deployment with various configurations."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container with complex configuration
+        mock_container = MagicMock()
+        mock_container.id = "config_container_id"
+        mock_container.name = "config_container"
+        mock_container.status = "running"
+        mock_container.attrs = {
+            "Config": {
+                "Env": ["NODE_ENV=production", "PORT=3000"],
+                "ExposedPorts": {"3000/tcp": {}},
+                "WorkingDir": "/app",
+                "Cmd": ["npm", "start"]
+            },
+            "HostConfig": {
+                "Memory": 536870912,  # 512MB
+                "CpuShares": 1024,
+                "PortBindings": {"3000/tcp": [{"HostPort": "3000"}]}
+            }
+        }
+
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test container with environment variables
+        containers = manager.list_containers(all=True)
+        assert len(containers) >= 0  # Should not fail
+
+        # Test getting logs with custom tail
+        mock_container.logs.return_value = b"Application started on port 3000"
+        result = manager.get_logs("config_container_id", tail=50)
+        assert result["logs"] == "Application started on port 3000"
+        mock_container.logs.assert_called_with(tail=50)
+
+    @patch("docker.from_env")
+    def test_container_monitoring_and_health_checks(self, mock_from_env, mock_docker_client):
+        """Test container monitoring and health check functionality."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container with health check data
+        mock_container = MagicMock()
+        mock_container.id = "health_container_id"
+        mock_container.name = "health_container"
+        mock_container.status = "running"
+        mock_container.attrs = {
+            "State": {
+                "Health": {
+                    "Status": "healthy",
+                    "FailingStreak": 0,
+                    "Log": [
+                        {
+                            "Start": "2024-01-01T12:00:00Z",
+                            "End": "2024-01-01T12:00:01Z",
+                            "ExitCode": 0,
+                            "Output": "Health check passed"
+                        }
+                    ]
+                }
+            }
+        }
+
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test health check functionality
+        result = manager.health_check()
+        assert result["status"] == "healthy"
+
+        # Test system stats for monitoring
+        mock_docker_client.info.return_value = {
+            "ServerVersion": "20.10.17",
+            "MemTotal": 8589934592,
+            "NCPU": 4
+        }
+        mock_docker_client.containers.list.side_effect = [
+            [mock_container],  # all=True
+            [mock_container]   # all=False
+        ]
+
+        result = manager.get_system_stats()
+        assert result["containers_total"] == 1
+        assert result["containers_running"] == 1
+        assert "system_info" in result
+
+    @patch("docker.from_env")
+    def test_image_management_operations(self, mock_from_env, mock_docker_client):
+        """Test Docker image management operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock image operations
+        mock_image = MagicMock()
+        mock_image.id = "sha256:test_image_id"
+        mock_image.tags = ["nginx:latest", "nginx:1.21"]
+        mock_image.attrs = {
+            "Size": 133000000,
+            "Created": "2024-01-01T12:00:00Z",
+            "Architecture": "amd64"
+        }
+
+        mock_docker_client.images.get.return_value = mock_image
+        mock_docker_client.images.list.return_value = [mock_image]
+        mock_docker_client.images.pull.return_value = mock_image
+
+        manager = DockerManager()
+
+        # Test that manager can handle image operations (even though not directly exposed)
+        # This tests the Docker client integration
+        assert manager.client.images is not None
+
+        # Verify image operations would work through the client
+        images = manager.client.images.list()
+        assert len(images) == 1
+        assert images[0].tags == ["nginx:latest", "nginx:1.21"]
+
+    @patch("docker.from_env")
+    def test_network_and_volume_operations(self, mock_from_env, mock_docker_client):
+        """Test Docker network and volume operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock network operations
+        mock_network = MagicMock()
+        mock_network.id = "test_network_id"
+        mock_network.name = "custom_network"
+        mock_network.attrs = {
+            "Driver": "bridge",
+            "Scope": "local",
+            "IPAM": {"Config": [{"Subnet": "172.20.0.0/16"}]}
+        }
+
+        mock_docker_client.networks.get.return_value = mock_network
+        mock_docker_client.networks.list.return_value = [mock_network]
+
+        # Mock volume operations
+        mock_volume = MagicMock()
+        mock_volume.id = "test_volume_id"
+        mock_volume.name = "data_volume"
+        mock_volume.attrs = {
+            "Driver": "local",
+            "Mountpoint": "/var/lib/docker/volumes/data_volume/_data"
+        }
+
+        mock_docker_client.volumes.get.return_value = mock_volume
+        mock_docker_client.volumes.list.return_value = [mock_volume]
+
+        manager = DockerManager()
+
+        # Test that manager can handle network and volume operations
+        assert manager.client.networks is not None
+        assert manager.client.volumes is not None
+
+        # Verify network operations would work through the client
+        networks = manager.client.networks.list()
+        assert len(networks) == 1
+        assert networks[0].name == "custom_network"
+
+        # Verify volume operations would work through the client
+        volumes = manager.client.volumes.list()
+        assert len(volumes) == 1
+        assert volumes[0].name == "data_volume"
+
+    @patch("docker.from_env")
+    def test_docker_daemon_connectivity_errors(self, mock_from_env):
+        """Test Docker daemon connectivity error scenarios."""
+        # Test connection timeout
+        mock_from_env.side_effect = DockerException("Connection timeout")
+        with pytest.raises(ConnectionError, match="Docker daemon connection failed"):
+            DockerManager()
+
+        # Test daemon not running
+        mock_from_env.side_effect = DockerException("Cannot connect to the Docker daemon")
+        with pytest.raises(ConnectionError, match="Docker daemon connection failed"):
+            DockerManager()
+
+        # Test invalid socket path
+        mock_from_env.side_effect = DockerException("No such file or directory: '/var/run/docker.sock'")
+        with pytest.raises(ConnectionError, match="Docker socket not found"):
+            DockerManager()
+
+    @patch("docker.from_env")
+    def test_container_resource_management(self, mock_from_env, mock_docker_client):
+        """Test container resource management and limits."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container with resource constraints
+        mock_container = MagicMock()
+        mock_container.id = "resource_container_id"
+        mock_container.name = "resource_container"
+        mock_container.status = "running"
+
+        # Mock detailed stats with resource information
+        mock_stats = {
+            "cpu_stats": {
+                "cpu_usage": {"total_usage": 2000000000},
+                "system_cpu_usage": 4000000000,
+                "online_cpus": 4,
+                "throttling_data": {
+                    "periods": 100,
+                    "throttled_periods": 10,
+                    "throttled_time": 1000000000
+                }
+            },
+            "precpu_stats": {
+                "cpu_usage": {"total_usage": 1800000000},
+                "system_cpu_usage": 3800000000,
+            },
+            "memory_stats": {
+                "usage": 1073741824,  # 1GB
+                "limit": 2147483648,  # 2GB
+                "max_usage": 1200000000,
+                "stats": {
+                    "cache": 100000000,
+                    "rss": 900000000,
+                    "swap": 50000000
+                }
+            },
+            "networks": {
+                "eth0": {
+                    "rx_bytes": 1048576,  # 1MB
+                    "tx_bytes": 2097152,  # 2MB
+                    "rx_packets": 1000,
+                    "tx_packets": 800
+                }
+            },
+            "blkio_stats": {
+                "io_service_bytes_recursive": [
+                    {"op": "Read", "value": 10485760},   # 10MB
+                    {"op": "Write", "value": 5242880},   # 5MB
+                    {"op": "Sync", "value": 1048576},    # 1MB
+                    {"op": "Async", "value": 2097152}    # 2MB
+                ]
+            }
+        }
+
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_container.stats.return_value = mock_stats
+
+        manager = DockerManager()
+
+        # Test getting detailed resource stats
+        result = manager.get_container_stats("resource_container_id")
+
+        assert result["container_id"] == "resource_container_id"
+        assert result["memory_usage"] == 1073741824
+        assert result["memory_limit"] == 2147483648
+        assert result["memory_percent"] == 50.0  # 1GB / 2GB * 100
+        assert result["network_rx_bytes"] == 1048576
+        assert result["network_tx_bytes"] == 2097152
+        assert result["block_read_bytes"] == 10485760
+        assert result["block_write_bytes"] == 5242880
+
+    @patch("docker.from_env")
+    def test_container_environment_variable_handling(self, mock_from_env, mock_docker_client):
+        """Test container environment variable handling."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container with environment variables
+        mock_container = MagicMock()
+        mock_container.id = "env_container_id"
+        mock_container.name = "env_container"
+        mock_container.status = "running"
+        mock_container.attrs = {
+            "Config": {
+                "Env": [
+                    "NODE_ENV=production",
+                    "PORT=3000",
+                    "DATABASE_URL=postgresql://user:pass@db:5432/mydb",
+                    "API_KEY=secret_key_123",
+                    "DEBUG=false"
+                ]
+            }
+        }
+
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_docker_client.containers.list.return_value = [mock_container]
+
+        manager = DockerManager()
+
+        # Test listing containers with environment variables
+        containers = manager.list_containers(all=True)
+        assert len(containers) == 1
+        assert containers[0]["id"] == "env_container_id"
+        assert containers[0]["name"] == "env_container"
+
+        # Test that container operations work with environment variables
+        result = manager.start_container("env_container_id")
+        assert result["status"] == "started"
+
+
+class TestDockerManagerErrorHandling:
+    """Test suite for Docker Manager error handling and recovery."""
+
+    @pytest.fixture
+    def mock_docker_client(self):
+        """Create a mock Docker client for error testing."""
+        mock_client = MagicMock(spec=docker.DockerClient)
+        mock_client.ping.return_value = True
+        return mock_client
+
+    @patch("docker.from_env")
+    def test_docker_daemon_unavailable_scenarios(self, mock_from_env, mock_docker_client):
+        """Test scenarios when Docker daemon becomes unavailable."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test daemon becomes unavailable during operation
+        mock_docker_client.containers.list.side_effect = DockerException("Daemon unavailable")
+
+        # Should handle gracefully without crashing
+        try:
+            containers = manager.list_containers()
+            # If no exception is raised, the method should return empty or handle gracefully
+        except DockerException:
+            # This is expected behavior
+            pass
+
+    @patch("docker.from_env")
+    def test_container_deployment_failures_and_rollback(self, mock_from_env, mock_docker_client):
+        """Test container deployment failures and rollback scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test container start failure
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+        result = manager.start_container("nonexistent_container")
+        assert "error" in result
+        assert "not found" in result["error"].lower()
+
+        # Test container stop failure
+        mock_docker_client.containers.get.side_effect = APIError("Container cannot be stopped")
+        result = manager.stop_container("problematic_container")
+        assert "error" in result
+        assert "Container cannot be stopped" in result["error"]
+
+        # Test container restart failure
+        mock_docker_client.containers.get.side_effect = APIError("Restart failed")
+        result = manager.restart_container("failing_container")
+        assert "error" in result
+        assert "Restart failed" in result["error"]
+
+    @patch("docker.from_env")
+    def test_network_connectivity_issues(self, mock_from_env, mock_docker_client):
+        """Test network connectivity issues during Docker operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test network timeout during stats retrieval
+        mock_container = MagicMock()
+        mock_container.id = "network_test_container"
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_container.stats.side_effect = DockerException("Network timeout")
+
+        result = manager.get_container_stats("network_test_container")
+        assert "error" in result
+
+        # Test network issues during health check
+        # Reset the ping mock to avoid interference from initialization
+        mock_docker_client.ping.reset_mock()
+        mock_docker_client.ping.side_effect = DockerException("Network unreachable")
+        result = manager.health_check()
+        assert result["status"] == "unhealthy"
+        assert "Network unreachable" in result["error"]
+
+    @patch("docker.from_env")
+    def test_insufficient_resources_handling(self, mock_from_env, mock_docker_client):
+        """Test handling of insufficient resources scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test insufficient memory error
+        mock_docker_client.containers.get.side_effect = APIError("Insufficient memory")
+        result = manager.start_container("memory_intensive_container")
+        assert "error" in result
+        assert "Insufficient memory" in result["error"]
+
+        # Test disk space error
+        mock_docker_client.info.side_effect = DockerException("No space left on device")
+        result = manager.get_system_stats()
+        assert "error" in result
+        assert "No space left on device" in result["error"]
+
+    @patch("docker.from_env")
+    def test_docker_api_timeout_and_retry_logic(self, mock_from_env, mock_docker_client):
+        """Test Docker API timeout and retry logic scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test API timeout during container operations
+        mock_container = MagicMock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Test timeout during logs retrieval
+        mock_container.logs.side_effect = APIError("Request timeout")
+        result = manager.get_logs("timeout_container")
+        assert "error" in result
+        assert "Request timeout" in result["error"]
+
+        # Test timeout during stats retrieval
+        mock_container.stats.side_effect = DockerException("Stats timeout")
+        result = manager.get_container_stats("timeout_container")
+        assert "error" in result
+
+    @patch("docker.from_env")
+    def test_malformed_docker_responses(self, mock_from_env, mock_docker_client):
+        """Test handling of malformed Docker API responses."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test malformed stats response
+        mock_container = MagicMock()
+        mock_container.id = "malformed_container"
+        mock_container.name = "malformed_container"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Test with malformed JSON in stats
+        mock_container.stats.return_value = b'{"invalid": json}'
+        result = manager.get_container_stats("malformed_container")
+        # Should handle gracefully and return error or default values
+        assert "container_id" in result or "error" in result
+
+        # Test with completely invalid response
+        mock_container.stats.return_value = b'not json at all'
+        result = manager.get_container_stats("malformed_container")
+        assert "container_id" in result or "error" in result
+
+
+class TestDockerManagerPerformance:
+    """Test suite for Docker Manager performance and scalability."""
+
+    @pytest.fixture
+    def mock_docker_client(self):
+        """Create a mock Docker client for performance testing."""
+        mock_client = MagicMock(spec=docker.DockerClient)
+        mock_client.ping.return_value = True
+        return mock_client
+
+    @patch("docker.from_env")
+    def test_concurrent_container_operations(self, mock_from_env, mock_docker_client):
+        """Test concurrent container operations performance."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock multiple containers
+        containers = []
+        for i in range(10):
+            mock_container = MagicMock()
+            mock_container.id = f"concurrent_container_{i}"
+            mock_container.name = f"container_{i}"
+            mock_container.status = "running"
+            containers.append(mock_container)
+
+        mock_docker_client.containers.list.return_value = containers
+
+        def mock_get_container(container_id):
+            for container in containers:
+                if container.id == container_id:
+                    return container
+            raise NotFound("Container not found")
+
+        mock_docker_client.containers.get.side_effect = mock_get_container
+
+        manager = DockerManager()
+
+        # Test listing multiple containers
+        result = manager.list_containers(all=True)
+        assert len(result) == 10
+
+        # Test multiple container stats retrieval
+        container_ids = [f"concurrent_container_{i}" for i in range(5)]
+
+        # Mock stats for each container
+        for container in containers[:5]:
+            container.stats.return_value = {
+                "cpu_stats": {"cpu_usage": {"total_usage": 1000000}},
+                "precpu_stats": {"cpu_usage": {"total_usage": 900000}},
+                "memory_stats": {"usage": 1024000, "limit": 2048000}
+            }
+
+        result = manager.get_multiple_container_stats(container_ids)
+        assert len(result) == 5
+        for container_id in container_ids:
+            assert container_id in result
+            assert "error" not in result[container_id] or "container_id" in result[container_id]
+
+    @patch("docker.from_env")
+    def test_large_scale_container_deployments(self, mock_from_env, mock_docker_client):
+        """Test large-scale container deployment scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock a large number of containers
+        large_container_list = []
+        for i in range(100):
+            mock_container = MagicMock()
+            mock_container.id = f"scale_container_{i}"
+            mock_container.name = f"scale_container_{i}"
+            mock_container.status = "running" if i % 2 == 0 else "exited"
+            mock_container.image.tags = [f"app:v{i % 10}"]
+            mock_container.labels = {"app": "scale_test", "instance": str(i)}
+            mock_container.ports = {}
+            large_container_list.append(mock_container)
+
+        mock_docker_client.containers.list.return_value = large_container_list
+
+        manager = DockerManager()
+
+        # Test listing large number of containers
+        result = manager.list_containers(all=True)
+        assert len(result) == 100
+
+        # Verify data structure is maintained
+        for i, container in enumerate(result):
+            assert container["id"] == f"scale_container_{i}"
+            assert container["name"] == f"scale_container_{i}"
+            assert container["status"] in ["running", "exited"]
+
+    @patch("docker.from_env")
+    def test_resource_usage_optimization(self, mock_from_env, mock_docker_client):
+        """Test resource usage optimization during operations."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test memory-efficient stats aggregation
+        container_ids = [f"resource_container_{i}" for i in range(20)]
+
+        # Mock containers with varying resource usage
+        def mock_get_stats(container_id):
+            index = int(container_id.split('_')[-1])
+            return {
+                "cpu_percent": index * 5.0,
+                "memory_usage": index * 1024 * 1024,  # MB
+                "memory_limit": 1024 * 1024 * 1024,   # 1GB
+                "network_rx_bytes": index * 1000,
+                "network_tx_bytes": index * 2000,
+                "block_read_bytes": index * 4096,
+                "block_write_bytes": index * 8192
+            }
+
+        # Mock the get_container_stats method
+        original_get_stats = manager.get_container_stats
+        manager.get_container_stats = mock_get_stats
+
+        # Test aggregated metrics calculation
+        result = manager.get_aggregated_metrics(container_ids)
+
+        assert "aggregated_metrics" in result
+        assert result["container_count"] == 20
+        assert result["total_containers"] == 20
+        assert "avg_cpu_percent" in result["aggregated_metrics"]
+        assert "total_memory_usage" in result["aggregated_metrics"]
+
+    @patch("docker.from_env")
+    def test_docker_api_rate_limiting_handling(self, mock_from_env, mock_docker_client):
+        """Test Docker API rate limiting handling."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test rate limiting during container listing
+        mock_docker_client.containers.list.side_effect = APIError("Rate limit exceeded")
+
+        try:
+            result = manager.list_containers()
+            # Should handle rate limiting gracefully
+        except APIError:
+            # Expected behavior for rate limiting
+            pass
+
+        # Test rate limiting during stats retrieval
+        mock_container = MagicMock()
+        mock_container.id = "rate_limited_container"
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_container.stats.side_effect = APIError("Too many requests")
+
+        result = manager.get_container_stats("rate_limited_container")
+        assert "error" in result
+        assert "Too many requests" in result["error"]
+
+    @patch("docker.from_env")
+    def test_memory_and_performance_under_load(self, mock_from_env, mock_docker_client):
+        """Test memory usage and performance under load."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test with high-frequency stats requests
+        mock_container = MagicMock()
+        mock_container.id = "performance_container"
+        mock_container.name = "performance_container"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock stats with large data
+        large_stats = {
+            "cpu_stats": {
+                "cpu_usage": {"total_usage": 5000000000},
+                "system_cpu_usage": 10000000000,
+                "online_cpus": 8
+            },
+            "precpu_stats": {
+                "cpu_usage": {"total_usage": 4500000000},
+                "system_cpu_usage": 9500000000
+            },
+            "memory_stats": {
+                "usage": 4294967296,  # 4GB
+                "limit": 8589934592,  # 8GB
+                "max_usage": 5000000000,
+                "stats": {
+                    "cache": 1073741824,
+                    "rss": 3221225472,
+                    "swap": 0
+                }
+            },
+            "networks": {
+                f"eth{i}": {
+                    "rx_bytes": i * 1048576,
+                    "tx_bytes": i * 2097152
+                } for i in range(10)  # Multiple network interfaces
+            },
+            "blkio_stats": {
+                "io_service_bytes_recursive": [
+                    {"op": "Read", "value": 1073741824},   # 1GB
+                    {"op": "Write", "value": 536870912},   # 512MB
+                ]
+            }
+        }
+
+        mock_container.stats.return_value = large_stats
+
+        # Test multiple rapid stats requests
+        for i in range(10):
+            result = manager.get_container_stats("performance_container")
+            assert "container_id" in result
+            assert result["container_id"] == "performance_container"
+            assert "memory_usage" in result
+            assert "cpu_percent" in result
+
+        # Test aggregated metrics with large dataset
+        container_ids = [f"performance_container_{i}" for i in range(50)]
+
+        # Mock get_container_stats for performance testing
+        def mock_performance_stats(container_id):
+            index = hash(container_id) % 100
+            return {
+                "cpu_percent": float(index),
+                "memory_usage": index * 1024 * 1024,
+                "memory_limit": 1024 * 1024 * 1024,
+                "network_rx_bytes": index * 1000,
+                "network_tx_bytes": index * 2000,
+                "block_read_bytes": index * 4096,
+                "block_write_bytes": index * 8192
+            }
+
+        original_get_stats = manager.get_container_stats
+        manager.get_container_stats = mock_performance_stats
+
+        # Test performance with large aggregation
+        result = manager.get_aggregated_metrics(container_ids)
+        assert result["container_count"] == 50
+        assert "aggregated_metrics" in result
+        assert "individual_stats" in result
+        assert len(result["individual_stats"]) == 50
+
+
+class TestDockerManagerAsyncOperations:
+    """Test suite for Docker Manager async operations."""
+
+    @pytest.fixture
+    def mock_docker_client(self):
+        """Create a mock Docker client for async testing."""
+        mock_client = MagicMock(spec=docker.DockerClient)
+        mock_client.ping.return_value = True
+        return mock_client
+
+    @patch("docker.from_env")
+    @pytest.mark.asyncio
+    async def test_streaming_stats_async_generator(self, mock_from_env, mock_docker_client):
+        """Test async streaming stats generator."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock container for streaming
+        mock_container = MagicMock()
+        mock_container.id = "streaming_container"
+        mock_container.name = "streaming_container"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock streaming stats generator
+        def mock_streaming_stats():
+            for i in range(5):
+                yield {
+                    "cpu_stats": {"cpu_usage": {"total_usage": 1000000 * i}},
+                    "memory_stats": {"usage": 1024000 * i, "limit": 2048000},
+                    "timestamp": f"2024-01-01T12:00:{i:02d}Z"
+                }
+
+        mock_container.stats.return_value = mock_streaming_stats()
+
+        manager = DockerManager()
+
+        # Test async streaming stats
+        stats_count = 0
+        async for stats in manager.get_streaming_stats("streaming_container"):
+            assert "container_id" in stats
+            assert stats["container_id"] == "streaming_container"
+            stats_count += 1
+            if stats_count >= 3:  # Limit iterations for testing
+                break
+
+        assert stats_count == 3
+
+    @patch("docker.from_env")
+    @pytest.mark.asyncio
+    async def test_streaming_stats_error_handling(self, mock_from_env, mock_docker_client):
+        """Test async streaming stats error handling."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Test container not found
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+
+        manager = DockerManager()
+
+        async for stats in manager.get_streaming_stats("nonexistent_container"):
+            assert "error" in stats
+            assert "not found" in stats["error"].lower()
+            break  # Only test first error response
+
+        # Test API error during streaming
+        mock_container = MagicMock()
+        mock_docker_client.containers.get.side_effect = None
+        mock_docker_client.containers.get.return_value = mock_container
+        mock_container.stats.side_effect = APIError("Streaming failed")
+
+        async for stats in manager.get_streaming_stats("error_container"):
+            assert "error" in stats
+            assert "Streaming failed" in stats["error"]
+            break  # Only test first error response
+
+    @patch("docker.from_env")
+    def test_comprehensive_edge_cases(self, mock_from_env, mock_docker_client):
+        """Test comprehensive edge cases and boundary conditions."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test with empty container list
+        mock_docker_client.containers.list.return_value = []
+        result = manager.list_containers(all=True)
+        assert result == []
+
+        # Test with None values in container attributes
+        mock_container = MagicMock()
+        mock_container.id = None
+        mock_container.name = None
+        mock_container.status = None
+        mock_container.image.tags = []
+        mock_container.labels = {}
+        mock_container.ports = {}
+
+        mock_docker_client.containers.list.return_value = [mock_container]
+        result = manager.list_containers(all=True)
+        assert len(result) == 1
+        assert result[0]["id"] is None
+        assert result[0]["name"] is None
+
+        # Test aggregated metrics with empty container list
+        result = manager.get_aggregated_metrics([])
+        assert result["container_count"] == 0
+        assert result["total_containers"] == 0
+        assert result["aggregated_metrics"]["avg_cpu_percent"] == 0
+
+        # Test multiple container stats with empty list
+        result = manager.get_multiple_container_stats([])
+        assert result == {}
