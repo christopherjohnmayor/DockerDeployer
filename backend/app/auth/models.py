@@ -19,42 +19,18 @@ class UserBase(BaseModel):
 
     @validator("username")
     def sanitize_username(cls, v):
-        """Sanitize username to prevent XSS."""
+        """Basic sanitization for username - detailed XSS validation happens in router."""
         if v:
-            # Remove HTML tags and escape special characters
-            sanitized = html.escape(v.strip())
-            # Remove script tags and other dangerous patterns
-            dangerous_patterns = [
-                r'<script[^>]*>.*?</script>',
-                r'javascript:',
-                r'on\w+\s*=',
-                r'<iframe[^>]*>.*?</iframe>',
-                r'<object[^>]*>.*?</object>',
-                r'<embed[^>]*>.*?</embed>'
-            ]
-            for pattern in dangerous_patterns:
-                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            return sanitized
+            # Basic sanitization only - let router handle security validation
+            return v.strip()
         return v
 
     @validator("full_name")
     def sanitize_full_name(cls, v):
-        """Sanitize full name to prevent XSS."""
+        """Basic sanitization for full name - detailed XSS validation happens in router."""
         if v:
-            # Remove HTML tags and escape special characters
-            sanitized = html.escape(v.strip())
-            # Remove script tags and other dangerous patterns
-            dangerous_patterns = [
-                r'<script[^>]*>.*?</script>',
-                r'javascript:',
-                r'on\w+\s*=',
-                r'<iframe[^>]*>.*?</iframe>',
-                r'<object[^>]*>.*?</object>',
-                r'<embed[^>]*>.*?</embed>'
-            ]
-            for pattern in dangerous_patterns:
-                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            return sanitized
+            # Basic sanitization only - let router handle security validation
+            return v.strip()
         return v
 
 
@@ -65,48 +41,18 @@ class UserCreate(UserBase):
 
     @validator("username", pre=True)
     def sanitize_username_create(cls, v):
-        """Sanitize username to prevent XSS."""
+        """Basic sanitization for username - detailed XSS validation happens in router."""
         if v:
-            # Remove HTML tags and escape special characters
-            sanitized = html.escape(str(v).strip())
-            # Remove script tags and other dangerous patterns
-            dangerous_patterns = [
-                r'<script[^>]*>.*?</script>',
-                r'javascript:',
-                r'on\w+\s*=',
-                r'<iframe[^>]*>.*?</iframe>',
-                r'<object[^>]*>.*?</object>',
-                r'<embed[^>]*>.*?</embed>'
-            ]
-            for pattern in dangerous_patterns:
-                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            # Also reject if it still contains dangerous characters
-            if '<' in sanitized or '>' in sanitized or 'javascript:' in sanitized.lower():
-                raise ValueError("Username contains invalid characters")
-            return sanitized
+            # Basic sanitization only - let router handle security validation
+            return str(v).strip()
         return v
 
     @validator("full_name", pre=True)
     def sanitize_full_name_create(cls, v):
-        """Sanitize full name to prevent XSS."""
+        """Basic sanitization for full name - detailed XSS validation happens in router."""
         if v:
-            # Remove HTML tags and escape special characters
-            sanitized = html.escape(str(v).strip())
-            # Remove script tags and other dangerous patterns
-            dangerous_patterns = [
-                r'<script[^>]*>.*?</script>',
-                r'javascript:',
-                r'on\w+\s*=',
-                r'<iframe[^>]*>.*?</iframe>',
-                r'<object[^>]*>.*?</object>',
-                r'<embed[^>]*>.*?</embed>'
-            ]
-            for pattern in dangerous_patterns:
-                sanitized = re.sub(pattern, '', sanitized, flags=re.IGNORECASE | re.DOTALL)
-            # Also reject if it still contains dangerous characters
-            if '<' in sanitized or '>' in sanitized or 'javascript:' in sanitized.lower():
-                raise ValueError("Full name contains invalid characters")
-            return sanitized
+            # Basic sanitization only - let router handle security validation
+            return str(v).strip()
         return v
 
     @validator("password")

@@ -485,3 +485,548 @@ class TestTemplateValidator:
         assert is_valid is False
         assert "Missing required variable" in error
         assert processed == {}
+
+    def test_validate_variable_values_invalid_option(self):
+        """Test validating variable values with invalid option."""
+        template_data = {
+            "variables": {
+                "PHP_VERSION": {
+                    "description": "PHP version",
+                    "default": "8.0",
+                    "options": ["7.4", "8.0", "8.1"],
+                }
+            }
+        }
+
+        variable_values = {"PHP_VERSION": "8.2"}  # Not in options
+
+        is_valid, error, processed = validate_variable_values(
+            template_data, variable_values
+        )
+
+        assert is_valid is False
+        assert "must be one of" in error
+        assert processed == {}
+
+    def test_validate_variable_values_with_defaults(self):
+        """Test validating variable values using defaults."""
+        template_data = {
+            "variables": {
+                "PROJECT_NAME": {
+                    "description": "Project name",
+                    "default": "default-project",
+                },
+                "DEBUG_MODE": {
+                    "description": "Debug mode",
+                    "default": "false",
+                },
+            }
+        }
+
+        variable_values = {"PROJECT_NAME": "my-project"}  # DEBUG_MODE not provided
+
+        is_valid, error, processed = validate_variable_values(
+            template_data, variable_values
+        )
+
+        assert is_valid is True
+        assert error is None
+        assert processed["PROJECT_NAME"] == "my-project"
+        assert processed["DEBUG_MODE"] == "false"  # Default value used
+
+    def test_validate_template_structure_invalid_services_type(self):
+        """Test validating template structure with invalid services type."""
+        template_data = {
+            "name": "test",
+            "description": "Test template",
+            "version": "1.0.0",
+            "services": "invalid",  # Should be dict
+        }
+
+        is_valid, error = validate_template_structure(template_data)
+
+        assert is_valid is False
+        assert "Services must be a non-empty dictionary" in error
+
+    def test_validate_template_structure_invalid_variables_type(self):
+        """Test validating template structure with invalid variables type."""
+        template_data = {
+            "name": "test",
+            "description": "Test template",
+            "version": "1.0.0",
+            "services": {"web": {"image": "nginx"}},
+            "variables": "invalid",  # Should be dict
+        }
+
+        is_valid, error = validate_template_structure(template_data)
+
+        assert is_valid is False
+        assert "Variables must be a dictionary" in error
+
+    def test_validate_template_structure_invalid_files_type(self):
+        """Test validating template structure with invalid files type."""
+        template_data = {
+            "name": "test",
+            "description": "Test template",
+            "version": "1.0.0",
+            "services": {"web": {"image": "nginx"}},
+            "files": "invalid",  # Should be list
+        }
+
+        is_valid, error = validate_template_structure(template_data)
+
+        assert is_valid is False
+        assert "Files must be a list" in error
+
+    def test_validate_variables_no_variables(self):
+        """Test validating template with no variables section."""
+        template_data = {}  # No variables
+
+        is_valid, error = validate_variables(template_data)
+
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_variables_invalid_config_type(self):
+        """Test validating variables with invalid configuration type."""
+        template_data = {
+            "variables": {
+                "PROJECT_NAME": "invalid"  # Should be dict
+            }
+        }
+
+        is_valid, error = validate_variables(template_data)
+
+        assert is_valid is False
+        assert "must be a dictionary" in error
+
+    def test_validate_variables_required_without_default(self):
+        """Test validating required variable without default value."""
+        template_data = {
+            "variables": {
+                "API_KEY": {
+                    "description": "API Key",
+                    "required": True
+                    # No default value
+                }
+            }
+        }
+
+        is_valid, error = validate_variables(template_data)
+
+        assert is_valid is False
+        assert "Required variable" in error
+        assert "must have a default value" in error
+
+    def test_validate_variables_empty_options(self):
+        """Test validating variables with empty options list."""
+        template_data = {
+            "variables": {
+                "VERSION": {
+                    "description": "Version",
+                    "default": "1.0",
+                    "options": []  # Empty options - this is actually valid (ignored)
+                }
+            }
+        }
+
+        is_valid, error = validate_variables(template_data)
+
+        # Empty options list is valid (ignored by validation logic)
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_variables_invalid_options_with_content(self):
+        """Test validating variables with invalid options that have content."""
+        template_data = {
+            "variables": {
+                "VERSION": {
+                    "description": "Version",
+                    "default": "2.0",  # Default not in options
+                    "options": ["1.0", "1.5"]  # Valid options but default not included
+                }
+            }
+        }
+
+        is_valid, error = validate_variables(template_data)
+
+        # This should fail since default is not in options
+        assert is_valid is False
+        assert "not in options" in error
+
+    def test_validate_variables_invalid_options_type(self):
+        """Test validating variables with invalid options type."""
+        template_data = {
+            "variables": {
+                "VERSION": {
+                    "description": "Version",
+                    "default": "1.0",
+                    "options": "invalid"  # Should be list
+                }
+            }
+        }
+
+        is_valid, error = validate_variables(template_data)
+
+        assert is_valid is False
+        assert "must be a non-empty list" in error
+
+    def test_validate_services_no_services(self):
+        """Test validating template with no services."""
+        template_data = {}  # No services
+
+        is_valid, error = validate_services(template_data)
+
+        assert is_valid is False
+        assert "No services defined" in error
+
+    def test_validate_services_invalid_config_type(self):
+        """Test validating services with invalid configuration type."""
+        template_data = {
+            "services": {
+                "web": "invalid"  # Should be dict
+            }
+        }
+
+        is_valid, error = validate_services(template_data)
+
+        assert is_valid is False
+        assert "must be a dictionary" in error
+
+    def test_validate_services_with_build(self):
+        """Test validating services with build instead of image."""
+        template_data = {
+            "services": {
+                "web": {
+                    "build": "./docker/web",
+                    "ports": ["80:80"]
+                }
+            }
+        }
+
+        is_valid, error = validate_services(template_data)
+
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_services_nested_variable_references(self):
+        """Test validating services with nested variable references."""
+        template_data = {
+            "services": {
+                "web": {
+                    "image": "nginx:${NGINX_VERSION}",
+                    "environment": {
+                        "API_URL": "https://${DOMAIN}:${PORT}/api",
+                        "CONFIG": {
+                            "database": {
+                                "host": "${DB_HOST}",
+                                "port": "${DB_PORT}"
+                            }
+                        }
+                    },
+                    "volumes": ["${DATA_DIR}:/data"]
+                }
+            },
+            "variables": {
+                "NGINX_VERSION": {"description": "Nginx version", "default": "latest"},
+                "DOMAIN": {"description": "Domain", "default": "localhost"},
+                "PORT": {"description": "Port", "default": "443"},
+                "DB_HOST": {"description": "DB host", "default": "localhost"},
+                "DB_PORT": {"description": "DB port", "default": "5432"},
+                "DATA_DIR": {"description": "Data directory", "default": "./data"}
+            }
+        }
+
+        is_valid, error = validate_services(template_data)
+
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_files_no_files(self):
+        """Test validating template with no files section."""
+        template_data = {}  # No files
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_files_invalid_entry_type(self):
+        """Test validating files with invalid entry type."""
+        template_data = {
+            "files": [
+                "invalid"  # Should be dict
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "File entry must be a dictionary" in error
+
+    def test_validate_files_missing_content(self):
+        """Test validating files with missing content."""
+        template_data = {
+            "files": [
+                {
+                    "path": "config.txt"
+                    # Missing content
+                }
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "missing required field: content" in error.lower()
+
+    def test_validate_files_empty_path(self):
+        """Test validating files with empty path."""
+        template_data = {
+            "files": [
+                {
+                    "path": "",  # Empty path
+                    "content": "test content"
+                }
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "must be a non-empty string" in error
+
+    def test_validate_files_invalid_path_type(self):
+        """Test validating files with invalid path type."""
+        template_data = {
+            "files": [
+                {
+                    "path": 123,  # Should be string
+                    "content": "test content"
+                }
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "must be a non-empty string" in error
+
+    def test_validate_files_invalid_content_type(self):
+        """Test validating files with invalid content type."""
+        template_data = {
+            "files": [
+                {
+                    "path": "config.txt",
+                    "content": 123  # Should be string
+                }
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "must be a string" in error
+
+    def test_validate_files_absolute_path(self):
+        """Test validating files with absolute path."""
+        template_data = {
+            "files": [
+                {
+                    "path": "/etc/passwd",  # Absolute path
+                    "content": "malicious content"
+                }
+            ]
+        }
+
+        is_valid, error = validate_files(template_data)
+
+        assert is_valid is False
+        assert "Invalid file path" in error
+        assert "cannot contain '..' or start with '/'" in error
+
+    def test_validate_template_file_read_error(self):
+        """Test validating template file with read error."""
+        with patch("builtins.open", side_effect=IOError("Permission denied")):
+            is_valid, error = validate_template_file("unreadable.yaml")
+
+            assert is_valid is False
+            assert "Error validating template" in error
+
+    def test_validate_template_comprehensive_valid(self):
+        """Test validating a comprehensive valid template."""
+        template_data = {
+            "name": "comprehensive-test",
+            "description": "Comprehensive test template",
+            "version": "2.0.0",
+            "services": {
+                "web": {
+                    "image": "nginx:${NGINX_VERSION}",
+                    "ports": ["${WEB_PORT}:80"],
+                    "environment": {
+                        "API_URL": "https://${DOMAIN}/api"
+                    },
+                    "volumes": ["${CONFIG_DIR}/nginx.conf:/etc/nginx/nginx.conf"]
+                },
+                "api": {
+                    "build": "./api",
+                    "environment": {
+                        "DATABASE_URL": "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}"
+                    },
+                    "depends_on": ["db"]
+                },
+                "db": {
+                    "image": "postgres:${POSTGRES_VERSION}",
+                    "environment": {
+                        "POSTGRES_DB": "${DB_NAME}",
+                        "POSTGRES_USER": "${DB_USER}",
+                        "POSTGRES_PASSWORD": "${DB_PASSWORD}"
+                    },
+                    "volumes": ["${DATA_DIR}:/var/lib/postgresql/data"]
+                }
+            },
+            "variables": {
+                "NGINX_VERSION": {
+                    "description": "Nginx version",
+                    "default": "latest",
+                    "options": ["latest", "1.20", "1.21"]
+                },
+                "POSTGRES_VERSION": {
+                    "description": "PostgreSQL version",
+                    "default": "13",
+                    "options": ["11", "12", "13", "14"]
+                },
+                "WEB_PORT": {
+                    "description": "Web server port",
+                    "default": "80"
+                },
+                "DOMAIN": {
+                    "description": "Domain name",
+                    "default": "localhost"
+                },
+                "DB_NAME": {
+                    "description": "Database name",
+                    "default": "myapp"
+                },
+                "DB_USER": {
+                    "description": "Database user",
+                    "default": "postgres"
+                },
+                "DB_PASSWORD": {
+                    "description": "Database password",
+                    "default": "password"
+                },
+                "CONFIG_DIR": {
+                    "description": "Configuration directory",
+                    "default": "./config"
+                },
+                "DATA_DIR": {
+                    "description": "Data directory",
+                    "default": "./data"
+                }
+            },
+            "files": [
+                {
+                    "path": "config/nginx.conf",
+                    "content": "server {\n    listen 80;\n    server_name ${DOMAIN};\n}"
+                },
+                {
+                    "path": "config/app.env",
+                    "content": "DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}\nDOMAIN=${DOMAIN}"
+                }
+            ]
+        }
+
+        is_valid, error = validate_template(template_data)
+
+        assert is_valid is True
+        assert error is None
+
+    def test_validate_template_comprehensive_invalid(self):
+        """Test validating a comprehensive invalid template."""
+        template_data = {
+            "name": "invalid-test",
+            "description": "Invalid test template",
+            "version": "1.0.0",
+            "services": {
+                "web": {
+                    "image": "nginx:${UNDEFINED_VERSION}",  # Undefined variable
+                    "ports": ["80:80"]
+                }
+            },
+            "variables": {
+                "NGINX_VERSION": {
+                    "description": "Nginx version",
+                    "default": "latest"
+                }
+            }
+        }
+
+        is_valid, error = validate_template(template_data)
+
+        assert is_valid is False
+        assert "references undefined variable" in error
+
+    def test_validate_variable_values_edge_cases(self):
+        """Test validating variable values with edge cases."""
+        template_data = {
+            "variables": {
+                "STRING_VAR": {
+                    "description": "String variable",
+                    "default": "default"
+                },
+                "NUMERIC_VAR": {
+                    "description": "Numeric variable",
+                    "default": "123",
+                    "options": ["123", "456", "789"]
+                },
+                "BOOLEAN_VAR": {
+                    "description": "Boolean variable",
+                    "default": "true",
+                    "options": ["true", "false"]
+                }
+            }
+        }
+
+        # Test with numeric values converted to strings
+        variable_values = {
+            "STRING_VAR": "custom",
+            "NUMERIC_VAR": "456",  # String input matching options
+            "BOOLEAN_VAR": "true"   # String input matching options
+        }
+
+        is_valid, error, processed = validate_variable_values(
+            template_data, variable_values
+        )
+
+        assert is_valid is True
+        assert error is None
+        assert processed["STRING_VAR"] == "custom"
+        assert processed["NUMERIC_VAR"] == "456"
+        assert processed["BOOLEAN_VAR"] == "true"
+
+    def test_validate_template_structure_with_optional_fields(self):
+        """Test validating template structure with optional fields."""
+        template_data = {
+            "name": "test",
+            "description": "Test template",
+            "version": "1.0.0",
+            "services": {"web": {"image": "nginx"}},
+            "variables": {
+                "TEST_VAR": {
+                    "description": "Test variable",
+                    "default": "test"
+                }
+            },
+            "files": [
+                {
+                    "path": "test.txt",
+                    "content": "test content"
+                }
+            ]
+        }
+
+        is_valid, error = validate_template_structure(template_data)
+
+        assert is_valid is True
+        assert error is None

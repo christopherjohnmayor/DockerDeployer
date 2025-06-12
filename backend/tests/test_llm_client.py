@@ -1146,6 +1146,418 @@ class TestErrorHandlingAndFallback:
 
         assert "proxy" in str(exc_info.value).lower()
 
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_provider_initialization_edge_cases(self, mock_async_client_class):
+        """Test provider initialization edge cases."""
+        # Test with None values
+        client = LLMClient(provider="openrouter", api_url=None, api_key=None)
+        assert client.provider == "openrouter"
+        assert "openrouter.ai" in client.api_url
+        assert client.api_key is None
+
+        # Test with empty strings
+        client = LLMClient(provider="litellm", api_url="", api_key="")
+        assert client.provider == "litellm"
+        assert client.api_key == ""
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_send_query_parameter_merging(self, mock_async_client_class):
+        """Test parameter merging in send_query method."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"response": "test response"}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama", model="custom-model")
+
+        # Test parameter override
+        params = {"model": "override-model", "temperature": 0.8}
+        await client.send_query("test prompt", params=params)
+
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["json"]["model"] == "override-model"
+        assert kwargs["json"]["temperature"] == 0.8
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_openrouter_context_handling(self, mock_async_client_class):
+        """Test OpenRouter context handling in messages."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "response with context"}}]
+        }
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="openrouter", api_key="test-key")
+
+        # Test with custom context
+        custom_context = "You are a specialized Docker assistant."
+        await client.send_query("test prompt", context=custom_context)
+
+        _, kwargs = mock_client.post.call_args
+        messages = kwargs["json"]["messages"]
+        assert len(messages) == 2
+        assert messages[0]["role"] == "system"
+        assert messages[0]["content"] == custom_context
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "test prompt"
+
+        # Test with None context (should use default)
+        await client.send_query("test prompt", context=None)
+        _, kwargs = mock_client.post.call_args
+        messages = kwargs["json"]["messages"]
+        assert "DockerGPT" in messages[0]["content"]
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_litellm_authorization_header_handling(self, mock_async_client_class):
+        """Test LiteLLM authorization header handling."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"response": "litellm response"}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.post.return_value = mock_response
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        # Test with API key
+        client = LLMClient(provider="litellm", api_key="test-litellm-key")
+        await client.send_query("test prompt")
+
+        _, kwargs = mock_client.post.call_args
+        assert "headers" in kwargs
+        assert kwargs["headers"]["Authorization"] == "Bearer test-litellm-key"
+
+        # Test without API key
+        client = LLMClient(provider="litellm", api_key=None)
+        await client.send_query("test prompt")
+
+        _, kwargs = mock_client.post.call_args
+        headers = kwargs.get("headers", {})
+        assert "Authorization" not in headers
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_response_field_fallbacks(self, mock_async_client_class):
+        """Test response field fallbacks for different providers."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        # Test Ollama response field priority: response > message > text
+        client = LLMClient(provider="ollama")
+
+        # Test with all fields present (should prefer 'response')
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "response": "primary response",
+            "message": "secondary message",
+            "text": "tertiary text"
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        result = await client.send_query("test")
+        assert result == "primary response"
+
+        # Test with only message and text (should prefer 'message')
+        mock_response.json.return_value = {
+            "message": "secondary message",
+            "text": "tertiary text"
+        }
+        result = await client.send_query("test")
+        assert result == "secondary message"
+
+        # Test with only text
+        mock_response.json.return_value = {"text": "tertiary text"}
+        result = await client.send_query("test")
+        assert result == "tertiary text"
+
+        # Test LiteLLM response field priority: response > text
+        client = LLMClient(provider="litellm", api_key="test-key")
+
+        mock_response.json.return_value = {
+            "response": "litellm response",
+            "text": "litellm text"
+        }
+        result = await client.send_query("test")
+        assert result == "litellm response"
+
+        mock_response.json.return_value = {"text": "litellm text only"}
+        result = await client.send_query("test")
+        assert result == "litellm text only"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_json_parsing_errors(self, mock_async_client_class):
+        """Test JSON parsing error handling."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="ollama")
+
+        # Test invalid JSON response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.side_effect = ValueError("Invalid JSON")
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        with pytest.raises(ValueError):
+            await client.send_query("test prompt")
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_http_status_error_handling(self, mock_async_client_class):
+        """Test HTTP status error handling."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        client = LLMClient(provider="openrouter", api_key="test-key")
+
+        # Test 400 Bad Request
+        mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "400 Bad Request", request=MagicMock(), response=mock_response
+        )
+        mock_client.post.return_value = mock_response
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await client.send_query("test prompt")
+        assert "400" in str(exc_info.value)
+
+        # Test 500 Internal Server Error
+        mock_response.status_code = 500
+        mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "500 Internal Server Error", request=MagicMock(), response=mock_response
+        )
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await client.send_query("test prompt")
+        assert "500" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_request_timeout_configuration(self, mock_async_client_class):
+        """Test request timeout configuration."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"response": "success"}
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        client = LLMClient(provider="ollama")
+        await client.send_query("test prompt")
+
+        # Verify timeout is set to 60 seconds
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["timeout"] == 60
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_openrouter_model_parameter_handling(self, mock_async_client_class):
+        """Test OpenRouter model parameter handling."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "model response"}}]
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        client = LLMClient(provider="openrouter", api_key="test-key")
+
+        # Test default model
+        await client.send_query("test prompt")
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["json"]["model"] == "meta-llama/llama-3.2-3b-instruct:free"
+
+        # Test model override in params
+        await client.send_query("test prompt", params={"model": "custom/model"})
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["json"]["model"] == "custom/model"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_provider_specific_headers(self, mock_async_client_class):
+        """Test provider-specific headers."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "response"}}]
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Test OpenRouter headers
+        client = LLMClient(provider="openrouter", api_key="test-key")
+        await client.send_query("test prompt")
+
+        _, kwargs = mock_client.post.call_args
+        headers = kwargs["headers"]
+        assert headers["Authorization"] == "Bearer test-key"
+        assert headers["HTTP-Referer"] == "https://dockerdeployer.com"
+        assert headers["X-Title"] == "DockerDeployer"
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_empty_and_none_responses(self, mock_async_client_class):
+        """Test handling of empty and None responses."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        client = LLMClient(provider="ollama")
+
+        # Test completely empty response
+        mock_response.json.return_value = {}
+        result = await client.send_query("test prompt")
+        assert result is None or result == ""
+
+        # Test None values in response
+        mock_response.json.return_value = {
+            "response": None,
+            "message": None,
+            "text": None
+        }
+        result = await client.send_query("test prompt")
+        assert result == ""
+
+        # Test OpenRouter with empty choices
+        client = LLMClient(provider="openrouter", api_key="test-key")
+        mock_response.json.return_value = {"choices": []}
+        result = await client.send_query("test prompt")
+        assert result == ""
+
+        # Test OpenRouter with None content
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": None}}]
+        }
+        result = await client.send_query("test prompt")
+        assert result == ""
+
+    def test_set_provider_comprehensive(self):
+        """Test comprehensive set_provider functionality."""
+        client = LLMClient()
+
+        # Test setting each provider type
+        providers_config = [
+            ("ollama", "http://custom-ollama:11434/api/generate", ""),
+            ("openrouter", "https://openrouter.ai/api/v1/chat/completions", "or-key"),
+            ("litellm", "http://custom-litellm:8001/generate", "lite-key"),
+            ("custom", "https://custom.api.com/v1", "custom-key")
+        ]
+
+        for provider, expected_url, api_key in providers_config:
+            client.set_provider(provider, api_url=expected_url, api_key=api_key)
+            assert client.provider == provider
+            assert client.api_url == expected_url
+            assert client.api_key == api_key
+
+        # Test setting provider without explicit URL/key (should use defaults)
+        client.set_provider("ollama")
+        assert client.provider == "ollama"
+        assert "localhost:11434" in client.api_url
+        assert client.api_key == ""
+
+    @pytest.mark.asyncio
+    async def test_unsupported_provider_error(self):
+        """Test error handling for unsupported providers."""
+        client = LLMClient(provider="unsupported_provider")
+
+        with pytest.raises(ValueError) as exc_info:
+            await client.send_query("test prompt")
+
+        assert "Unsupported LLM provider: unsupported_provider" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    @patch("httpx.AsyncClient")
+    async def test_context_parameter_handling(self, mock_async_client_class):
+        """Test context parameter handling across providers."""
+        mock_client = AsyncMock()
+        mock_client.__aenter__.return_value = mock_client
+        mock_client.__aexit__.return_value = None
+        mock_async_client_class.return_value = mock_client
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_client.post.return_value = mock_response
+
+        # Test Ollama (context not directly used in payload)
+        mock_response.json.return_value = {"response": "ollama response"}
+        client = LLMClient(provider="ollama")
+        await client.send_query("test prompt", context="test context")
+
+        _, kwargs = mock_client.post.call_args
+        # Ollama doesn't use context in the payload directly
+        assert "context" not in kwargs["json"]
+
+        # Test LiteLLM (context included in payload)
+        mock_response.json.return_value = {"response": "litellm response"}
+        client = LLMClient(provider="litellm", api_key="test-key")
+        await client.send_query("test prompt", context="test context")
+
+        _, kwargs = mock_client.post.call_args
+        assert kwargs["json"]["context"] == "test context"
+
+        # Test OpenRouter (context used in system message)
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "openrouter response"}}]
+        }
+        client = LLMClient(provider="openrouter", api_key="test-key")
+        await client.send_query("test prompt", context="test context")
+
+        _, kwargs = mock_client.post.call_args
+        messages = kwargs["json"]["messages"]
+        assert messages[0]["content"] == "test context"
+
 
 class TestResponseProcessingAndValidation:
     """Tests for LLM response processing and validation."""

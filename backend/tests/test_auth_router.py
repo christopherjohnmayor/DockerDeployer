@@ -3,7 +3,7 @@ Comprehensive tests for the authentication router.
 """
 
 from datetime import datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -528,7 +528,7 @@ class TestAuthRouter:
             json={
                 "username": "validuser",  # Use valid username
                 "email": "xss@example.com",
-                "password": "testpassword",
+                "password": "TestPassword123",  # Valid password with uppercase and digit
                 "full_name": "<script>alert('xss')</script>",  # XSS in full_name
             },
         )
@@ -543,7 +543,7 @@ class TestAuthRouter:
             json={
                 "username": "xssuser",
                 "email": "xss2@example.com",
-                "password": "testpassword",
+                "password": "TestPassword123",  # Valid password with uppercase and digit
                 "full_name": "javascript:alert('xss')",
             },
         )
@@ -557,7 +557,7 @@ class TestAuthRouter:
             json={
                 "username": "test&lt;script&gt;user",  # HTML entities in username
                 "email": "entity@example.com",
-                "password": "testpassword",
+                "password": "TestPassword123",  # Valid password with uppercase and digit
                 "full_name": "Entity User",
             },
         )
@@ -571,7 +571,7 @@ class TestAuthRouter:
             json={
                 "username": "user<div>test</div>",
                 "email": "htmltag@example.com",
-                "password": "testpassword",
+                "password": "TestPassword123",  # Valid password with uppercase and digit
                 "full_name": "HTML User",
             },
         )
@@ -588,7 +588,7 @@ class TestAuthRouter:
             json={
                 "username": "emptytest",
                 "email": "empty@example.com",
-                "password": "testpassword",
+                "password": "TestPassword123",  # Valid password with uppercase and digit
                 "full_name": "",  # Empty full name should be allowed
             },
         )
@@ -901,9 +901,10 @@ class TestAuthHelperFunctions:
         """Test email verification when service is not configured."""
         from app.auth.router import _send_email_verification
 
-        # Mock unconfigured email service
-        mock_email_service = AsyncMock()
-        mock_email_service.is_configured.return_value = False
+        # Mock unconfigured email service - use MagicMock for sync methods
+        mock_email_service = MagicMock()
+        mock_email_service.is_configured.return_value = False  # Sync method
+        mock_email_service.send_email = AsyncMock()  # Async method
         mock_get_service.return_value = mock_email_service
 
         # Call function (should not raise exception)
@@ -988,9 +989,10 @@ class TestAuthHelperFunctions:
         """Test password reset email when service is not configured."""
         from app.auth.router import _send_password_reset_email
 
-        # Mock unconfigured email service
-        mock_email_service = AsyncMock()
-        mock_email_service.is_configured.return_value = False
+        # Mock unconfigured email service - use MagicMock for sync methods
+        mock_email_service = MagicMock()
+        mock_email_service.is_configured.return_value = False  # Sync method
+        mock_email_service.send_email = AsyncMock()  # Async method
         mock_get_service.return_value = mock_email_service
 
         # Call function (should not raise exception)
@@ -1064,9 +1066,10 @@ class TestAuthHelperFunctions:
         """Test welcome email when service is not configured."""
         from app.auth.router import _send_welcome_email
 
-        # Mock unconfigured email service
-        mock_email_service = AsyncMock()
-        mock_email_service.is_configured.return_value = False
+        # Mock unconfigured email service - use MagicMock for sync methods
+        mock_email_service = MagicMock()
+        mock_email_service.is_configured.return_value = False  # Sync method
+        mock_email_service.send_email = AsyncMock()  # Async method
         mock_get_service.return_value = mock_email_service
 
         # Call function (should not raise exception)

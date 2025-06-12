@@ -148,10 +148,233 @@ class TestTemplatesLoader:
         mock_file.assert_called_once()
         mock_yaml_load.assert_called_once()
 
+    @patch("os.path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_load_template_metadata_yaml_error(self, mock_file, mock_exists):
+        """Test load_template_metadata with YAML parsing error."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_file.return_value.read.return_value = "invalid: yaml: content:"
+
+        with patch("yaml.safe_load") as mock_yaml_load:
+            mock_yaml_load.side_effect = yaml.YAMLError("Invalid YAML syntax")
+
+            # Test
+            result = load_template_metadata("invalid")
+
+            # Assertions
+            assert result is None
+            mock_file.assert_called_once()
+            mock_yaml_load.assert_called_once()
+
     @patch("templates.loader.os.path.exists")
     @patch("builtins.open", new_callable=mock_open)
     @patch("templates.loader.yaml.safe_load")
-    def test_load_template_metadata_yaml_error(self, mock_yaml_load, mock_file, mock_exists):
+    def test_load_template_metadata_file_read_error(self, mock_yaml_load, mock_file, mock_exists):
+        """Test load_template_metadata with file read error."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_file.side_effect = IOError("Permission denied")
+
+        # Test
+        result = load_template_metadata("error")
+
+        # Assertions
+        assert result is None
+        mock_file.assert_called_once()
+        mock_yaml_load.assert_not_called()
+
+    @patch("templates.loader.os.path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("templates.loader.yaml.safe_load")
+    def test_load_template_metadata_empty_yaml(self, mock_yaml_load, mock_file, mock_exists):
+        """Test load_template_metadata with empty YAML file."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_yaml_load.return_value = None
+
+        # Test
+        result = load_template_metadata("empty")
+
+        # Assertions
+        assert result is not None
+        assert result["name"] == "empty"
+        mock_file.assert_called_once()
+        mock_yaml_load.assert_called_once()
+
+    @patch("templates.loader.os.path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("templates.loader.yaml.safe_load")
+    def test_load_template_metadata_unicode_content(self, mock_yaml_load, mock_file, mock_exists):
+        """Test load_template_metadata with Unicode content."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_yaml_data = {
+            "title": "LEMP Stack 🐳",
+            "description": "Linux, Nginx, MySQL, PHP with émojis",
+            "category": "web",
+            "version": "1.0"
+        }
+        mock_yaml_load.return_value = mock_yaml_data
+
+        # Test
+        result = load_template_metadata("unicode")
+
+        # Assertions
+        assert result is not None
+        assert result["name"] == "unicode"
+        assert result["title"] == "LEMP Stack 🐳"
+        assert "émojis" in result["description"]
+
+    @patch("templates.loader.os.path.exists")
+    @patch("templates.loader.load_template_metadata")
+    def test_load_template_success(self, mock_load_metadata, mock_exists):
+        """Test successful template loading."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_metadata = {
+            "name": "lemp",
+            "title": "LEMP Stack",
+            "description": "Linux, Nginx, MySQL, PHP",
+            "category": "web",
+            "version": "1.0"
+        }
+        mock_load_metadata.return_value = mock_metadata
+
+        # Test
+        result = load_template("lemp")
+
+        # Assertions
+        assert result is not None
+        assert result["name"] == "lemp"
+        assert result["title"] == "LEMP Stack"
+        assert "path" in result
+        assert result["path"].endswith("lemp")
+        mock_load_metadata.assert_called_once_with("lemp")
+
+    @patch("templates.loader.os.path.exists")
+    def test_load_template_directory_not_found(self, mock_exists):
+        """Test load_template when template directory doesn't exist."""
+        # Setup mock
+        mock_exists.return_value = False
+
+        # Test
+        result = load_template("nonexistent")
+
+        # Assertions
+        assert result is None
+        mock_exists.assert_called_once()
+
+    @patch("templates.loader.os.path.exists")
+    @patch("templates.loader.load_template_metadata")
+    def test_load_template_metadata_not_found(self, mock_load_metadata, mock_exists):
+        """Test load_template when metadata loading fails."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_load_metadata.return_value = None
+
+        # Test
+        result = load_template("invalid")
+
+        # Assertions
+        assert result is None
+        mock_load_metadata.assert_called_once_with("invalid")
+
+    @patch("templates.loader.os.path.exists")
+    @patch("templates.loader.os.listdir")
+    @patch("templates.loader.os.path.isdir")
+    @patch("templates.loader.load_template_metadata")
+    def test_list_templates_mixed_entries(self, mock_load_metadata, mock_isdir, mock_listdir, mock_exists):
+        """Test list_templates with mixed files and directories."""
+        # Setup mocks
+        def mock_exists_check(path):
+            if path == TEMPLATES_DIR:
+                return True
+            elif path.endswith("template.yaml"):
+                return path.endswith("lemp/template.yaml") or path.endswith("wordpress/template.yaml")
+            return True
+
+        def mock_isdir_check(path):
+            return path.endswith("lemp") or path.endswith("wordpress")
+
+        mock_exists.side_effect = mock_exists_check
+        mock_listdir.return_value = ["lemp", "mean.txt", "wordpress", ".hidden", "README.md"]
+        mock_isdir.side_effect = mock_isdir_check
+
+        def mock_metadata(name):
+            if name in ["lemp", "wordpress"]:
+                return {
+                    "name": name,
+                    "title": f"{name.upper()} Stack",
+                    "description": f"Description for {name}",
+                    "category": "web",
+                    "version": "1.0"
+                }
+            return None
+
+        mock_load_metadata.side_effect = mock_metadata
+
+        # Test
+        result = list_templates()
+
+        # Assertions
+        assert len(result) == 2
+        template_names = [t["name"] for t in result]
+        assert "lemp" in template_names
+        assert "wordpress" in template_names
+        assert "mean.txt" not in template_names
+        assert ".hidden" not in template_names
+
+    @patch("templates.loader.os.path.exists")
+    @patch("templates.loader.os.listdir")
+    def test_list_templates_os_error(self, mock_listdir, mock_exists):
+        """Test list_templates with OS error."""
+        # Setup mocks
+        mock_exists.return_value = True
+        mock_listdir.side_effect = OSError("Disk error")
+
+        # Test
+        with patch("builtins.print") as mock_print:
+            result = list_templates()
+
+        # Assertions
+        assert result == []
+        mock_print.assert_called_once()
+        assert "Error reading templates directory" in mock_print.call_args[0][0]
+
+    def test_list_templates_default_templates_structure(self):
+        """Test the structure of default templates."""
+        with patch("os.path.exists") as mock_exists:
+            mock_exists.return_value = False
+
+            with patch("builtins.print"):
+                result = list_templates()
+
+            # Verify all default templates have required fields
+            for template in result:
+                assert "name" in template
+                assert "title" in template
+                assert "description" in template
+                assert "category" in template
+                assert "complexity" in template
+                assert "tags" in template
+                assert "version" in template
+                assert isinstance(template["tags"], list)
+                assert len(template["tags"]) > 0
+
+            # Verify specific default templates
+            lemp = next(t for t in result if t["name"] == "lemp")
+            assert lemp["title"] == "LEMP Stack"
+            assert lemp["category"] == "web"
+            assert "nginx" in lemp["tags"]
+
+            mean = next(t for t in result if t["name"] == "mean")
+            assert mean["title"] == "MEAN Stack"
+            assert "mongodb" in mean["tags"]
+
+            wordpress = next(t for t in result if t["name"] == "wordpress")
+            assert wordpress["title"] == "WordPress"
+            assert wordpress["category"] == "cms"
         """Test load_template_metadata when YAML parsing fails."""
         # Setup mocks
         mock_exists.return_value = True

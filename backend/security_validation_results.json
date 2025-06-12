@@ -1,0 +1,45 @@
+{
+  "CORS Configuration": {
+    "passed": true,
+    "message": "\u2705 CORS properly configured with specific origins",
+    "score": 10
+  },
+  "Security Headers": {
+    "passed": true,
+    "message": "\u26a0\ufe0f Partial security headers (1/5 patterns found)",
+    "score": 8
+  },
+  "Input Sanitization": {
+    "passed": true,
+    "message": "\u2705 Input sanitization implemented: Pydantic models, HTML escaping, SQLAlchemy ORM",
+    "score": 15
+  },
+  "Authentication Security": {
+    "passed": true,
+    "message": "\u2705 Strong authentication: JWT tokens, Password hashing, RBAC",
+    "score": 20
+  },
+  "Rate Limiting": {
+    "passed": true,
+    "message": "\u26a0\ufe0f Basic rate limiting: rate_limit",
+    "score": 8
+  },
+  "Environment Security": {
+    "passed": true,
+    "message": "\u26a0\ufe0f Basic environment security. Issues: Potential hardcoded passwords",
+    "score": 5
+  },
+  "Dependency Security": {
+    "passed": true,
+    "message": "\u2705 Security dependencies found: cryptography, bcrypt, passlib, python-jose",
+    "score": 10
+  },
+  "Docker Security": {
+    "passed": true,
+    "message": "\u26a0\ufe0f Basic Docker security: Minimal base image, Multi-stage build",
+    "score": 5
+  },
+  "total_score": 81,
+  "max_score": 100,
+  "percentage": 81.0
+}

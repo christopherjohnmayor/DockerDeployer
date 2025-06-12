@@ -3,7 +3,7 @@ Tests for the Docker manager module.
 """
 
 from datetime import datetime
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import docker
 import pytest
@@ -513,6 +513,532 @@ class TestDockerManager:
         ]
 
         result = manager.get_container_stats("test_container_id")
+        assert "error" in result
+        assert "Failed to get stats" in result["error"]
+
+    @patch("docker.from_env")
+    def test_get_multiple_container_stats_success(self, mock_from_env, mock_docker_client):
+        """Test getting stats for multiple containers successfully."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock containers
+        mock_container1 = Mock()
+        mock_container1.id = "container1"
+        mock_container1.name = "test1"
+        mock_container1.status = "running"
+
+        mock_container2 = Mock()
+        mock_container2.id = "container2"
+        mock_container2.name = "test2"
+        mock_container2.status = "running"
+
+        def mock_get_container(container_id):
+            if container_id == "container1":
+                return mock_container1
+            elif container_id == "container2":
+                return mock_container2
+            else:
+                raise NotFound("Container not found")
+
+        mock_docker_client.containers.get.side_effect = mock_get_container
+
+        # Mock stats for both containers
+        mock_stats = {
+            "cpu_stats": {"cpu_usage": {"total_usage": 1000000}, "system_cpu_usage": 2000000, "online_cpus": 1},
+            "precpu_stats": {"cpu_usage": {"total_usage": 900000}, "system_cpu_usage": 1900000},
+            "memory_stats": {"usage": 1024, "limit": 2048},
+            "networks": {"eth0": {"rx_bytes": 100, "tx_bytes": 200}},
+            "blkio_stats": {"io_service_bytes_recursive": []}
+        }
+
+        mock_container1.stats.return_value = mock_stats
+        mock_container2.stats.return_value = mock_stats
+
+        manager = DockerManager()
+        result = manager.get_multiple_container_stats(["container1", "container2"])
+
+        assert len(result) == 2
+        assert "container1" in result
+        assert "container2" in result
+        assert result["container1"]["container_id"] == "container1"
+        assert result["container2"]["container_id"] == "container2"
+
+    @patch("docker.from_env")
+    def test_get_multiple_container_stats_with_errors(self, mock_from_env, mock_docker_client):
+        """Test getting stats for multiple containers with some errors."""
+        mock_from_env.return_value = mock_docker_client
+
+        def mock_get_container(container_id):
+            if container_id == "valid_container":
+                mock_container = Mock()
+                mock_container.id = "valid_container"
+                mock_container.name = "valid"
+                mock_container.status = "running"
+                mock_container.stats.return_value = {
+                    "cpu_stats": {"cpu_usage": {"total_usage": 1000000}},
+                    "memory_stats": {"usage": 1024}
+                }
+                return mock_container
+            else:
+                raise NotFound("Container not found")
+
+        mock_docker_client.containers.get.side_effect = mock_get_container
+
+        manager = DockerManager()
+        result = manager.get_multiple_container_stats(["valid_container", "invalid_container"])
+
+        assert len(result) == 2
+        assert "valid_container" in result
+        assert "invalid_container" in result
+        assert "container_id" in result["valid_container"]
+        assert "error" in result["invalid_container"]
+        assert "not found" in result["invalid_container"]["error"]
+
+    @patch("docker.from_env")
+    def test_get_aggregated_metrics_success(self, mock_from_env, mock_docker_client):
+        """Test getting aggregated metrics successfully."""
+        mock_from_env.return_value = mock_docker_client
+
+        # Mock containers with different stats
+        def mock_get_container(container_id):
+            mock_container = Mock()
+            mock_container.id = container_id
+            mock_container.name = f"container_{container_id}"
+            mock_container.status = "running"
+
+            # Different stats for each container
+            if container_id == "container1":
+                mock_container.stats.return_value = {
+                    "cpu_stats": {"cpu_usage": {"total_usage": 2000000}, "system_cpu_usage": 4000000, "online_cpus": 2},
+                    "precpu_stats": {"cpu_usage": {"total_usage": 1000000}, "system_cpu_usage": 2000000},
+                    "memory_stats": {"usage": 1073741824, "limit": 2147483648},  # 1GB / 2GB
+                    "networks": {"eth0": {"rx_bytes": 1024, "tx_bytes": 2048}},
+                    "blkio_stats": {"io_service_bytes_recursive": [
+                        {"op": "Read", "value": 4096}, {"op": "Write", "value": 8192}
+                    ]}
+                }
+            else:
+                mock_container.stats.return_value = {
+                    "cpu_stats": {"cpu_usage": {"total_usage": 3000000}, "system_cpu_usage": 6000000, "online_cpus": 2},
+                    "precpu_stats": {"cpu_usage": {"total_usage": 2000000}, "system_cpu_usage": 4000000},
+                    "memory_stats": {"usage": 536870912, "limit": 1073741824},  # 512MB / 1GB
+                    "networks": {"eth0": {"rx_bytes": 2048, "tx_bytes": 4096}},
+                    "blkio_stats": {"io_service_bytes_recursive": [
+                        {"op": "Read", "value": 8192}, {"op": "Write", "value": 16384}
+                    ]}
+                }
+            return mock_container
+
+        mock_docker_client.containers.get.side_effect = mock_get_container
+
+        manager = DockerManager()
+        result = manager.get_aggregated_metrics(["container1", "container2"])
+
+        assert "timestamp" in result
+        assert result["container_count"] == 2
+        assert result["total_containers"] == 2
+        assert "aggregated_metrics" in result
+
+        metrics = result["aggregated_metrics"]
+        assert "avg_cpu_percent" in metrics
+        assert "total_memory_usage" in metrics
+        assert "total_memory_limit" in metrics
+        assert "avg_memory_percent" in metrics
+        assert "total_network_rx_bytes" in metrics
+        assert "total_network_tx_bytes" in metrics
+        assert "total_block_read_bytes" in metrics
+        assert "total_block_write_bytes" in metrics
+
+        # Verify aggregated values
+        assert metrics["total_memory_usage"] == 1073741824 + 536870912  # 1GB + 512MB
+        assert metrics["total_memory_limit"] == 2147483648 + 1073741824  # 2GB + 1GB
+        assert metrics["total_network_rx_bytes"] == 1024 + 2048
+        assert metrics["total_network_tx_bytes"] == 2048 + 4096
+        assert metrics["total_block_read_bytes"] == 4096 + 8192
+        assert metrics["total_block_write_bytes"] == 8192 + 16384
+
+        assert "individual_stats" in result
+        assert len(result["individual_stats"]) == 2
+
+    @patch("docker.from_env")
+    def test_get_aggregated_metrics_with_errors(self, mock_from_env, mock_docker_client):
+        """Test getting aggregated metrics with some container errors."""
+        mock_from_env.return_value = mock_docker_client
+
+        def mock_get_container(container_id):
+            if container_id == "valid_container":
+                mock_container = Mock()
+                mock_container.id = "valid_container"
+                mock_container.name = "valid"
+                mock_container.status = "running"
+                mock_container.stats.return_value = {
+                    "cpu_stats": {"cpu_usage": {"total_usage": 1000000}},
+                    "memory_stats": {"usage": 1024, "limit": 2048}
+                }
+                return mock_container
+            else:
+                raise NotFound("Container not found")
+
+        mock_docker_client.containers.get.side_effect = mock_get_container
+
+        manager = DockerManager()
+        result = manager.get_aggregated_metrics(["valid_container", "invalid_container"])
+
+        assert result["container_count"] == 1  # Only valid container counted
+        assert result["total_containers"] == 2  # Total requested
+        assert "aggregated_metrics" in result
+        assert "individual_stats" in result
+        assert len(result["individual_stats"]) == 2
+
+    @patch("docker.from_env")
+    def test_get_aggregated_metrics_no_valid_containers(self, mock_from_env, mock_docker_client):
+        """Test getting aggregated metrics with no valid containers."""
+        mock_from_env.return_value = mock_docker_client
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+
+        manager = DockerManager()
+        result = manager.get_aggregated_metrics(["invalid1", "invalid2"])
+
+        assert result["container_count"] == 0
+        assert result["total_containers"] == 2
+        assert result["aggregated_metrics"]["avg_cpu_percent"] == 0
+        assert result["aggregated_metrics"]["avg_memory_percent"] == 0
+
+    @patch("docker.from_env")
+    def test_get_aggregated_metrics_exception(self, mock_from_env, mock_docker_client):
+        """Test getting aggregated metrics with exception."""
+        mock_from_env.return_value = mock_docker_client
+        mock_docker_client.containers.get.side_effect = Exception("Unexpected error")
+
+        manager = DockerManager()
+        result = manager.get_aggregated_metrics(["container1"])
+
+        # The method doesn't fail completely, it returns aggregated results with individual errors
+        assert result["container_count"] == 0
+        assert "individual_stats" in result
+        assert "error" in result["individual_stats"]["container1"]
+
+    @patch("docker.from_env")
+    async def test_get_streaming_stats_success(self, mock_from_env, mock_docker_client):
+        """Test getting streaming stats successfully."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container"
+        mock_container.name = "test"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock streaming stats generator
+        def mock_stats_generator():
+            yield {"cpu_stats": {"cpu_usage": {"total_usage": 1000000}}, "memory_stats": {"usage": 1024}}
+            yield {"cpu_stats": {"cpu_usage": {"total_usage": 2000000}}, "memory_stats": {"usage": 2048}}
+
+        mock_container.stats.return_value = mock_stats_generator()
+
+        manager = DockerManager()
+        stats_generator = manager.get_streaming_stats("test_container")
+
+        # Get first two stats
+        stats1 = await stats_generator.__anext__()
+        stats2 = await stats_generator.__anext__()
+
+        assert stats1["container_id"] == "test_container"
+        assert stats2["container_id"] == "test_container"
+        assert "timestamp" in stats1
+        assert "timestamp" in stats2
+
+    @patch("docker.from_env")
+    async def test_get_streaming_stats_not_found(self, mock_from_env, mock_docker_client):
+        """Test getting streaming stats for non-existent container."""
+        mock_from_env.return_value = mock_docker_client
+        mock_docker_client.containers.get.side_effect = NotFound("Container not found")
+
+        manager = DockerManager()
+        stats_generator = manager.get_streaming_stats("nonexistent")
+
+        error_result = await stats_generator.__anext__()
+        assert "error" in error_result
+        assert "not found" in error_result["error"]
+
+    @patch("docker.from_env")
+    async def test_get_streaming_stats_api_error(self, mock_from_env, mock_docker_client):
+        """Test getting streaming stats with API error."""
+        mock_from_env.return_value = mock_docker_client
+        mock_docker_client.containers.get.side_effect = APIError("API error")
+
+        manager = DockerManager()
+        stats_generator = manager.get_streaming_stats("test_container")
+
+        error_result = await stats_generator.__anext__()
+        assert "error" in error_result
+        assert "API error" in error_result["error"]
+
+    @patch("docker.from_env")
+    async def test_get_streaming_stats_bytes_parsing(self, mock_from_env, mock_docker_client):
+        """Test streaming stats with bytes response parsing."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container"
+        mock_container.name = "test"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock streaming stats generator with bytes
+        def mock_stats_generator():
+            yield b'{"cpu_stats": {"cpu_usage": {"total_usage": 1000000}}, "memory_stats": {"usage": 1024}}'
+
+        mock_container.stats.return_value = mock_stats_generator()
+
+        manager = DockerManager()
+        stats_generator = manager.get_streaming_stats("test_container")
+
+        stats = await stats_generator.__anext__()
+        assert stats["container_id"] == "test_container"
+        assert "timestamp" in stats
+
+    @patch("docker.from_env")
+    def test_parse_container_stats_comprehensive(self, mock_from_env, mock_docker_client):
+        """Test comprehensive container stats parsing."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container"
+        mock_container.name = "test_name"
+        mock_container.status = "running"
+
+        manager = DockerManager()
+
+        # Test with comprehensive stats data
+        comprehensive_stats = {
+            "cpu_stats": {
+                "cpu_usage": {"total_usage": 2000000000},
+                "system_cpu_usage": 4000000000,
+                "online_cpus": 4
+            },
+            "precpu_stats": {
+                "cpu_usage": {"total_usage": 1000000000},
+                "system_cpu_usage": 2000000000
+            },
+            "memory_stats": {
+                "usage": 1073741824,  # 1GB
+                "limit": 2147483648   # 2GB
+            },
+            "networks": {
+                "eth0": {"rx_bytes": 1024, "tx_bytes": 2048},
+                "eth1": {"rx_bytes": 512, "tx_bytes": 1024}
+            },
+            "blkio_stats": {
+                "io_service_bytes_recursive": [
+                    {"op": "Read", "value": 4096},
+                    {"op": "Write", "value": 8192},
+                    {"op": "Read", "value": 2048},
+                    {"op": "Write", "value": 4096}
+                ]
+            }
+        }
+
+        result = manager._parse_container_stats(comprehensive_stats, mock_container)
+
+        assert result["container_id"] == "test_container"
+        assert result["container_name"] == "test_name"
+        assert result["status"] == "running"
+        assert result["cpu_percent"] == 200.0  # (2000000000-1000000000)/(4000000000-2000000000)*4*100
+        assert result["memory_usage"] == 1073741824
+        assert result["memory_limit"] == 2147483648
+        assert result["memory_percent"] == 50.0  # 1GB/2GB * 100
+        assert result["network_rx_bytes"] == 1536  # 1024 + 512
+        assert result["network_tx_bytes"] == 3072  # 2048 + 1024
+        assert result["block_read_bytes"] == 6144   # 4096 + 2048
+        assert result["block_write_bytes"] == 12288 # 8192 + 4096
+        assert "timestamp" in result
+
+    @patch("docker.from_env")
+    def test_parse_container_stats_missing_data(self, mock_from_env, mock_docker_client):
+        """Test container stats parsing with missing data."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container"
+        mock_container.name = "test_name"
+        mock_container.status = "running"
+
+        manager = DockerManager()
+
+        # Test with minimal stats data
+        minimal_stats = {
+            "cpu_stats": {},
+            "precpu_stats": {},
+            "memory_stats": {},
+            "networks": {},
+            "blkio_stats": {}
+        }
+
+        result = manager._parse_container_stats(minimal_stats, mock_container)
+
+        assert result["container_id"] == "test_container"
+        assert result["cpu_percent"] == 0.0
+        assert result["memory_usage"] == 0
+        assert result["memory_limit"] == 0
+        assert result["memory_percent"] == 0.0
+        assert result["network_rx_bytes"] == 0
+        assert result["network_tx_bytes"] == 0
+        assert result["block_read_bytes"] == 0
+        assert result["block_write_bytes"] == 0
+
+    @patch("docker.from_env")
+    def test_parse_container_stats_exception_handling(self, mock_from_env, mock_docker_client):
+        """Test container stats parsing exception handling."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test with None container (should handle gracefully)
+        result = manager._parse_container_stats({}, None)
+
+        assert "error" in result
+        assert "Failed to parse stats" in result["error"]
+        assert "timestamp" in result
+
+    @patch("docker.from_env")
+    def test_calculate_cpu_percent_comprehensive(self, mock_from_env, mock_docker_client):
+        """Test comprehensive CPU percentage calculation scenarios."""
+        mock_from_env.return_value = mock_docker_client
+
+        manager = DockerManager()
+
+        # Test normal calculation
+        cpu_stats = {
+            "cpu_usage": {"total_usage": 2000000000},
+            "system_cpu_usage": 4000000000,
+            "online_cpus": 2
+        }
+        precpu_stats = {
+            "cpu_usage": {"total_usage": 1000000000},
+            "system_cpu_usage": 2000000000
+        }
+
+        result = manager._calculate_cpu_percent(cpu_stats, precpu_stats)
+        assert result == 100.0  # (2000000000-1000000000)/(4000000000-2000000000)*2*100
+
+        # Test with zero CPU delta
+        cpu_stats["cpu_usage"]["total_usage"] = 1000000000  # Same as precpu
+        result = manager._calculate_cpu_percent(cpu_stats, precpu_stats)
+        assert result == 0.0
+
+        # Test with zero system delta
+        cpu_stats["system_cpu_usage"] = 2000000000  # Same as precpu
+        result = manager._calculate_cpu_percent(cpu_stats, precpu_stats)
+        assert result == 0.0
+
+        # Test with missing keys
+        result = manager._calculate_cpu_percent({}, {})
+        assert result == 0.0
+
+        # Test with malformed data (should handle gracefully)
+        try:
+            malformed_cpu = {"cpu_usage": "invalid"}
+            malformed_precpu = {"cpu_usage": None}
+            result = manager._calculate_cpu_percent(malformed_cpu, malformed_precpu)
+            assert result == 0.0
+        except (AttributeError, TypeError):
+            # This is expected behavior for malformed data
+            pass
+
+    @patch("docker.from_env")
+    def test_container_operations_api_errors(self, mock_from_env, mock_docker_client):
+        """Test container operations with various API errors."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test start container with API error
+        mock_container.start.side_effect = APIError("Cannot start container")
+        result = manager.start_container("test_container")
+        assert "error" in result
+        assert "Cannot start container" in result["error"]
+
+        # Test stop container with API error
+        mock_container.stop.side_effect = APIError("Cannot stop container")
+        result = manager.stop_container("test_container")
+        assert "error" in result
+        assert "Cannot stop container" in result["error"]
+
+        # Test restart container with API error
+        mock_container.restart.side_effect = APIError("Cannot restart container")
+        result = manager.restart_container("test_container")
+        assert "error" in result
+        assert "Cannot restart container" in result["error"]
+
+    @patch("docker.from_env")
+    def test_get_logs_with_tail_parameter(self, mock_from_env, mock_docker_client):
+        """Test getting logs with different tail parameters."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.logs.return_value = b"Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        manager = DockerManager()
+
+        # Test with default tail
+        result = manager.get_logs("test_container")
+        assert result["logs"] == "Line 1\nLine 2\nLine 3\nLine 4\nLine 5"
+        mock_container.logs.assert_called_with(tail=100)
+
+        # Test with custom tail
+        result = manager.get_logs("test_container", tail=50)
+        mock_container.logs.assert_called_with(tail=50)
+
+    @patch("docker.from_env")
+    def test_get_container_stats_dict_response(self, mock_from_env, mock_docker_client):
+        """Test container stats with direct dict response."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_container.id = "test_container"
+        mock_container.name = "test"
+        mock_container.status = "running"
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock direct dict response (newer Docker SDK)
+        mock_stats_dict = {
+            "cpu_stats": {"cpu_usage": {"total_usage": 1000000}},
+            "memory_stats": {"usage": 1024}
+        }
+        mock_container.stats.return_value = mock_stats_dict
+
+        manager = DockerManager()
+        result = manager.get_container_stats("test_container")
+
+        assert result["container_id"] == "test_container"
+        assert "timestamp" in result
+
+    @patch("docker.from_env")
+    def test_get_container_stats_no_stats_available(self, mock_from_env, mock_docker_client):
+        """Test container stats when no stats are available."""
+        mock_from_env.return_value = mock_docker_client
+
+        mock_container = Mock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Mock empty generator
+        def empty_generator():
+            return
+            yield  # This will never be reached
+
+        mock_container.stats.side_effect = [
+            Exception("stream=False failed"),
+            empty_generator()
+        ]
+
+        manager = DockerManager()
+        result = manager.get_container_stats("test_container")
+
         assert "error" in result
         assert "Failed to get stats" in result["error"]
 

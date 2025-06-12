@@ -8,6 +8,15 @@
 .env.production
 .env.staging
 
+# Security files
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+secrets/
+private/
+
 # Database files
 *.db
 *.sqlite

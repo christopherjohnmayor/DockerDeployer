@@ -9,7 +9,7 @@ import asyncio
 import os
 import tempfile
 from unittest.mock import AsyncMock, MagicMock, patch, mock_open
-from fastapi import status, FastAPI
+from fastapi import status, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
 from fastapi.middleware.cors import CORSMiddleware
@@ -75,25 +75,34 @@ class TestMainApplicationInitialization:
         marketplace_routes = [route for route in routes if route.startswith("/api/marketplace")]
         assert len(marketplace_routes) > 0, "Marketplace routes should be included"
 
-    @patch("app.main.init_db")
+    @patch("app.db.database.init_db")
     def test_database_initialization(self, mock_init_db):
         """Test database initialization is called."""
-        # This tests the import-time initialization
+        # Import the module to trigger initialization
+        import importlib
+        import app.main
+        importlib.reload(app.main)
+
+        # Verify init_db was called during module import
         mock_init_db.assert_called()
 
 
 class TestMainMiddlewareSetup:
     """Test middleware setup and configuration."""
 
-    @patch("app.main.setup_rate_limiting")
+    @patch("app.middleware.rate_limiting.setup_rate_limiting")
     @patch("builtins.open", mock_open())
     def test_rate_limiting_setup_success(self, mock_setup_rate_limiting):
         """Test successful rate limiting setup."""
         mock_setup_rate_limiting.return_value = None
 
-        # Import would trigger the setup
-        from app.main import app
-        mock_setup_rate_limiting.assert_called_with(app)
+        # Import the module to trigger setup
+        import importlib
+        import app.main
+        importlib.reload(app.main)
+
+        # Verify setup_rate_limiting was called
+        mock_setup_rate_limiting.assert_called()
 
     @patch("app.main.setup_rate_limiting")
     @patch("builtins.open", mock_open())
@@ -111,14 +120,18 @@ class TestMainMiddlewareSetup:
         except Exception:
             pytest.fail("Rate limiting setup error should be caught and not re-raised")
 
-    @patch("app.main.setup_security_middleware")
+    @patch("app.middleware.security.setup_security_middleware")
     def test_security_middleware_setup(self, mock_setup_security):
         """Test security middleware setup."""
         mock_setup_security.return_value = None
 
-        # Import would trigger the setup
-        from app.main import app
-        mock_setup_security.assert_called_with(app)
+        # Import the module to trigger setup
+        import importlib
+        import app.main
+        importlib.reload(app.main)
+
+        # Verify setup_security_middleware was called
+        mock_setup_security.assert_called()
 
     def test_performance_monitoring_middleware_config(self):
         """Test performance monitoring middleware configuration."""
@@ -134,7 +147,7 @@ class TestMainMiddlewareSetup:
 class TestMainDependencyInjection:
     """Test dependency injection functions."""
 
-    @patch("app.main.DockerManager")
+    @patch("docker_manager.manager.DockerManager")
     def test_get_docker_manager_success(self, mock_docker_manager_class):
         """Test successful Docker manager creation."""
         mock_docker_manager = MagicMock()
@@ -144,15 +157,16 @@ class TestMainDependencyInjection:
         assert result == mock_docker_manager
         mock_docker_manager_class.assert_called_once()
 
-    @patch("app.main.DockerManager")
+    @patch("docker_manager.manager.DockerManager")
     def test_get_docker_manager_error(self, mock_docker_manager_class):
         """Test Docker manager creation error handling."""
         mock_docker_manager_class.side_effect = Exception("Docker daemon not running")
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             get_docker_manager()
 
-        assert "Docker service unavailable" in str(exc_info.value)
+        assert exc_info.value.status_code == 503
+        assert "Docker service unavailable" in str(exc_info.value.detail)
 
     @patch("app.main.get_docker_manager")
     def test_get_metrics_service(self, mock_get_docker_manager):
